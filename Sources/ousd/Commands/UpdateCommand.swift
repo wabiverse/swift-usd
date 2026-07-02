@@ -1091,6 +1091,7 @@ public enum Pxr: String, CaseIterable
         ("pxr/usd/usd/",      "Usd/"),
         ("pxr/usd/usdGeom/",  "UsdGeom/"),
         ("pxr/usd/usdShade/", "UsdShade/"),
+        ("pxr/usd/usdLod/",   "UsdLod/"),
         ("pxr/usd/usdLux/",   "UsdLux/"),
         ("pxr/usd/usdSkel/",  "UsdSkel/"),
         ("pxr/usd/usdVol/",   "UsdVol/"),
