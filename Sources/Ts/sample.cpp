@@ -41,13 +41,20 @@ void _SetKnotDataPreValues(
     Ts_DoubleKnotData& data
 ) {
     data.time = segment.p1[0];
-
     data.preTanAlgorithm = TsTangentAlgorithmNone;
-    data.preTanWidth = segment.p1[0] - segment.t1[0];
-    data.preTanSlope =
-        data.preTanWidth == 0
-        ? 0
-        : (segment.p1[1] - segment.t1[1]) / data.preTanWidth;
+
+    if (segment.interp == Ts_SegmentInterp::PreExtrap ||
+        segment.interp == Ts_SegmentInterp::ValueBlock)
+    {
+        data.preTanWidth = 0.0;
+        data.preTanSlope = 0.0;
+    } else {
+        data.preTanWidth = segment.p1[0] - segment.t1[0];
+        data.preTanSlope =
+            data.preTanWidth == 0
+            ? 0
+            : (segment.p1[1] - segment.t1[1]) / data.preTanWidth;
+    }
 
     data.preValue = segment.p1[1];
 }
@@ -59,13 +66,20 @@ void _SetKnotDataValues(
     Ts_DoubleKnotData& data
 ) {
     data.time = segment.p0[0];
-
     data.postTanAlgorithm = TsTangentAlgorithmNone;
-    data.postTanWidth = segment.t0[0] - segment.p0[0];
-    data.postTanSlope =
-        data.postTanWidth == 0
-        ? 0
-        : (segment.t0[1] - segment.p0[1]) / data.postTanWidth;
+
+    if (segment.interp == Ts_SegmentInterp::PostExtrap ||
+        segment.interp == Ts_SegmentInterp::ValueBlock)
+    {
+        data.postTanWidth = 0.0;
+        data.postTanSlope = 0.0;
+    } else {
+        data.postTanWidth = segment.t0[0] - segment.p0[0];
+        data.postTanSlope =
+            data.postTanWidth == 0
+            ? 0
+            : (segment.t0[1] - segment.p0[1]) / data.postTanWidth;
+    }
 
     if (segment.p1[0] != +inf) {
         data.nextInterp = segment.GetInterpMode();

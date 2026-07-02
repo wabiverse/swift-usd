@@ -313,6 +313,10 @@ struct UsdGeomTokensType {
     /// 
     /// UsdGeomCamera
     const TfToken fStop;
+    /// \brief "full"
+    /// 
+    /// Possible value for UsdGeomModelAPI::GetModelCardVisibilityAttr()
+    const TfToken full;
     /// \brief "guide"
     /// 
     /// Possible value for UsdGeomImageable::GetPurposeAttr()
@@ -355,7 +359,7 @@ struct UsdGeomTokensType {
     const TfToken indices;
     /// \brief "inherited"
     /// 
-    /// Fallback value for UsdGeomImageable::GetVisibilityAttr(), Possible value for UsdGeomVisibilityAPI::GetGuideVisibilityAttr(), Fallback value for UsdGeomVisibilityAPI::GetProxyVisibilityAttr(), Fallback value for UsdGeomVisibilityAPI::GetRenderVisibilityAttr(), Fallback value for UsdGeomModelAPI::GetModelDrawModeAttr()
+    /// Fallback value for UsdGeomImageable::GetVisibilityAttr(), Possible value for UsdGeomVisibilityAPI::GetGuideVisibilityAttr(), Fallback value for UsdGeomVisibilityAPI::GetProxyVisibilityAttr(), Fallback value for UsdGeomVisibilityAPI::GetRenderVisibilityAttr(), Fallback value for UsdGeomModelAPI::GetModelCardVisibilityAttr(), Fallback value for UsdGeomModelAPI::GetModelDrawModeAttr()
     const TfToken inherited;
     /// \brief "interpolateBoundary"
     /// 
@@ -433,6 +437,10 @@ struct UsdGeomTokensType {
     /// 
     /// UsdGeomModelAPI
     const TfToken modelCardTextureZPos;
+    /// \brief "model:cardVisibility"
+    /// 
+    /// UsdGeomModelAPI
+    const TfToken modelCardVisibility;
     /// \brief "model:drawMode"
     /// 
     /// UsdGeomModelAPI
@@ -629,6 +637,10 @@ struct UsdGeomTokensType {
     /// 
     /// UsdGeomCamera
     const TfToken shutterOpen;
+    /// \brief "simple"
+    /// 
+    /// Possible value for UsdGeomModelAPI::GetModelCardVisibilityAttr()
+    const TfToken simple;
     /// \brief "size"
     /// 
     /// UsdGeomCube

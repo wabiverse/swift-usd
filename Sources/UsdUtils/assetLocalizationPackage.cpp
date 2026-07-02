@@ -14,6 +14,7 @@
 #include "Ar/resolver.h"
 #include "Sdf/layerUtils.h"
 #include "Sdf/usdFileFormat.h"
+#include "Sdf/variableExpression.h"
 #include "Usd/stage.h"
 #include "UsdShade/udimUtils.h"
 #include "UsdUtils/assetLocalization.h"
@@ -75,7 +76,7 @@ UsdUtils_AssetLocalizationPackage::PathShouldResolve(const std::string &path) {
         return false;
     }
 
-    return true;
+    return UsdUtils_LocalizationClient::PathShouldResolve(path);
 }
 
 bool 
@@ -219,7 +220,13 @@ UsdUtils_AssetLocalizationPackage::_AddDependenciesToPackage(
     const std::string destDirectory = TfGetPathName(packagePath);
 
     if (depInfo.GetDependencies().empty()) {
-        _AddDependencyToPackage(layer, depInfo.GetAssetPath(), destDirectory);
+        // The user processing function may have introduced a variable
+        // expression. If that is the case we do not want to attempt to add
+        // this file into the package.
+        if (!SdfVariableExpression::IsExpression(depInfo.GetAssetPath())) {
+            _AddDependencyToPackage(layer, depInfo.GetAssetPath(), 
+                destDirectory);
+        }
     }
     else {
         for (const auto &dependency : depInfo.GetDependencies()) {

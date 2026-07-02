@@ -12,6 +12,7 @@
 #include "UsdImaging/materialBindingsSchema.h"
 #include "UsdImaging/modelSchema.h"
 #include "UsdImaging/sceneIndexPlugin.h"
+#include "UsdImaging/usdUpAxisSchema.h"
 
 #include "Hd/flattenedDataSourceProviders.h"
 #include "Hd/flattenedOverlayDataSourceProvider.h"
@@ -37,6 +38,9 @@ _UsdFlattenedDataSourceProviders()
             Make<UsdImagingFlattenedGeomModelDataSourceProvider>(),
 
             UsdImagingModelSchema::GetSchemaToken(),
+            Make<HdFlattenedOverlayDataSourceProvider>(),
+
+            UsdImagingUsdUpAxisSchema::GetSchemaToken(),
             Make<HdFlattenedOverlayDataSourceProvider>());
 }
 

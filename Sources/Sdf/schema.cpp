@@ -31,6 +31,7 @@
 #include "Vt/dictionary.h"
 
 #include <deque>
+#include <iterator>
 #include <map>
 #include <set>
 #include <vector>
@@ -1532,13 +1533,15 @@ _AccumulateTypedValues(const JsValue &value, std::deque<Value> *values) {
 // calls to BeginTuple(), EndTuple(), and TupleItem() in between calls to
 // AppendValue().
 static void
-_AddValuesToValueContext(std::deque<Value> *values, Sdf_ParserValueContext *context, int level = 0) {
+_AddValuesToValueContext(std::deque<Value> *values,
+                         Sdf_ParserValueContext *context, size_t level = 0) {
     if (context->valueTupleDimensions.size == 0) {
         while (!values->empty()) {
             context->AppendValue(values->front());
             values->pop_front();
         }
-    } else if (static_cast<size_t>(level) < context->valueTupleDimensions.size) {
+    } else if (level < context->valueTupleDimensions.size) {
+        TF_AXIOM(level < std::size(context->valueTupleDimensions.d));
         context->BeginTuple();
         for (size_t i = 0; i < context->valueTupleDimensions.d[level]; i++) {
             _AddValuesToValueContext(values, context, level + 1);

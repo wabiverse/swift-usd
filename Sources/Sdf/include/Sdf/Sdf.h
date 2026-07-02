@@ -8,6 +8,7 @@
 #include <Sdf/fileFormat.h>
 #include <Sdf/pyMapEditProxy.h>
 #include <Sdf/fileFormatRegistry.h>
+#include <Sdf/globPattern.h>
 #include <Sdf/pathPatternParser.h>
 #include <Sdf/attributeSpec.h>
 #include <Sdf/layerOffset.h>

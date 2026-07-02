@@ -101,9 +101,14 @@ public:
     template <typename T>
     bool IsHolding() const;
 
+    /// \deprecated
+    /// Deprecated in favor of constructing the TsSpline with a value type
+    /// of GfTimeCode.
     TS_API
     void SetTimeValued(bool timeValued);
 
+    /// Convenience function that returns true if the value type of the
+    /// spline is GfTimeCode.
     TS_API
     bool IsTimeValued() const;
 
@@ -195,6 +200,7 @@ public:
     /// \name Knots
     /// @{
 
+    /// Clears existing knots and sets the given knots.
     TS_API
     void SetKnots(
         const TsKnotMap &knots);
@@ -513,6 +519,55 @@ public:
         TsExtrapolation postFallback = TsExtrapolation(TsExtrapValueBlock)
     ) const;
 
+    /// Returns a new spline resulting from time scaling the knots of a given
+    /// spline, applying first the scale factor and then adding the offset.
+    ///
+    /// Knot times, tangent widths, tangent slopes, and spline extrapolation
+    /// slopes are scaled on non-time-valued splines. If the spline is
+    /// time-valued, knot times and values, pre-values, and tangent widths
+    /// are scaled but tangent slopes and spline extrapolation slopes are not.
+    ///
+    /// If the scale is negative, any inner loops are first baked out. Because
+    /// of this, reversing a reversed spline is not guaranteed to produce the
+    /// original spline
+    ///
+    /// Issues a coding error and returns an empty spline if timeScale is 0
+    TS_API
+    TsSpline GetTimeScaled(double timeScale, double timeOffset) const;
+
+    /// Returns a spline resulting from the concatenation of the given splines.
+    ///
+    /// Splines adjacent to each other in the input vector will be joined at
+    /// boundary knots, which take pre-side values from the last knot of the
+    /// left-side spline and value-side values from the first knot of the right-
+    /// side spline. Empty splines are silently skipped.
+    ///
+    /// If `splines` is empty, an empty TsSpline is returned.
+    /// If `splines` has only one spline, that spline is directly returned.
+    ///
+    /// The input spline vector has the following restrictions. If any of these
+    /// are not met, this function issues a coding error and returns an empty
+    /// spline:
+    /// 1. Each spline must not have inner loops.
+    /// 2. For each pair of adjacent splines in in \p splines, the last knot
+    ///    of the first spline must have the same time as the first knot of
+    ///    the second spline.
+    /// 3. Each spline must have the same value type.
+    /// Note that callers may need to normalize their splines before calling
+    /// this function.
+    ///
+    /// Note that the pre extrapolation of the first non-empty spline and the
+    /// post extrapolation of the last non-empty spline are propagated to the
+    /// result spline.
+    ///
+    /// Note that the concatenated spline is built with the regression
+    /// selector that is in scope at the time of the call to Concatenate. If
+    /// input splines were built with TsAntiRegressionNone != the current
+    /// regression scope, tangents may be adjusted.
+    TS_API
+    static
+    TsSpline Concatenate(const std::vector<TsSpline>& splines);
+
     /// @}
 
 
@@ -777,8 +832,8 @@ bool TsSpline::_Eval(
 }
 
 // Implement a special case that will ensure the contents of the VtValue output
-// variable contain a value of the same type (double, float, or GfHalf) as the
-// spline.
+// variable contain a value of the same type (double, float, GfHalf,
+// GfTimeCode) as the spline.
 template <>
 TS_API
 bool TsSpline::_Eval(

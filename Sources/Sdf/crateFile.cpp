@@ -354,7 +354,7 @@ using std::vector;
 
 // Version history:
 // 0.15.0: Added support for loopBoundaryTime-delimited spline extrapolation
-//         loops.
+//         loops and GfTimeCode-native splines.
 // 0.14.0: Added support for ArrayEdits.
 // 0.13.0: Support for splines with tangent algorithms None, Custom, AutoEase.
 // 0.12.0: Added support for splines.
@@ -1573,10 +1573,12 @@ public:
                 " version 0.13.0.");
             break;
           case 3: // looped extrapolation with loopBoundaryTime set
+                  // or GfTimeCode-native spline
             crate->_packCtx->RequestWriteVersionUpgrade(
                 Version(0,15,0),
-                "A spline loopBoundaryTime paramter on looping extrapolation "
-                "was detected which requires crate version 0.15.0.");
+                "A spline loopBoundaryTime parameter on looping extrapolation "
+                "or GfTimeCode-native spline was detected which requires "
+                "crate version 0.15.0.");
             break;
 
           default:

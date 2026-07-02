@@ -2549,6 +2549,23 @@ class "GeomModelAPI"
 
     All card faces are drawn and textured as single-sided.
 
+    \\section UsdGeomModelAPI_cardVisibility Card Visibility
+
+    In the \\em cards \\em model:drawMode the \\em model:cardVisibility
+    attribute controls which cards are visible:
+
+    - \\em full - All cards specified in the various \\em model:cardTexture
+                  parameters are visible
+    - \\em simple - Cards corresponding to the stage's \\em upAxis are not
+                    visible. Ex: \\em upAxis == "Z", then
+                    \em model:cardTextureZPos and \em model:cardTextureZNeg
+                    will not be visible.
+    - \\em inherited - Defer to parent opinion. Behaves like \\em full if no
+                       parent opinion is found.
+
+    For \\em simple \\em model::cardVisibility, if the only cards specified
+    correspond to the stage's \\em upAxis then no cards will be visible.
+
     \\todo CreatePayload() """
 )
 {
@@ -2576,6 +2593,11 @@ class "GeomModelAPI"
         doc = """The geometry to generate for imaging prims inserted for \\em
                  cards imaging mode. See \\ref UsdGeomModelAPI_cardGeometry for
                  geometry descriptions."""
+    )
+    uniform token model:cardVisibility = "inherited" (
+        allowedTokens = [ "full", "simple", "inherited" ]
+        doc = """When using the \\em cards imaging mode, determines if cards
+                 in the upAxis direction should be visible."""
     )
     asset model:cardTextureXPos (
         doc = """In \\em cards imaging mode, the texture applied to the X+ quad.

@@ -608,6 +608,11 @@ PcpMapFunction::DeferredComposition(const PcpMapFunction& mapFn)
         mapFn._offset);
 }
 
+static _SourceAndTargetPathPairs
+_ComposeImpliedClassPathPairs(
+    const _SourceAndTargetPathPairs& transferPairs,
+    const _SourceAndTargetPathPairs& classArcPathPairs);
+
 PcpMapFunction
 PcpMapFunction::ImpliedClass(const PcpMapFunction& transferFunc,
                              const PcpMapFunction& classArc)
@@ -615,27 +620,20 @@ PcpMapFunction::ImpliedClass(const PcpMapFunction& transferFunc,
     TfAutoMallocTag tag("Pcp", "PcpMapFunction::ImpliedClass");
     TRACE_FUNCTION();
 
-    if (transferFunc.IsIdentity()) {
+    if (transferFunc.IsIdentity() || classArc.IsIdentity()) {
         return classArc;
     }
 
-    PcpMapFunction f = transferFunc.Compose(
-        classArc.Compose(transferFunc.GetInverse()));
+    const PcpMapFunction normalizedClassArc = classArc._GetNormalized();
+    const PcpMapFunction normalizedTransferFunc = transferFunc._GetNormalized();
 
-    if (!f.HasRootIdentity()) {
-        // _GetNormalized always returns a PcpMapFunction whose mappings
-        // are represented by _SourceAndTargetPathPairs, so we can just
-        // set the root identity bit. This is safe to do because f is
-        // a newly-created map function whose _mappings member isn't being
-        // shared with any other map function.
-        //
-        // XXX:
-        // We could explore just setting the hasRootIdentity bit on each
-        // stored mapping if _mappings holds a list of mappings.
-        f = f._GetNormalized();
-        f._mappings->GetPathPairs().hasRootIdentity = true;
-    }
-    return f;
+    return PcpMapFunction(
+        std::make_shared<_Mappings>(
+            _ComposeImpliedClassPathPairs(
+                normalizedTransferFunc._mappings->GetPathPairs(),
+                normalizedClassArc._mappings->GetPathPairs())
+        ),
+        classArc._offset);
 }
 
 bool
@@ -999,44 +997,63 @@ PcpMapFunction::_MapPathExpressionImpl(
     return stack.empty() ? SdfPathExpression {} : stack.back();
 }
 
+namespace {
+
+struct _ComposeScratch {
+    // A 100k random test subset from a production
+    // shot show a mean result size of 1.906050;
+    // typically a root identity + other path pair.
+    static constexpr int NumLocalPairs = 4;
+
+    _ComposeScratch(int maxRequiredPairs, bool hasRootIdentity) 
+    {
+        if (maxRequiredPairs > NumLocalPairs) {
+            remoteSpace.resize(maxRequiredPairs);
+            begin = remoteSpace.data();
+        } else {
+            begin = localSpace;
+        }
+        end = begin;
+        // If the composed function will have the root identity add it first 
+        // because it'll be first in the sort order. This is necessary for 
+        // correct canonicalization.
+        if (hasRootIdentity) {
+            begin->first = SdfPath::AbsoluteRootPath();
+            begin->second = SdfPath::AbsoluteRootPath();
+            ++end;
+        }
+    }
+
+    _PathPair localSpace[NumLocalPairs];
+    std::vector<_PathPair> remoteSpace;
+    _PathPair *begin = nullptr;
+    _PathPair *end = nullptr;
+};
+
+}
+
 static _SourceAndTargetPathPairs
 _ComposePathPairs(
     const _SourceAndTargetPathPairs& outerPairs,
     const _SourceAndTargetPathPairs& innerPairs)
 {
-    // A 100k random test subset from a production
-    // shot show a mean result size of 1.906050;
-    // typically a root identity + other path pair.
-    constexpr int NumLocalPairs = 4;
-
-    _PathPair localSpace[NumLocalPairs];
-    std::vector<_PathPair> remoteSpace;
-    _PathPair *scratchBegin = localSpace;
-    int maxRequiredPairs =
+    const int maxRequiredPairs =
         innerPairs.numPairs + int(innerPairs.hasRootIdentity) +
         outerPairs.numPairs + int(outerPairs.hasRootIdentity);
-    if (maxRequiredPairs > NumLocalPairs) {
-        remoteSpace.resize(maxRequiredPairs);
-        scratchBegin = remoteSpace.data();
-    }
-    _PathPair *scratch = scratchBegin;
+    // The composed result will have the root identity if and only if both
+    // the inner and outer functions have the root identity.
+    const bool hasRootIdentity = 
+        outerPairs.hasRootIdentity && innerPairs.hasRootIdentity;
+
+    _ComposeScratch scratch(maxRequiredPairs, hasRootIdentity);
 
     // The composition of this function over inner is the result
     // of first applying inner, then this function.  Build a list
     // of all of the (source,target) path pairs that result.
 
-    // The composed result will have the root identity if and only if both
-    // the inner and outer functions have the root identity. Add this first 
-    // because it'll be first in the sort order.
-    if (outerPairs.hasRootIdentity && innerPairs.hasRootIdentity) {
-        _PathPair &scratchPair = *scratch++;
-        scratchPair.first = SdfPath::AbsoluteRootPath();
-        scratchPair.second = SdfPath::AbsoluteRootPath();
-    }
-
     // Then apply outer function to the output range of inner. 
     for (const _PathPair &pair: innerPairs) {
-        _PathPair &scratchPair = *scratch++;
+        _PathPair &scratchPair = *scratch.end++;
         scratchPair.first = pair.first;
         scratchPair.second = _Map(pair.second, outerPairs, /* invert */ false);
     }
@@ -1045,7 +1062,7 @@ _ComposePathPairs(
     // as the inner function's source paths were already unique in the correct
     // order. The entries we add after this will not be sorted so we need to
     // keep track of the sorted range.
-    _PathPair *scratchSortedEnd = scratch;
+    _PathPair *scratchSortedEnd = scratch.end;
 
     // Then apply the inverse of inner to the domain of this function.
     for (const _PathPair &pair: outerPairs) {
@@ -1059,12 +1076,12 @@ _ComposePathPairs(
         // do NOT have to check for repeats within the sources we've mapped
         // through this loop as the map function is guaranteed to not map 
         // different targets to the same source.
-        if (std::binary_search(scratchBegin, scratchSortedEnd, source, 
+        if (std::binary_search(scratch.begin, scratchSortedEnd, source, 
                 _PathPairOrderSourceLowerBound())) {
             continue;
         }
         
-        _PathPair &scratchPair = *scratch++;
+        _PathPair &scratchPair = *scratch.end++;
         scratchPair.first = std::move(source);
         scratchPair.second = pair.second;
     }
@@ -1072,14 +1089,153 @@ _ComposePathPairs(
     // The scratch may be at least partially sorted. Finish the final sorting
     // of the entire range if necessary as it must be fully sorted before 
     // we call _Canonicalize.
-    if (scratchSortedEnd != scratch) {
-        std::sort(scratchSortedEnd, scratch, _PathPairOrder());
-        std::inplace_merge(scratchBegin, scratchSortedEnd, scratch, 
+    if (scratchSortedEnd != scratch.end) {
+        std::sort(scratchSortedEnd, scratch.end, _PathPairOrder());
+        std::inplace_merge(scratch.begin, scratchSortedEnd, scratch.end, 
                            _PathPairOrder());
     }
 
-    bool hasRootIdentity = _Canonicalize(scratchBegin, scratch);
-    return _SourceAndTargetPathPairs(scratchBegin, scratch, hasRootIdentity);
+    _Canonicalize(scratch.begin, scratch.end);
+    return _SourceAndTargetPathPairs(scratch.begin, scratch.end, hasRootIdentity);
+}
+
+// We can optimize the composition of the implied class map function by
+// directly mapping classArc's pairs through the transferFunc rather than
+// computing two full Compose operations.
+//
+// The composition of transferFuncInverse -> classArc -> transferFunc is
+// generated in two steps:
+// 1) For each classArc pair (source, target): forward map both the source
+//    and target through transferFunc forward to get the result entries that
+//    are equivalent to mapping transferFunc inverse before and the 
+//    transferFunc after with an exception that we handle in the next step
+// 2) For each transferFunc pair (transferSource, transferTarget) where 
+//    transferSource is a strict descendant of a classArc target: we generate
+//    an additional path path pair that specifically maps this descendant 
+//    path as the transfer function can map children of the classArc targets
+//    to new paths. 
+//
+//    Note that we don't have to deal with descendant mappings on the 
+//    classArc source side because the purpose of inverse transfer function
+//    is to handle "local inherits" where it incorporates the ancestral
+//    mapping of the class arc. 
+//
+//    For example if /Model_1 in one layer stack references prim /Model in
+//    another layer stack and then in /Model, its child /Model/Inst inherits
+//    local class /Model/Class, then the transfer function will be:
+//        / -> /
+//        /Model -> /Model_1
+//    and classArc will be:
+//        / -> /
+//        /Model/Class -> /Model/Inst
+//    Both the forward and inverse transfer function mapping of 
+//    /Model -> /Model_1 and /Model_1 -> /Model are relevant here as it
+//    composes with both sides of the class arc as an ancestral mapping so
+//    that /Model_1/Class -> /Model_1/Inst in the implied class arc of 
+//    /Model_1/Class. 
+//
+//    But now say we have a relocate in the /Model_1 layer stack that 
+//    relocates /Model_1/Inst/Foo to /Bar. This has no effect on the original
+//    classArc which still remains:
+//        / -> /
+//        /Model/Class -> /Model/Inst
+//    But this relocate will be included in the reference arc's map function
+//    and therefore is incorporated into the transfer function as such:
+//        / -> /
+//        /Model -> /Model_1
+//        /Model/Inst/Foo -> /Bar. 
+//    Here, the relocate mapping will be relevant on the target side as we
+//    now need the composed function to map /Model_1/Class -> /Model_1/Inst 
+//    and /Model_1/Class/Foo -> /Bar. But the inverse relocate mapping of
+//    /Bar -> /Model/Inst/Foo will never be relevant on the source side
+//    because it inverts a relocation on the target side that paths on the
+//    source side will not have been relocated by.
+//
+//    Empirically, this has held up in all our test cases so skipping step 2 for
+//    the inverse transfer function is a performance optimization.
+static _SourceAndTargetPathPairs
+_ComposeImpliedClassPathPairs(
+    const _SourceAndTargetPathPairs& transferFuncPathPairs,
+    const _SourceAndTargetPathPairs& classArcPathPairs)
+{
+    constexpr bool invertFalse = false;
+    constexpr bool hasRootIdentity = true;
+
+    const int maxRequiredPairs = 1 + classArcPathPairs.numPairs +
+        transferFuncPathPairs.numPairs * classArcPathPairs.numPairs;
+    _ComposeScratch scratch(maxRequiredPairs, hasRootIdentity);
+
+    _PathPair *scratchSortedEnd = nullptr;
+
+    // Pass 1: map classArc pairs through transferFunc.
+    for (const _PathPair& pair : classArcPathPairs) {
+        SdfPath mappedSource = _Map(
+            pair.first, transferFuncPathPairs, invertFalse);
+        if (mappedSource.IsEmpty()) {
+            continue;
+        }
+        // Since the class arc pairs are already sorted by the source path,
+        // we don't have to resort the pairs until we encounter a source path
+        // that changed. It's pretty common for none of the source paths to 
+        // change when the class is a global inherit.
+        if (!scratchSortedEnd && mappedSource != pair.first) {
+            scratchSortedEnd = scratch.end;
+        }
+
+        _PathPair& out = *scratch.end++;
+        out.first = std::move(mappedSource);
+        out.second = _Map(pair.second, transferFuncPathPairs, invertFalse);
+    }
+
+    // Pass 2: for each transferFunc pair whose source is a strict
+    // descendant of a classArc target, generate an additional entry.
+    // This handles sub-paths that get a more specific mapping through
+    // the composed function than just transfering the classArc target.
+    for (const _PathPair& tfPair : transferFuncPathPairs) {
+        for (const _PathPair& classPair : classArcPathPairs) {
+            // We're looking for strict descendant path of class arc target 
+            // paths.
+            if (tfPair.first == classPair.second ||
+                    !tfPair.first.HasPrefix(classPair.second)) {
+                continue;
+            }
+
+            // Compute the corresponding source in result space:
+            // replace the classTarget prefix with classSource, then
+            // map through transferFunc to get the result source.
+            SdfPath newSource = tfPair.first.ReplacePrefix(
+                classPair.second, classPair.first);
+            // Verify classArc can actually map newSource to tfSrc.
+            // This may fail due to the bijection constraint when
+            // another classArc pair already maps a different source
+            // to tfSrc (or a prefix of tfSrc as target).
+            if (_Map(newSource, classArcPathPairs, invertFalse) != tfPair.first) {
+                continue;
+            }
+            SdfPath resultSource =
+                _Map(newSource, transferFuncPathPairs, invertFalse);
+            if (resultSource.IsEmpty()) {
+                continue;
+            }
+            if (!scratchSortedEnd) {
+                scratchSortedEnd = scratch.end;
+            }
+            _PathPair& out = *scratch.end++;
+            out.first = std::move(resultSource);
+            out.second = tfPair.second;
+        }
+    }
+
+    if (scratchSortedEnd) {
+        std::sort(scratchSortedEnd, scratch.end, _PathPairOrder());
+        std::inplace_merge(scratch.begin, scratchSortedEnd, scratch.end, 
+                           _PathPairOrder());
+    }
+    _Canonicalize(scratch.begin, scratch.end);
+
+    // Always force root identity for class arc map functions.
+    return _SourceAndTargetPathPairs(
+        scratch.begin, scratch.end, hasRootIdentity);
 }
 
 PcpMapFunction

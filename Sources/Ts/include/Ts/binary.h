@@ -29,7 +29,9 @@ public:
     // Get spline data version that is needed to write the given spline.
     // 1: initial version.
     // 2: added tangent algorithms None and AutoEase
-    // 3: added loopBoundaryTime to delimit spline extrapolation loop regions.
+    // 3: added loopBoundaryTime to delimit spline extrapolation loop regions,
+    //    and repurposed the time-valued header bit to denote a GfTimeCode
+    //    value type
     TS_API
     static uint8_t GetBinaryFormatVersion(const TsSpline& spline);
 

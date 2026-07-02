@@ -9,6 +9,7 @@
 
 #include "HdSt/renderDelegate.h"
 #include "Hd/renderDelegateInfo.h"
+#include "Hd/rendererCreateArgsSchema.h"
 #include "Hd/rendererPluginRegistry.h"
 #include "Hd/retainedDataSource.h"
 #include "Hd/sceneIndexCreateArgsSchema.h"
@@ -42,22 +43,10 @@ HdStormRendererPlugin::DeleteRenderDelegate(HdRenderDelegate *renderDelegate)
 
 bool
 HdStormRendererPlugin::IsSupported(
-    HdRendererCreateArgs const &rendererCreateArgs,
+    const HdRendererCreateArgsSchema &rendererCreateArgs,
     std::string * reasonWhyNot) const
 {
-    const bool gpuEnabled = rendererCreateArgs.gpuEnabled;
-
-    const bool support = gpuEnabled &&
-        HdStRenderDelegate::IsSupported(rendererCreateArgs);
-    if (!support) {
-        TF_DEBUG(HD_RENDERER_PLUGIN).Msg(
-            "hdStorm renderer plugin unsupported: %s\n",
-            gpuEnabled ? "hgi unsupported" : "no gpu");
-        if (reasonWhyNot) {
-            *reasonWhyNot = gpuEnabled ? "Hgi unsupported" : "No GPU";
-        }
-    }
-    return support;
+    return HdStRenderDelegate::IsSupported(rendererCreateArgs, reasonWhyNot);
 }
 
 HdContainerDataSourceHandle

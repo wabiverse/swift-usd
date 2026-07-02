@@ -92,7 +92,7 @@ public:
             }
         }
 
-        return {};
+        return depInfo;
     }
 
     bool 

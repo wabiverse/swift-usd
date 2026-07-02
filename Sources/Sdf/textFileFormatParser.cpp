@@ -2383,32 +2383,23 @@ struct TextParserAction<KeywordSpline>
         const TfType valueType =
             SdfGetTypeForValueTypeName(
                 TfToken(context.values.valueTypeName));
-        if (valueType == TfType::Find<GfTimeCode>()) {
-          // Special case for timecode-valued attributes: physically use double,
-          // but set the flag that causes layer offsets to be applied to values
-          // as well as times.
-          context.splineValid = true;
-          context.spline = TsSpline(TfType::Find<double>());
-          context.spline.SetTimeValued(true);
-        } else {
-            // Are splines valid for this value type?
-            context.splineValid = TsSpline::IsSupportedValueType(valueType);
-            if (context.splineValid) {
-                // Normal case.  Set up a spline to parse into.
-                context.spline = TsSpline(valueType);
-            }
-            else {
-                std::string errorMessage = "Unsupported spline value type " + 
-                        valueType.GetTypeName() + "for context value: " + 
-                        context.values.valueTypeName 
-                    + "and attribute time name: " + context.attributeTypeName;
-                Sdf_TextFileFormatParser_Err(
-                    context,
-                    in.input(),
-                    in.position(),
-                    errorMessage);
-                throw PEGTL_NS::parse_error(errorMessage, in);
-            }
+        // Are splines valid for this value type?
+        context.splineValid = TsSpline::IsSupportedValueType(valueType);
+        if (context.splineValid) {
+            // Normal case.  Set up a spline to parse into.
+            context.spline = TsSpline(valueType);
+        }
+        else {
+            std::string errorMessage = "Unsupported spline value type " + 
+                    valueType.GetTypeName() + "for context value: " + 
+                    context.values.valueTypeName 
+                + "and attribute time name: " + context.attributeTypeName;
+            Sdf_TextFileFormatParser_Err(
+                context,
+                in.input(),
+                in.position(),
+                errorMessage);
+            throw PEGTL_NS::parse_error(errorMessage, in);
         }
         context.splineKnotMap.clear();
         _PushContext(context, 

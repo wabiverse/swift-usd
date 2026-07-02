@@ -33,35 +33,56 @@ TF_DEFINE_PUBLIC_TOKENS(HdInstanceProxySchemaTokens,
 // --(END CUSTOM CODE: Schema Methods)--
 
 HdPathDataSourceHandle
-HdInstanceProxySchema::GetPrototypePath() const
+HdInstanceProxySchema::GetPathToPrimInPrototype() const
 {
     return _GetTypedDataSource<HdPathDataSource>(
-        HdInstanceProxySchemaTokens->prototypePath);
+        HdInstanceProxySchemaTokens->pathToPrimInPrototype);
+}
+
+HdInstanceVectorSchema
+HdInstanceProxySchema::GetInstancingContext() const
+{
+    return HdInstanceVectorSchema(_GetTypedDataSource<HdVectorDataSource>(
+        HdInstanceProxySchemaTokens->instancingContext));
 }
 
 /*static*/
 HdContainerDataSourceHandle
 HdInstanceProxySchema::BuildRetained(
-        const HdPathDataSourceHandle &prototypePath
+        const HdPathDataSourceHandle &pathToPrimInPrototype,
+        const HdVectorDataSourceHandle &instancingContext
 )
 {
-    TfToken _names[1];
-    HdDataSourceBaseHandle _values[1];
+    TfToken _names[2];
+    HdDataSourceBaseHandle _values[2];
 
     size_t _count = 0;
 
-    if (prototypePath) {
-        _names[_count] = HdInstanceProxySchemaTokens->prototypePath;
-        _values[_count++] = prototypePath;
+    if (pathToPrimInPrototype) {
+        _names[_count] = HdInstanceProxySchemaTokens->pathToPrimInPrototype;
+        _values[_count++] = pathToPrimInPrototype;
+    }
+
+    if (instancingContext) {
+        _names[_count] = HdInstanceProxySchemaTokens->instancingContext;
+        _values[_count++] = instancingContext;
     }
     return HdRetainedContainerDataSource::New(_count, _names, _values);
 }
 
 HdInstanceProxySchema::Builder &
-HdInstanceProxySchema::Builder::SetPrototypePath(
-    const HdPathDataSourceHandle &prototypePath)
+HdInstanceProxySchema::Builder::SetPathToPrimInPrototype(
+    const HdPathDataSourceHandle &pathToPrimInPrototype)
 {
-    _prototypePath = prototypePath;
+    _pathToPrimInPrototype = pathToPrimInPrototype;
+    return *this;
+}
+
+HdInstanceProxySchema::Builder &
+HdInstanceProxySchema::Builder::SetInstancingContext(
+    const HdVectorDataSourceHandle &instancingContext)
+{
+    _instancingContext = instancingContext;
     return *this;
 }
 
@@ -69,7 +90,8 @@ HdContainerDataSourceHandle
 HdInstanceProxySchema::Builder::Build()
 {
     return HdInstanceProxySchema::BuildRetained(
-        _prototypePath
+        _pathToPrimInPrototype,
+        _instancingContext
     );
 }
 

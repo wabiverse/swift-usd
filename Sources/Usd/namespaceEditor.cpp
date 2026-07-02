@@ -32,15 +32,15 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
 
-// Stores info about a property spec with authored path-bearing fields that will 
-// need to be updated as part of a namespace edit (e.g. attribute connections or 
-// relationship targets).
-struct _PropertySpecWithPathBearingFieldsInfo {
+// Stores info about a prim or property spec with authored path-bearing fields 
+// that will need to be updated as part of a namespace edit (e.g. attribute 
+// connections or relationship targets).
+struct _SpecWithPathBearingFieldsInfo {
     // Layer and path of the site of the spec.
     SdfLayerHandle layer;
     SdfPath path;
 
-    // The name of the field in the property spec.
+    // The name of the field in the prim/property spec.
     TfToken fieldName;
 
     // The node in the composed prim index that introduces this spec. Necessary 
@@ -64,19 +64,19 @@ struct _PropertySpecWithPathBearingFieldsInfo {
     }
 };
 
-using _PropertySpecWithPathBearingFieldsVector = 
-    std::vector<_PropertySpecWithPathBearingFieldsInfo>;
+using _SpecWithPathBearingFieldsVector = 
+    std::vector<_SpecWithPathBearingFieldsInfo>;
 
 // Structure for storing the dependencies between stage object paths and the
-// property specs that have fields with paths that include that object.
+// prim or property specs that have fields with paths that include that object.
 struct _Dependencies {
-    // The map of each stage property path to the property specs (ordered 
-    // strongest to weakest) that provide opinions for the property's path-
+    // The map of each stage path to the prim or property specs (ordered 
+    // strongest to weakest) that provide opinions for the spec's path-
     // bearing fields.
-    std::unordered_map<SdfPath, _PropertySpecWithPathBearingFieldsVector, TfHash> 
-        composedPropertyToSpecsWithPathBearingFieldsMap;
+    std::unordered_map<SdfPath, _SpecWithPathBearingFieldsVector, TfHash> 
+        composedObjectToSpecsWithPathBearingFieldsMap;
 
-    // A table of stage object path to the list of property paths that have
+    // A table of stage object path to the list of paths that have
     // specs with path-bearing fields that map to this object path.
     SdfPathTable<SdfPathVector> targetedPathToTargetingSpecPathsTable;
 };
@@ -182,6 +182,46 @@ _PathListOpCollectPathsXf(
     return listOp;
 }
 
+SdfPathExpression
+_PathExprReplacePrefix(
+    SdfPathExpression const &pathExpr, _NamespaceEditXf const &xf)
+{
+    return pathExpr.ReplacePrefix(xf.oldPath, xf.newPath);
+}
+
+SdfPathExpression
+_CollectPrefixes(
+    SdfPathExpression const &pathExpr, _CollectPathsXf const &xf)
+{
+    using PathExpr = SdfPathExpression;
+    using Op = PathExpr::Op;
+    using PathPattern = PathExpr::PathPattern;
+    using ExpressionReference = PathExpr::ExpressionReference;
+
+    // Ignore logical operators.
+    auto logic = [&xf](Op op, int argIndex) {};
+
+    // Collect the expression reference path.
+    auto mapRef =
+        [&xf](ExpressionReference const &ref) {
+        if (!ref.path.IsEmpty()) {
+            xf.paths.insert(ref.path);
+        }
+    };
+    
+    // Collect the path pattern prefix, if any.
+    auto mapPattern =
+        [&xf](PathPattern const &pattern) {
+        if (!pattern.GetPrefix().IsEmpty()) {
+            xf.paths.insert(pattern.GetPrefix());
+        }
+    };
+
+    // Walk the expression to map.
+    pathExpr.Walk(logic, mapRef, mapPattern);
+    return pathExpr;
+}
+
 TF_REGISTRY_FUNCTION(VtValue)
 {
     // Transforms for SdfPath
@@ -192,6 +232,9 @@ TF_REGISTRY_FUNCTION(VtValue)
     VtRegisterTransform(_PathListOpCollectPathsXf);
     VtRegisterTransform(_PathListOpNamespaceEdit);
 
+    // Transforms for SdfPathExpression
+    VtRegisterTransform(_PathExprReplacePrefix);
+    VtRegisterTransform(_CollectPrefixes);
 }
 
 // Helper for collecting all dependencies on a stage.
@@ -214,8 +257,8 @@ private:
     WorkSingularTask _consumerTask;
 
     struct _WorkQueueEntry {
-        SdfPath composedPropertyPath;
-        _PropertySpecWithPathBearingFieldsVector propSpecsWithPathBearingFields;
+        SdfPath composedObjectPath;
+        _SpecWithPathBearingFieldsVector specsWithPathBearingFields;
         SdfPathSet paths;
     };
 
@@ -238,7 +281,7 @@ private:
     void _VisitPrim(UsdPrim const &prim) {
 
         std::unordered_map<SdfPath, _WorkQueueEntry, TfHash> 
-            workEntriesPerProperty;
+            workEntriesPerObject;
 
         // Use a resolver to get all of the prim's field opinions in strength
         // order. We collect information on fields that need to be updated as
@@ -248,6 +291,51 @@ private:
 
             const SdfLayerRefPtr &layer = res.GetLayer();
             const SdfPath &primSpecPath = res.GetLocalPath();
+            const PcpNodeRef node = res.GetNode();
+
+            // Get any prim fields that might need to be updated.
+            for (const TfToken &fieldName : layer->ListFields(primSpecPath)) {
+                // Skip composition fields that are SdfPathListOp-valued 
+                // (inherits, specializes): these are already tracked in 
+                // PcpDependentNamespaceEdits::compositionFieldEdits.
+                if (fieldName == SdfFieldKeys->InheritPaths ||
+                    fieldName == SdfFieldKeys->Specializes) {
+                    continue;
+                }
+
+                // Get the field's value.
+                VtValue val;
+                TF_VERIFY(layer->HasField(primSpecPath, fieldName, &val));
+
+                // Collect any paths that might be present in this field.
+                // If the returned value is empty, it means the field type
+                // is not path-bearing and does not need updating.
+                _CollectPathsXf xf = {node, SdfPathSet()};
+                if (!VtValueTryTransform(val, xf).IsEmpty()) {
+                    // Add or get the work entry for the composed prim path so
+                    // we can add this spec's info to it.
+                    _WorkQueueEntry &workEntry = workEntriesPerObject.try_emplace(
+                        prim.GetPrimPath(), _WorkQueueEntry()).first->second;
+
+                    for (const auto& path : xf.paths) {
+                        // Map the path into stage namespace
+                        SdfPath mappedPath = 
+                            node.GetMapToRoot().MapSourceToTarget(path);
+                        if (!mappedPath.IsEmpty()) {
+                            workEntry.paths.insert(std::move(mappedPath));
+                        }
+                    }
+
+                    // Add the prim spec info to the contributing prim specs for 
+                    // this composed entry.
+                    workEntry.specsWithPathBearingFields.push_back({
+                        layer, 
+                        primSpecPath, 
+                        std::move(fieldName),
+                        node
+                    });
+                }
+            }
 
             // Get the names of properties that are locally authored on this
             // prim spec. 
@@ -258,8 +346,6 @@ private:
                     &primSpecPropertyNames)) {
                 continue;
             }
-
-            const PcpNodeRef node = res.GetNode();
 
             // Now we look through property specs looking for any with 
             // fields to update.
@@ -283,7 +369,7 @@ private:
 
                     // Add or get the work entry for the composed property path so
                     // we can add this spec's info to it.
-                    _WorkQueueEntry &workEntry = workEntriesPerProperty.try_emplace(
+                    _WorkQueueEntry &workEntry = workEntriesPerObject.try_emplace(
                         prim.GetPrimPath().AppendProperty(propName), 
                         _WorkQueueEntry()).first->second;
 
@@ -298,7 +384,7 @@ private:
 
                     // Add the prop spec info to the contributing prop specs for 
                     // this composed entry.
-                    workEntry.propSpecsWithPathBearingFields.push_back({
+                    workEntry.specsWithPathBearingFields.push_back({
                         layer, 
                         localPropPath, 
                         std::move(fieldName),
@@ -308,13 +394,13 @@ private:
             }
         }
 
-        // With all the dependency work done for every property of this
-        // prim, we can queue each property up to be added to the result.
-        if (!workEntriesPerProperty.empty()) {
-            for (auto &[propPath, workEntry] : workEntriesPerProperty) {
-                // Copy the composed property path into the entry before moving
+        // With all the dependency work done for this prim and its properties, 
+        // we can queue each one up to be added to the result.
+        if (!workEntriesPerObject.empty()) {
+            for (auto &[path, workEntry] : workEntriesPerObject) {
+                // Copy the composed object path into the entry before moving
                 // it to the queue.
-                workEntry.composedPropertyPath = propPath;
+                workEntry.composedObjectPath = path;
                 _workQueue.push(std::move(workEntry));
             }
             _consumerTask.Wake();
@@ -324,16 +410,16 @@ private:
     void _ConsumerTask() {
         _WorkQueueEntry queueEntry;
         while (_workQueue.try_pop(queueEntry)) {
-            // Store the prop specs for the composed property in _result.
-            _result.composedPropertyToSpecsWithPathBearingFieldsMap.emplace(
-                queueEntry.composedPropertyPath, 
-                std::move(queueEntry.propSpecsWithPathBearingFields));
+            // Store the specs for the composed object in _result.
+            _result.composedObjectToSpecsWithPathBearingFieldsMap.emplace(
+                queueEntry.composedObjectPath, 
+                std::move(queueEntry.specsWithPathBearingFields));
 
-            // Add the mapping of each path to the composed property
+            // Add the mapping of each path to the composed prim/property
             // which we now know has a path-bearing field that maps to it.
             for (const auto &targetedPath : queueEntry.paths) {
                 _result.targetedPathToTargetingSpecPathsTable[targetedPath]
-                    .push_back(queueEntry.composedPropertyPath);
+                    .push_back(queueEntry.composedObjectPath);
             }
         }
     }
@@ -771,6 +857,12 @@ private:
 
     void _GatherPathBearingFieldEdits();
 
+    void _GatherPathBearingFieldEditsForStage(
+        const UsdStageRefPtr &stage,
+        const SdfPath &oldPath,
+        const SdfPath &newPath,
+        bool willAuthorRelocates);
+
     void _GatherDependentStageEdits();
 
     const UsdStageRefPtr & _stage;
@@ -1014,6 +1106,8 @@ UsdNamespaceEditor::_EditProcessor::_EditProcessor(
 
     // Gather all the edits that need to be made to path-bearing fields in 
     // order to "fix up" paths that refer to the namespace edited object.
+    // This must run after _GatherDependentStageEdits() as it relies on 
+    // processed data gathered by that function.
     _GatherPathBearingFieldEdits();
 }
 
@@ -1265,68 +1359,124 @@ UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEdits()
 {
     TRACE_FUNCTION();
 
-    // Gather all the dependencies from stage namespace path to properties with 
-    // path-bearing fields that include that namespace path.
-    _Dependencies deps = _DependencyCollector::GetDependencies(_stage);
+    // dependentCachePathChanges holds the composed prim/property path changes 
+    // in each cache's stage namespace caused by the primary edit. 
+    const auto &dependentCachePathChanges =
+        _processedEdit->dependentStageNamespaceEdits.dependentCachePathChanges;
+
+    // Gather edits for the primary stage.
+    const auto primaryIt =
+        dependentCachePathChanges.find(_stage->_GetPcpCache());
+    if (primaryIt != dependentCachePathChanges.end()) {
+        for (const auto &edit : primaryIt->second) {
+            _GatherPathBearingFieldEditsForStage(
+                _stage, edit.oldPath, edit.newPath,
+                _processedEdit->willAuthorRelocates);
+        }
+    }
+
+    // Gather edits for all dependent stages.
+    for (const UsdStageRefPtr &stage : _dependentStages) {
+        const auto it = dependentCachePathChanges.find(stage->_GetPcpCache());
+        if (it == dependentCachePathChanges.end()) {
+            continue;
+        }
+        // Relocates are only authored on the primary edit's stage, so 
+        // willAuthorRelocates must be false for dependent stages so that paths 
+        // that would need relocates produce warnings for the dependent stage.
+        for (const auto &edit : it->second) {
+            _GatherPathBearingFieldEditsForStage(
+                stage, edit.oldPath, edit.newPath,
+                /*willAuthorRelocates=*/ false);
+        }
+    }
+}
+
+void
+UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEditsForStage(
+    const UsdStageRefPtr &stage,
+    const SdfPath &oldPath,
+    const SdfPath &newPath,
+    bool willAuthorRelocates)
+{
+    TRACE_FUNCTION();
+    // Gather all the dependencies from stage namespace path to prims or 
+    // properties with path-bearing fields that include that namespace path.
+    _Dependencies deps = _DependencyCollector::GetDependencies(stage);
 
     // With all the dependencies we need to determine which fields are 
     // affected by this particular edit. If the edit was to a prim, the 
     // affected paths will be any descendants of the original prim path, 
     // thus we have to get all fields targeting any descendant of the 
     // changed path.
-    SdfPathSet propPathsWithAffectedFields;
+    SdfPathSet objectPathsWithAffectedFields;
     const auto range = 
-        deps.targetedPathToTargetingSpecPathsTable.FindSubtreeRange(
-            _editDesc.oldPath);
+        deps.targetedPathToTargetingSpecPathsTable.FindSubtreeRange(oldPath);
     for (auto it = range.first; it != range.second; ++it) {
-        const SdfPathVector &propPaths = it->second;
-        propPathsWithAffectedFields.insert(propPaths.begin(), propPaths.end());
+        const SdfPathVector &paths = it->second;
+        objectPathsWithAffectedFields.insert(paths.begin(), paths.end());
     }
 
-    // Now for each property gather the edits that need to be made to
+    // Now for each prim/property, gather the edits that need to be made to
     // the layer specs in order to update the affected path-bearing fields.
-    for (const SdfPath &propertyPath : propPathsWithAffectedFields) {
+    for (const SdfPath &path : objectPathsWithAffectedFields) {
 
-        // Every property path listed as dependency must have a list of property
+        // Every path listed as dependency must have a list of prim or property
         // specs that have path-bearing fields.
-        const _PropertySpecWithPathBearingFieldsVector *propertySpecs = 
-            TfMapLookupPtr(deps.composedPropertyToSpecsWithPathBearingFieldsMap, 
-                propertyPath);
-        if (!TF_VERIFY(propertySpecs)) {
+        const _SpecWithPathBearingFieldsVector *specs = 
+            TfMapLookupPtr(deps.composedObjectToSpecsWithPathBearingFieldsMap, 
+                path);
+        if (!TF_VERIFY(specs)) {
             continue;
         }
 
-        // First we're only going to look at property specs that originated from
+        // First we're only going to look at specs that originated from
         // the root node of the prim index (local opinions). These specs can 
         // be edited to update the relevant path-bearing fields.
-        for (const auto &specInfo : *propertySpecs) {
-            // Stop when we hit a non-root node as the property specs are in
-            // strength order.
+        for (const auto &specInfo : *specs) {
+            // Stop when we hit a non-root node as the specs are in strength order.
             if (!specInfo.originatingNode.IsRootNode()) {
                 break;
             }
 
-            // Get the current value of the property and try to modify any 
-            // paths that need to change because of the edited namespace path.
-            VtValue fieldValue = specInfo.GetFieldValue();
-            VtValue modifiedValue = VtValueTryTransform(
-                fieldValue, _NamespaceEditXf {
-                    _editDesc.oldPath, _editDesc.newPath });
+            // Look for an existing in-progress edit for this spec and field name.
+            SdfSpecHandle spec =
+                specInfo.layer->GetObjectAtPath(specInfo.path);
+            auto existingIt = std::find_if(
+                _processedEdit->pathBearingFieldEdits.begin(),
+                _processedEdit->pathBearingFieldEdits.end(),
+                [&](const _ProcessedEdit::PathBearingFieldEdit &e) {
+                    return e.spec == spec &&
+                           e.fieldName == specInfo.fieldName;
+                });
 
-            // If the path expression was modified, add the edit we need
-            // to perform for this spec in the processed edit.
-            if (fieldValue != modifiedValue) {
-                _processedEdit->pathBearingFieldEdits.push_back(
-                    {specInfo.layer->GetPropertyAtPath(specInfo.path),
-                    specInfo.fieldName, 
-                    std::move(modifiedValue)});
+            // If there is an existing in-progress edit, use its newFieldValue 
+            // as the base for transformation.
+            const VtValue &baseValue =
+                existingIt != _processedEdit->pathBearingFieldEdits.end() ?
+                    existingIt->newFieldValue : specInfo.GetFieldValue();
+
+            // Try to update the field's value.
+            VtValue modifiedValue = VtValueTryTransform(
+                baseValue, _NamespaceEditXf {
+                    oldPath, newPath });
+
+            // If the field was modified, save its new value.
+            if (baseValue != modifiedValue) {
+                if (existingIt != _processedEdit->pathBearingFieldEdits.end()) {
+                    existingIt->newFieldValue = std::move(modifiedValue);
+                } else {
+                    _processedEdit->pathBearingFieldEdits.push_back(
+                        {std::move(spec), specInfo.fieldName,
+                         std::move(modifiedValue)});
+                }
             }
         }
 
         // If the edit will author relocates for the primary edit, then the 
         // fields authored across composition arcs will also be mapped by the
         // relocation. 
-        if (_processedEdit->willAuthorRelocates) {
+        if (willAuthorRelocates) {
             continue;
         }
 
@@ -1340,9 +1490,9 @@ UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEdits()
 
         // Iterate in weakest to strongest applying each list op to get the 
         // composed targets below the root node.
-        for (auto rIt = propertySpecs->rbegin(); rIt != propertySpecs->rend(); 
+        for (auto rIt = specs->rbegin(); rIt != specs->rend(); 
                 ++rIt) {
-            const _PropertySpecWithPathBearingFieldsInfo &specInfo = *rIt;
+            const _SpecWithPathBearingFieldsInfo &specInfo = *rIt;
 
             // Stop when we hit a spec originating from the root node
             if (specInfo.originatingNode.IsRootNode()) {
@@ -1359,8 +1509,8 @@ UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEdits()
             // composition arc. If the edit is strictly to the source prim of 
             // the composition arc or its ancestors, that edit will not 
             // affect any paths coming from the target of the arc since they are 
-            // outside the scope of that arc. If so, we can skip this property spec.
-            if (translatedPathAtIntroduction.HasPrefix(_editDesc.oldPath)) {
+            // outside the scope of that arc. If so, we can skip this spec.
+            if (translatedPathAtIntroduction.HasPrefix(oldPath)) {
                 continue;
             } 
 
@@ -1382,7 +1532,7 @@ UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEdits()
                 // affected by the namespace edit; we don't care about these 
                 // either.
                 if (translatedPath.IsEmpty() ||
-                    !translatedPath.HasPrefix(_editDesc.oldPath)) {
+                    !translatedPath.HasPrefix(oldPath)) {
                     continue;
                 }
                 fieldsRequireRelocates[specInfo.fieldName].push_back(translatedPath);
@@ -1394,13 +1544,13 @@ UsdNamespaceEditor::_EditProcessor::_GatherPathBearingFieldEdits()
         // edits, but we report them as warnings.
         for (const auto& it : fieldsRequireRelocates) {
             _processedEdit->warnings.push_back(TfStringPrintf(
-                "Fixing the paths %s in the field %s for the property at '%s' would require "
+                "Fixing the paths %s in the field %s for the object at '%s' would require "
                 "'%s'to be relocated but we do not introduce relocates for %s.",
                 TfStringify(it.second).c_str(),
                 it.first.GetText(),
-                propertyPath.GetText(),
-                _editDesc.oldPath.GetText(),
-                _editDesc.IsPropertyEdit() ? 
+                path.GetText(),
+                oldPath.GetText(),
+                oldPath.IsPrimPropertyPath() ?
                     "properties ever" :
                     "prims that do not have opinions across composition arcs"
                 ));
@@ -1550,10 +1700,10 @@ UsdNamespaceEditor::_ProcessedEdit::Apply()
     // Perform any path-bearing field fixups necessary now that the namespace 
     // edits have been successfully performed.
     for (const PathBearingFieldEdit &edit : pathBearingFieldEdits) {
-        // It's possible the spec no longer exists if the property holding
-        // the field was deleted by the namespace edit operation itself.
-        if (edit.propertySpec) {
-            edit.propertySpec->SetField(edit.fieldName, edit.newFieldValue);
+        // It's possible the spec no longer exists if the prim or property 
+        // holding the field was deleted by the namespace edit operation itself.
+        if (edit.spec) {
+            edit.spec->SetField(edit.fieldName, edit.newFieldValue);
         }
     }
 

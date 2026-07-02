@@ -21,6 +21,7 @@
 /// \file
 
 #include "Hd/api.h"
+#include "Hd/schemaTypeDefs.h"
 
 #include "Hd/schema.h"
 
@@ -34,7 +35,8 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 #define HD_INSTANCE_PROXY_SCHEMA_TOKENS \
     (instanceProxy) \
-    (prototypePath) \
+    (pathToPrimInPrototype) \
+    (instancingContext) \
 
 TF_DECLARE_PUBLIC_TOKENS(HdInstanceProxySchemaTokens, HD_API,
     HD_INSTANCE_PROXY_SCHEMA_TOKENS);
@@ -78,10 +80,17 @@ public:
     /// \name Member accessor
     /// @{
 
-    /// The path to the propagated prototype prim that this instance proxy
-    /// prim represents.
+    /// The path to the prim in the propagated prototype hierarchy that this
+    /// instance proxy prim corresponds to. This is modeled after the
+    /// UsdPrim::GetPrimInPrototype() API.
     HD_API
-    HdPathDataSourceHandle GetPrototypePath() const; 
+    HdPathDataSourceHandle GetPathToPrimInPrototype() const;
+
+    /// Starting from the outer most, lists the instancer, prototype index and
+    /// instance index for each level of instancing leading to this instance
+    /// proxy prim.
+    HD_API
+    HdInstanceVectorSchema GetInstancingContext() const; 
 
     /// @}
 
@@ -113,7 +122,8 @@ public:
     HD_API
     static HdContainerDataSourceHandle
     BuildRetained(
-        const HdPathDataSourceHandle &prototypePath
+        const HdPathDataSourceHandle &pathToPrimInPrototype,
+        const HdVectorDataSourceHandle &instancingContext
     );
 
     /// \class HdInstanceProxySchema::Builder
@@ -126,15 +136,19 @@ public:
     {
     public:
         HD_API
-        Builder &SetPrototypePath(
-            const HdPathDataSourceHandle &prototypePath);
+        Builder &SetPathToPrimInPrototype(
+            const HdPathDataSourceHandle &pathToPrimInPrototype);
+        HD_API
+        Builder &SetInstancingContext(
+            const HdVectorDataSourceHandle &instancingContext);
 
         /// Returns a container data source containing the members set thus far.
         HD_API
         HdContainerDataSourceHandle Build();
 
     private:
-        HdPathDataSourceHandle _prototypePath;
+        HdPathDataSourceHandle _pathToPrimInPrototype;
+        HdVectorDataSourceHandle _instancingContext;
 
     };
 

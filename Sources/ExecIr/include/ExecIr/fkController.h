@@ -45,10 +45,11 @@ class SdfAssetPath;
 /// An FK controller takes as inputs scalar translate and rotate attributes and
 /// parent and default spaces, and computes a posed space that can be used to
 /// drive model posing. The parent space input allows one ExecIrFkController to
-/// be the child of another, linking them in a chain. A chain of FK controllers
-/// functions like a transform hierarchy, with the child inheriting the
-/// transformation of the parent. The resulting chain of controllers can be used
-/// collectively to pose a model or some part of a model, such as an arm.
+/// be the child of another, linking them in a hierarchy. A hierarchy of FK
+/// controllers functions like a transform hierarchy, with the child inheriting
+/// the transformation of the parent. The resulting network of controllers can
+/// be used collectively to pose a model or some part of a model, such as an
+/// arm.
 /// 
 /// An FK controller also defines an inverse computation that takes as inputs a
 /// desired posed space and the parent and default spaces, and computes the FK

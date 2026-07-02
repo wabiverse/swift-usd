@@ -1002,6 +1002,7 @@ public enum Pxr: String, CaseIterable
     "usdimaging": "UsdImaging",
     "usdimaginggl": "UsdImagingGL",
     "usdirimaging": "UsdIRImaging",
+    "usdlod": "UsdLod",
     "usdlux": "UsdLux",
     "usdmedia": "UsdMedia",
     "usdmtlx": "UsdMtlx",
@@ -1025,6 +1026,7 @@ public enum Pxr: String, CaseIterable
     "usdshadevalidators": "UsdShadeValidators",
     "usdskelvalidators": "UsdSkelValidators",
     "usdutilsvalidators": "UsdUtilsValidators",
+    "usdlodvalidators": "UsdLodValidators",
     "usdluxvalidators": "UsdLuxValidators",
     "usdviewq": "UsdViewQ",
     "usdvol": "UsdVol",
@@ -1602,18 +1604,84 @@ public enum Pxr: String, CaseIterable
 
     public static func execUsd(to source: inout String, fileBaseName: String, target: String)
     {
-      guard fileBaseName == "system.h", target == "ExecUsd" else { return }
+      guard target == "ExecUsd",
+            fileBaseName == "system.h" || fileBaseName == "system.cpp" || fileBaseName == "valueKey.h"
+      else { return }
 
-      // ExecUsdSystem is the concrete type Swift holds. SWIFT_UNSAFE_REFERENCE
-      // tells Swift it's a reference type with externally managed lifetime.
-      source = source.replacingOccurrences(
-        of: "#include \"pxr/exec/exec/system.h\"",
-        with: "#include \"pxr/exec/exec/system.h\"\n#include \"pxr/base/arch/swiftInterop.h\""
-      )
-      source = source.replacingOccurrences(
-        of: "class ExecUsdSystem : public ExecSystem\n{",
-        with: "class SWIFT_UNSAFE_REFERENCE ExecUsdSystem : public ExecSystem\n{"
-      )
+      switch fileBaseName
+      {
+        case "system.h":
+          // ExecUsdSystem is the concrete type Swift holds. SWIFT_SHARED_REFERENCE
+          // registers it with Tf_SharedPtrRetainReleaseHelper so Swift ARC can manage
+          // its lifetime, mirroring the HgiGL/HgiMetal/UsdImagingGLEngine pattern
+          // (Create() factory here, Register() call in system.cpp, retain/release
+          // hooks below the namespace).
+          source = source.replacingOccurrences(
+            of: "#include \"pxr/exec/exec/system.h\"",
+            with: "#include \"pxr/exec/exec/system.h\"\n#include \"pxr/base/arch/swiftInterop.h\"\n#include \"pxr/base/tf/sharedPtrRetainReleaseHelper.h\""
+          )
+          source = source.replacingOccurrences(
+            of: "class ExecUsdSystem : public ExecSystem\n{",
+            with: "class SWIFT_SHARED_REFERENCE(ExecUsdSystemRetain, ExecUsdSystemRelease) ExecUsdSystem : public ExecSystem\n{"
+          )
+          source = source.replacingOccurrences(
+            of: "public:\n    EXECUSD_API\n    explicit ExecUsdSystem(const UsdStageConstRefPtr &stage);",
+            with: """
+            public:
+                /// Heap-allocates a system registered with Tf_SharedPtrRetainReleaseHelper
+                /// for Swift ARC lifetime management.
+                EXECUSD_API SWIFT_RETURNS_RETAINED
+                static ExecUsdSystem* _Nonnull Create(const UsdStageRefPtr &stage);
+
+                EXECUSD_API
+                explicit ExecUsdSystem(const UsdStageConstRefPtr &stage);
+            """
+          )
+          source = source.replacingOccurrences(
+            of: "PXR_NAMESPACE_CLOSE_SCOPE",
+            with: """
+            PXR_NAMESPACE_CLOSE_SCOPE
+
+            inline void ExecUsdSystemRetain(Pixar::ExecUsdSystem* _Nonnull x) {
+                Pixar::Tf_SharedPtrRetainReleaseHelper<Pixar::ExecUsdSystem>::Retain(x);
+            }
+            inline void ExecUsdSystemRelease(Pixar::ExecUsdSystem* _Nonnull x) {
+                Pixar::Tf_SharedPtrRetainReleaseHelper<Pixar::ExecUsdSystem>::Release(x);
+            }
+            """
+          )
+
+        case "system.cpp":
+          source = source.replacingOccurrences(
+            of: "PXR_NAMESPACE_CLOSE_SCOPE",
+            with: """
+            /* static */
+            ExecUsdSystem*
+            ExecUsdSystem::Create(const UsdStageRefPtr &stage)
+            {
+                std::shared_ptr<ExecUsdSystem> ptr = std::make_shared<ExecUsdSystem>(stage);
+                return Tf_SharedPtrRetainReleaseHelper<ExecUsdSystem>::Register(ptr);
+            }
+
+            PXR_NAMESPACE_CLOSE_SCOPE
+            """
+          )
+
+        case "valueKey.h":
+          // ExecUsdSystemWrapper's Swift-facing APIs pass value keys around as a
+          // vector; expose the vector alias alongside the class itself.
+          source = source.replacingOccurrences(
+            of: "#include <variant>",
+            with: "#include <variant>\n#include <vector>"
+          )
+          source = source.replacingOccurrences(
+            of: "PXR_NAMESPACE_CLOSE_SCOPE",
+            with: "\n\ntypedef std::vector<ExecUsdValueKey> ExecUsdValueKeyVec;\n\nPXR_NAMESPACE_CLOSE_SCOPE"
+          )
+
+        default:
+          return
+      }
     }
 
     public static func sdfTypes(to source: inout String, fileBaseName: String, target: String)

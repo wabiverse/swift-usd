@@ -18,6 +18,7 @@
 #include "Exec/request.h"
 #include "Exec/system.h"
 #include "Arch/swiftInterop.h"
+#include "Tf/sharedPtrRetainReleaseHelper.h"
 
 #include <memory>
 #include <vector>
@@ -43,9 +44,14 @@ class UsdTimeCode;
 /// practice. As a rule of thumb, the ExecUsdSystem lives right alongside the
 /// UsdStage in most use-cases. 
 /// 
-class SWIFT_UNSAFE_REFERENCE ExecUsdSystem : public ExecSystem
+class SWIFT_SHARED_REFERENCE(ExecUsdSystemRetain, ExecUsdSystemRelease) ExecUsdSystem : public ExecSystem
 {
 public:
+    /// Heap-allocates a system registered with Tf_SharedPtrRetainReleaseHelper
+    /// for Swift ARC lifetime management.
+    EXECUSD_API SWIFT_RETURNS_RETAINED
+    static ExecUsdSystem* _Nonnull Create(const UsdStageRefPtr &stage);
+
     EXECUSD_API
     explicit ExecUsdSystem(const UsdStageConstRefPtr &stage);
 
@@ -162,5 +168,12 @@ private:
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
+
+inline void ExecUsdSystemRetain(Pixar::ExecUsdSystem* _Nonnull x) {
+    Pixar::Tf_SharedPtrRetainReleaseHelper<Pixar::ExecUsdSystem>::Retain(x);
+}
+inline void ExecUsdSystemRelease(Pixar::ExecUsdSystem* _Nonnull x) {
+    Pixar::Tf_SharedPtrRetainReleaseHelper<Pixar::ExecUsdSystem>::Release(x);
+}
 
 #endif

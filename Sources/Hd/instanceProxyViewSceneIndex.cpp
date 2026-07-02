@@ -33,12 +33,23 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Types used in the implementation of HdInstanceProxyViewSceneIndex.
 namespace
 {
+// Maps to HdInstanceSchema with the addition of the prototype (root) path.
+struct _InstanceInfo {
+    SdfPath instancerPath;
+    SdfPath prototypeRootPath;
+    int prototypeIndex;
+    int instanceIndex;
+};
 
-using _InstancerChain = TfSmallVector<SdfPath, 4>;
-struct _InstancingContext {
-    SdfPath prototypePath;
-    HdSceneIndexPrim prototypePrim;
-    _InstancerChain instancers; // Ordered from outermost to innermost.
+using _InstancingContext = TfSmallVector<_InstanceInfo, 4>;
+
+struct _InstanceProxyContext {
+    // `primInPrototype` refers to the prim under the (propagated) prototype
+    // root that the instance proxy prim corresponds to.
+    SdfPath pathToPrimInPrototype;
+    HdSceneIndexPrim primInPrototype;
+
+    _InstancingContext instancingCtx; // Ordered from outermost to innermost.
 };
 
 } // anon
@@ -52,7 +63,7 @@ struct _InstancingContext {
 struct HdInstanceProxyViewSceneIndex::_Impl
 {
     _Impl(const HdSceneIndexBaseRefPtr &inputSceneIndex)
-    : inputSi(inputSceneIndex)
+    : _inputSi(inputSceneIndex)
     {
         // Update tracking by traversing the input scene to find all instancer
         // prims.
@@ -71,24 +82,24 @@ struct HdInstanceProxyViewSceneIndex::_Impl
     bool
     IsInstanceProxy(
         const SdfPath &primPath,
-        std::optional<_InstancingContext> *_InstancingContext = nullptr) const;
+        std::optional<_InstanceProxyContext> *instanceProxyCtx = nullptr) const;
 
     bool
     IsOutermostInstance(
         const SdfPath &primPath,
-        SdfPath *prototypePath = nullptr) const;
+        SdfPath *prototypeRootPath = nullptr) const;
     
     bool
     IsInstance(
         const SdfPath &primPath,
-        SdfPath *prototypePath = nullptr);
+        SdfPath *prototypeRootPath = nullptr);
     
     bool
     IsInstancer(const SdfPath &primPath) const;
 
     SdfPathVector
     ComputeRemappedChildPrimPaths(
-        const SdfPath &prototypePath,
+        const SdfPath &sourcePath,
         const SdfPath &prefixToReplaceWith) const;
 
     SdfPathVector
@@ -109,8 +120,8 @@ private:
     bool
     _IsDescendantOfInstancer(const SdfPath &primPath) const;
     
-    std::pair<SdfPath, _InstancerChain>
-    _ComputePrototypePathAndInstancers(
+    std::pair<SdfPath, _InstancingContext>
+    _ComputeMappedPrimPathAndInstancingContext(
         const SdfPath &instanceProxyPrimPath,
         const SdfPath &outerInstancePath) const;
 
@@ -118,82 +129,79 @@ private:
     // ------------------------------------------------------------------------
     // Data
     //
-    struct InstanceInfo {
-        SdfPath instancerPath;
-        SdfPath prototypePath;
-        int instanceIndex;
-    };
-    using InstanceInfoMap = std::unordered_map<SdfPath, InstanceInfo, TfHash>;
     
-    const HdSceneIndexBaseRefPtr inputSi;
-
+    const HdSceneIndexBaseRefPtr _inputSi;
+    
     // Map from any Hydra instance prim (i.e. prim with `instance` data source)
     // to its instancer, prototype and instance index.
     // Note that this includes nested instance prims that are descendants of
     // instancer prim(s).
-    InstanceInfoMap instanceInfoMap;
+    using _InstanceInfoMap = std::unordered_map<SdfPath, _InstanceInfo, TfHash>;
+    _InstanceInfoMap _instanceInfoMap;
 
     // Track leaf prims with an instance data source that aren't under an
     // instancer prim to aid query processing.
-    SdfPathSet outerInstancePrimPaths;
+    SdfPathSet _outerInstancePrimPaths;
 
     // Track all prims of type `instancer` to aid notice processing.
-    SdfPathSet instancerPrimPaths;
+    SdfPathSet _instancerPrimPaths;
 };
 
 bool
 HdInstanceProxyViewSceneIndex::_Impl::IsInstanceProxy(
     const SdfPath &primPath,
-    std::optional<_InstancingContext> *_instancingContext /* = nullptr */) const
+    std::optional<
+        _InstanceProxyContext> *instanceProxyCtx /* = nullptr */) const
 {
     SdfPath outerInstancePath;
     if (!_IsDescendantOfOuterInstance(primPath, &outerInstancePath)) {
         return false;
     }
 
-    const auto [prototypePath, instancers] =
-        _ComputePrototypePathAndInstancers(primPath, outerInstancePath);
+    const auto [pathToPrimInPrototype, instancingContext] =
+        _ComputeMappedPrimPathAndInstancingContext(
+            primPath, outerInstancePath);
 
-    const HdSceneIndexPrim prototypePrim = inputSi->GetPrim(prototypePath);
-    if (!prototypePrim) {
+    const auto primInPrototype = _inputSi->GetPrim(pathToPrimInPrototype);
+    if (!primInPrototype) {
         TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
             "Path <%s> is not a valid instance proxy prim path because "
             "the computed prototype path <%s> does not exist.\n",
-            primPath.GetText(), prototypePath.GetText());
+            primPath.GetText(), pathToPrimInPrototype.GetText());
         return false;
     }
 
-    if (_instancingContext) {
-        *_instancingContext =
-            _InstancingContext{prototypePath, prototypePrim, instancers};
+    if (instanceProxyCtx) {
+        *instanceProxyCtx = _InstanceProxyContext{
+            pathToPrimInPrototype, primInPrototype, instancingContext};
     }
 
     TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-        "Path <%s> is an instance proxy prim with prototype <%s> and "
-        "%zu instancer(s).\n",
-        primPath.GetText(), prototypePath.GetText(), instancers.size());
+        "Path <%s> is an instance proxy prim mapping to the prim <%s> and "
+        "%zu instancer(s).\n", primPath.GetText(),
+        pathToPrimInPrototype.GetText(), instancingContext.size());
     return true;
 }
 
 bool
 HdInstanceProxyViewSceneIndex::_Impl::IsOutermostInstance(
     const SdfPath &primPath,
-    SdfPath *prototypePath /* = nullptr */) const
+    SdfPath *prototypeRootPath /* = nullptr */) const
 {
-    if (outerInstancePrimPaths.count(primPath) == 0) {
+    if (_outerInstancePrimPaths.count(primPath) == 0) {
         return false;
     }
 
-    if (prototypePath) {
-        const auto it = instanceInfoMap.find(primPath);
-        if (it == instanceInfoMap.end()) {
+    if (prototypeRootPath) {
+        const auto it = _instanceInfoMap.find(primPath);
+        if (it == _instanceInfoMap.end()) {
             TF_CODING_ERROR(
                 "Outer instance prim path <%s> is missing from instance info "
                 "map. This indicates a bug in tracking logic.",
                 primPath.GetText());
-            *prototypePath = SdfPath();
+            *prototypeRootPath = SdfPath();
         } else {
-            *prototypePath = it->second.prototypePath;
+            *prototypeRootPath = it->second.prototypeRootPath;
         }
     }
     TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
@@ -204,15 +212,15 @@ HdInstanceProxyViewSceneIndex::_Impl::IsOutermostInstance(
 bool
 HdInstanceProxyViewSceneIndex::_Impl::IsInstance(
     const SdfPath &primPath,
-    SdfPath *prototypePath /* = nullptr */)
+    SdfPath *prototypeRootPath /* = nullptr */)
 {
-    const auto it = instanceInfoMap.find(primPath);
-    if (it == instanceInfoMap.end()) {
+    const auto it = _instanceInfoMap.find(primPath);
+    if (it == _instanceInfoMap.end()) {
         return false;
     }
     
-    if (prototypePath) {
-        *prototypePath = it->second.prototypePath;
+    if (prototypeRootPath) {
+        *prototypeRootPath = it->second.prototypeRootPath;
     }
     TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
         "Path <%s> is an instance prim.\n", primPath.GetText());
@@ -222,15 +230,15 @@ HdInstanceProxyViewSceneIndex::_Impl::IsInstance(
 bool
 HdInstanceProxyViewSceneIndex::_Impl::IsInstancer(const SdfPath &primPath) const
 {
-    return instancerPrimPaths.count(primPath) > 0;
+    return _instancerPrimPaths.count(primPath) > 0;
 }
 
 SdfPathVector
 HdInstanceProxyViewSceneIndex::_Impl::ComputeRemappedChildPrimPaths(
-    const SdfPath &prototypePath, const SdfPath &prefixToReplaceWith) const
+    const SdfPath &sourcePath, const SdfPath &prefixToReplaceWith) const
 {
     const SdfPathVector childPaths =
-        inputSi->GetChildPrimPaths(prototypePath);
+        _inputSi->GetChildPrimPaths(sourcePath);
 
     SdfPathVector remappedChildPaths;
     remappedChildPaths.reserve(childPaths.size());
@@ -254,7 +262,7 @@ HdInstanceProxyViewSceneIndex::_Impl::UpdateTracking(
     const SdfPath &instancerPath)
 {
     TRACE_FUNCTION();
-    const auto instancerPrim = inputSi->GetPrim(instancerPath);
+    const auto instancerPrim = _inputSi->GetPrim(instancerPath);
     const HdInstancerTopologySchema topologySchema =
         HdInstancerTopologySchema::GetFromParent(instancerPrim.dataSource);
     const HdPathArrayDataSourceHandle instanceLocationsDs =
@@ -265,13 +273,13 @@ HdInstanceProxyViewSceneIndex::_Impl::UpdateTracking(
         return;
     }
 
-    instancerPrimPaths.insert(instancerPath);
+    _instancerPrimPaths.insert(instancerPath);
     
     const VtArray<SdfPath> instanceLocations =
         instanceLocationsDs->GetTypedValue(0.0);
 
     for (const auto &instancePath : instanceLocations) {
-        const auto instancePrim = inputSi->GetPrim(instancePath);
+        const auto instancePrim = _inputSi->GetPrim(instancePath);
         const HdInstanceSchema instanceSchema =
             HdInstanceSchema::GetFromParent(instancePrim.dataSource);
         const HdIntDataSourceHandle prototypeIndexDs =
@@ -280,8 +288,8 @@ HdInstanceProxyViewSceneIndex::_Impl::UpdateTracking(
             instanceSchema.GetInstanceIndex();
 
         if (!prototypeIndexDs || !instanceIndexDs) {
-            instanceInfoMap.erase(instancePath);
-            outerInstancePrimPaths.erase(instancePath);
+            _instanceInfoMap.erase(instancePath);
+            _outerInstancePrimPaths.erase(instancePath);
             continue;
         }
 
@@ -303,12 +311,12 @@ HdInstanceProxyViewSceneIndex::_Impl::UpdateTracking(
             instancePath.GetText(), instancerPath.GetText(),
             prototypePath.GetText(), instanceIndex);
 
-        instanceInfoMap[instancePath] =
-            {instancerPath, prototypePath, instanceIndex};
+        _instanceInfoMap[instancePath] =
+            {instancerPath, prototypePath, prototypeIndex, instanceIndex};
         
         if (!_IsDescendantOfInstancer(instancePath)) {
             // This is an outer instance.
-            outerInstancePrimPaths.insert(instancePath);
+            _outerInstancePrimPaths.insert(instancePath);
         }
         
         // XXX instancedBy doesn't seem to be a reliable way to determine if
@@ -322,7 +330,7 @@ HdInstanceProxyViewSceneIndex::_Impl::UpdateTracking(
         //     HdInstancedBySchema::GetFromParent(instancePrim.dataSource);
         // if (!instancedBySchema) {
         //     // This is an outer instance.
-        //     outerInstancePrimPaths.insert(instancePath);
+        //     _outerInstancePrimPaths.insert(instancePath);
         // }
     }
 }
@@ -332,18 +340,18 @@ HdInstanceProxyViewSceneIndex::_Impl::RemoveTracking(
     const SdfPath &instancerPath)
 {
     // Nuke any existing tracking for instances tied to this instancer...
-    auto it = instanceInfoMap.begin();
-    while (it != instanceInfoMap.end()) {
+    auto it = _instanceInfoMap.begin();
+    while (it != _instanceInfoMap.end()) {
         if (it->second.instancerPath == instancerPath) {
-            outerInstancePrimPaths.erase(it->first);
-            it = instanceInfoMap.erase(it);
+            _outerInstancePrimPaths.erase(it->first);
+            it = _instanceInfoMap.erase(it);
         } else {
             ++it;
         }
     }
 
     // ...and then remove the instancer from the tracked set.
-    instancerPrimPaths.erase(instancerPath);
+    _instancerPrimPaths.erase(instancerPath);
 }
 
 bool
@@ -356,10 +364,10 @@ HdInstanceProxyViewSceneIndex::_Impl::_IsDescendantOfOuterInstance(
     // Lower bound gives us the first path that is >= primPath.
     // The element before that is the largest path that is < primPath.
     auto it = std::lower_bound(
-        outerInstancePrimPaths.begin(), outerInstancePrimPaths.end(),
+        _outerInstancePrimPaths.begin(), _outerInstancePrimPaths.end(),
         primPath);
     
-    if (it == outerInstancePrimPaths.begin()) {
+    if (it == _outerInstancePrimPaths.begin()) {
         return false;
     }
 
@@ -383,10 +391,10 @@ HdInstanceProxyViewSceneIndex::_Impl::_IsDescendantOfInstancer(
     const SdfPath &primPath) const
 {
     auto it = std::lower_bound(
-        instancerPrimPaths.begin(), instancerPrimPaths.end(),
+        _instancerPrimPaths.begin(), _instancerPrimPaths.end(),
         primPath);
     
-    if (it == instancerPrimPaths.begin()) {
+    if (it == _instancerPrimPaths.begin()) {
         return false;
     }
 
@@ -399,8 +407,9 @@ HdInstanceProxyViewSceneIndex::_Impl::_IsDescendantOfInstancer(
     return primPath.HasPrefix(*it);
 }
 
-std::pair<SdfPath, _InstancerChain>
-HdInstanceProxyViewSceneIndex::_Impl::_ComputePrototypePathAndInstancers(
+std::pair<SdfPath, _InstancingContext>
+HdInstanceProxyViewSceneIndex::_Impl::
+_ComputeMappedPrimPathAndInstancingContext(
     const SdfPath &instanceProxyPath,
     const SdfPath &outerInstancePath) const
 {
@@ -420,10 +429,10 @@ HdInstanceProxyViewSceneIndex::_Impl::_ComputePrototypePathAndInstancers(
     // Build the instancing context starting from the first prefix path after 
     // the outermost instance prim (i.e. an instance proxy child prim of the
     // outer instance prim) up to the instance proxy path itself.
-    // Start with the prototype path being the outer instance prim path.
-    // Iterate through each prefix path, replacing the current prototype path
-    // if it is an instance prim with the corresponding prototype path, and then
-    // appending the name token of the current prefix path to the prototype
+    // Start with the mapped path being the outer instance prim path.
+    // Iterate through each prefix path, replacing the current mapped path
+    // if it is an instance prim with the corresponding prototype root path, and
+    // then appending the name token of the current prefix path to the mapped 
     // path.
     //
     const size_t numPrefixes =
@@ -432,44 +441,46 @@ HdInstanceProxyViewSceneIndex::_Impl::_ComputePrototypePathAndInstancers(
     const SdfPathVector prefixPaths =
         instanceProxyPath.GetPrefixes(numPrefixes);
 
-    SdfPath prototypePath = outerInstancePath;
-    _InstancerChain instancers;
+    SdfPath mappedPrimPath = outerInstancePath;
+    _InstancingContext instancingCtx;
 
     TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-        "Computing prototype path for instance proxy path <%s> with outer "
+        "Computing mapped prim path for instance proxy path <%s> with outer "
         "instance path <%s>.\n",
         instanceProxyPath.GetText(), outerInstancePath.GetText());
 
     for (const auto &prefixPath : prefixPaths) {
         TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-            "   Current prefix path <%s>, prototype path <%s>...\n",
-            prefixPath.GetText(), prototypePath.GetText());
+            "   Current prefix path <%s>, mapped prim path <%s>...\n",
+            prefixPath.GetText(), mappedPrimPath.GetText());
 
-        const auto it = instanceInfoMap.find(prototypePath);
-        if (it != instanceInfoMap.end()) {
-            TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-                "   Prototype path <%s> is an instance prim. Remapping to "
-                "prototype path <%s> and recording instancer <%s>.\n",
-                prototypePath.GetText(), it->second.prototypePath.GetText(),
-                it->second.instancerPath.GetText());
+        const auto it = _instanceInfoMap.find(mappedPrimPath);
+        if (it != _instanceInfoMap.end()) {
             const auto &instanceInfo = it->second;
-            prototypePath = instanceInfo.prototypePath;
-            instancers.push_back(instanceInfo.instancerPath);
+            TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
+                "   Path <%s> is an instance prim. Remapping to "
+                "prototype root path <%s> and recording instancer <%s>.\n",
+                mappedPrimPath.GetText(),
+                instanceInfo.prototypeRootPath.GetText(),
+                instanceInfo.instancerPath.GetText());
+
+            mappedPrimPath = instanceInfo.prototypeRootPath;
+            instancingCtx.push_back(instanceInfo);
         }
         TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-            "   Appending name token <%s>. Prototype path is now <%s>. \n",
+            "   Appending name token <%s>. Mapped path is now <%s>. \n",
             prefixPath.GetNameToken().GetText(),
-            prototypePath.AppendChild(prefixPath.GetNameToken()).GetText());
+            mappedPrimPath.AppendChild(prefixPath.GetNameToken()).GetText());
 
-        prototypePath =
-            prototypePath.AppendChild(prefixPath.GetNameToken());
+        mappedPrimPath =
+            mappedPrimPath.AppendChild(prefixPath.GetNameToken());
     }
 
     TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
-        "RESULT: Computed prototype path <%s> for instance proxy path <%s>."
-        "\n\n", prototypePath.GetText(), instanceProxyPath.GetText());
+        "RESULT: Computed mapped path <%s> for instance proxy path <%s>."
+        "\n\n", mappedPrimPath.GetText(), instanceProxyPath.GetText());
 
-    return {prototypePath, instancers};
+    return {mappedPrimPath, instancingCtx};
 }
 
 namespace {
@@ -478,14 +489,44 @@ namespace {
 // Data source overrides.
 // -----------------------------------------------------------------------------
 
+HdVectorDataSourceHandle
+_BuildInstancingContextVectorDataSource(const _InstancingContext &instancingCtx)
+{
+    std::vector<HdDataSourceBaseHandle> dataSources;
+    dataSources.reserve(instancingCtx.size());
+
+    for (const auto &instanceInfo : instancingCtx) {
+         dataSources.push_back(
+            HdInstanceSchema::Builder()
+                .SetInstancer(
+                    HdRetainedTypedSampledDataSource<SdfPath>::New(
+                        instanceInfo.instancerPath))
+                .SetPrototypeIndex(
+                    HdRetainedTypedSampledDataSource<int>::New(
+                        instanceInfo.prototypeIndex))
+                .SetInstanceIndex(
+                    HdRetainedTypedSampledDataSource<int>::New(
+                        instanceInfo.instanceIndex))
+                .Build());
+    }
+
+    return HdRetainedSmallVectorDataSource::New(
+        dataSources.size(), dataSources.data());
+}
+
 HdContainerDataSourceHandle
-_BuildInstanceProxyDataSource(const SdfPath &prototypePath)
+_BuildInstanceProxyDataSource(
+    const _InstanceProxyContext &instanceProxyCtx)
 {
     return HdRetainedContainerDataSource::New(
         HdInstanceProxySchema::GetSchemaToken(),
         HdInstanceProxySchema::Builder()
-            .SetPrototypePath(
-                HdRetainedTypedSampledDataSource<SdfPath>::New(prototypePath))
+            .SetPathToPrimInPrototype(
+                HdRetainedTypedSampledDataSource<SdfPath>::New(
+                    instanceProxyCtx.pathToPrimInPrototype))
+            .SetInstancingContext(
+                _BuildInstancingContextVectorDataSource(
+                    instanceProxyCtx.instancingCtx))
             .Build());
 }
 
@@ -542,21 +583,20 @@ HdInstanceProxyViewSceneIndex::GetPrim(
     //    outer instance prim but aren't valid instance proxy paths.
     //
     {
-        std::optional<_InstancingContext> optCtx;
+        std::optional<_InstanceProxyContext> optCtx;
     
         if (_impl->IsInstanceProxy(primPath, &optCtx)) {
-            const SdfPath &prototypePath = optCtx->prototypePath;
-            const HdSceneIndexPrim &prototypePrim = optCtx->prototypePrim;
-    
             TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
                 "Getting prim for instance proxy path: <%s>\n",
                 primPath.GetText());
             
+            const auto &primInPrototype = optCtx->primInPrototype;
+
             return {
-                prototypePrim.primType,
+                primInPrototype.primType,
                 HdOverlayContainerDataSource::OverlayedContainerDataSources(
-                    prototypePrim.dataSource,
-                    _BuildInstanceProxyDataSource(prototypePath))
+                    primInPrototype.dataSource,
+                    _BuildInstanceProxyDataSource(*optCtx))
             };
         }
     }
@@ -573,17 +613,16 @@ HdInstanceProxyViewSceneIndex::GetChildPrimPaths(const SdfPath &primPath) const
     //    Return the remapped child prim paths of the prototype prim.
     //
     // 2. Instance proxy prim that this scene index provides.
-    //    Here, we need to account for the possibility that the prototype prim
+    //    Here, we need to account for the possibility that the mapped prim
     //    corresponding to the instance proxy prim is an instance, in which
     //    case we need to obtain its prototype path.
-    //    Return the remapped child prim paths of the resolved prototype
-    //    prim.
+    //    Return the remapped child prim paths of the prim at theresolved path.
     //
     // 3. Any other prim path. Simply pass through to the input scene index.
     //
     {
-        SdfPath prototypePath;
-        if (_impl->IsOutermostInstance(primPath, &prototypePath)) {
+        SdfPath prototypeRootPath;
+        if (_impl->IsOutermostInstance(primPath, &prototypeRootPath)) {
             const auto childPaths =
                 _GetInputSceneIndex()->GetChildPrimPaths(primPath);
     
@@ -597,12 +636,13 @@ HdInstanceProxyViewSceneIndex::GetChildPrimPaths(const SdfPath &primPath) const
                 "Getting child prim paths for outer instance path: <%s>\n",
                 primPath.GetText());
             
-            return _impl->ComputeRemappedChildPrimPaths(prototypePath, primPath);
+            return _impl->ComputeRemappedChildPrimPaths(
+                prototypeRootPath, primPath);
         }
     }
 
     {
-        std::optional<_InstancingContext> optCtx;
+        std::optional<_InstanceProxyContext> optCtx;
         if (_impl->IsInstanceProxy(primPath, &optCtx)) {
             const auto &ctx = *optCtx;
             const auto childPaths =
@@ -617,22 +657,24 @@ HdInstanceProxyViewSceneIndex::GetChildPrimPaths(const SdfPath &primPath) const
     
             TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
                 "Getting child prim paths for instance proxy path: <%s>"
-                " that corresponds to prototype path: <%s>\n",
-                primPath.GetText(), ctx.prototypePath.GetText());
+                " that corresponds to the mapped path: <%s>\n",
+                primPath.GetText(), ctx.pathToPrimInPrototype.GetText());
             
             // XXX This bit feels unfortunate. Is there a better way to
             // express this?
-            SdfPath resolvedPrototypePath = ctx.prototypePath;
-            if (_impl->IsInstance(ctx.prototypePath, &resolvedPrototypePath)) {
+            SdfPath resolvedPrimPath = ctx.pathToPrimInPrototype;
+            if (_impl->IsInstance(
+                    ctx.pathToPrimInPrototype, &resolvedPrimPath)) {
                 TF_DEBUG(HD_INSTANCE_PROXY_VIEW_SCENE_INDEX).Msg(
                     "Mapped prototype path <%s> corresponds to an instance prim. "
-                    "Using prototype path <%s> from instance info map for "
+                    "Using prototype root path <%s> from instance info map for "
                     "computing child prim paths.\n",
-                    ctx.prototypePath.GetText(), resolvedPrototypePath.GetText());
+                    ctx.pathToPrimInPrototype.GetText(),
+                    resolvedPrimPath.GetText());
             }
 
             return _impl->ComputeRemappedChildPrimPaths(
-                resolvedPrototypePath, primPath);
+                resolvedPrimPath, primPath);
         }
     }
 

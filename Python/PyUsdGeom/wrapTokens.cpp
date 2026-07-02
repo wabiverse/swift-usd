@@ -86,6 +86,7 @@ void wrapUsdGeomTokens()
     _ADD_TOKEN(cls, focusDistance);
     _ADD_TOKEN(cls, fromTexture);
     _ADD_TOKEN(cls, fStop);
+    _ADD_TOKEN(cls, full);
     _ADD_TOKEN(cls, guide);
     _ADD_TOKEN(cls, guideVisibility);
     _ADD_TOKEN(cls, height);
@@ -116,6 +117,7 @@ void wrapUsdGeomTokens()
     _ADD_TOKEN(cls, modelCardTextureYPos);
     _ADD_TOKEN(cls, modelCardTextureZNeg);
     _ADD_TOKEN(cls, modelCardTextureZPos);
+    _ADD_TOKEN(cls, modelCardVisibility);
     _ADD_TOKEN(cls, modelDrawMode);
     _ADD_TOKEN(cls, modelDrawModeColor);
     _ADD_TOKEN(cls, mono);
@@ -165,6 +167,7 @@ void wrapUsdGeomTokens()
     _ADD_TOKEN(cls, segment);
     _ADD_TOKEN(cls, shutterClose);
     _ADD_TOKEN(cls, shutterOpen);
+    _ADD_TOKEN(cls, simple);
     _ADD_TOKEN(cls, size);
     _ADD_TOKEN(cls, smooth);
     _ADD_TOKEN(cls, solo);

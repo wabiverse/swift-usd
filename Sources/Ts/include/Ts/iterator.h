@@ -438,8 +438,8 @@ private:
     double _lastKnotPreValue, _lastKnotValue;
 
     // Data for extrapolation looping
-    double _lastPreExtrapKnotTime, _lastPreExtrapKnotValue;
-    double _firstPostExtrapKnotTime, _firstPostExtrapKnotPreValue;
+    double _lastPreExtrapKnotTime, _lastPreExtrapKnotPreValue;
+    double _firstPostExtrapKnotTime, _firstPostExtrapKnotValue;
     // _preExtrapLooped, _postExtrapLooped are true when the extrapolation is
     // looping and not a degenerate case (see `loopBoundaryTime` in types.h).
     bool _preExtrapLooped = false;

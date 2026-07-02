@@ -22,10 +22,8 @@
 #include "CameraUtil/conformWindow.h"
 
 #include "Hd/driver.h"
-#include "Hd/engine.h"
 #include "Hd/noticeBatchingSceneIndex.h"
 #include "Hd/rprimCollection.h"
-#include "Hd/pluginRenderDelegateUniqueHandle.h"
 #include "Hd/pluginRendererUniqueHandle.h"
 
 #include "Hdx/selectionTracker.h"
@@ -54,9 +52,9 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 class UsdPrim;
-class HdRenderIndex;
 class UsdImagingDelegate;
 class HdRendererCreateArgsSchema;
+class HdLegacyRenderControlInterface;
 
 TF_DECLARE_WEAK_AND_REF_PTRS(GlfSimpleLightingContext);
 TF_DECLARE_REF_PTRS(UsdImagingSceneIndex);
@@ -741,13 +739,6 @@ protected:
     /// Open some protected methods for whitebox testing.
     friend class UsdImagingGL_UnitTestGLDrawing;
 
-    /// \deprecated There is no render index in the Hydra 2.0 API.
-    ///
-    /// Returns the render index of the engine, if any.  This is only used for
-    /// whitebox testing.
-    USDIMAGINGGL_API
-    HdRenderIndex *_GetRenderIndex() const;
-
     USDIMAGINGGL_API
     void _Execute(const UsdImagingGLRenderParams &params,
                   const SdfPathVector &taskPaths);
@@ -793,23 +784,7 @@ protected:
                           TfTokenVector *renderTags);
 
     USDIMAGINGGL_API
-    void _InitializeHgiIfNecessary();
-
-    USDIMAGINGGL_API
-    void _SetRenderDelegateAndRestoreState(
-        HdPluginRenderDelegateUniqueHandle &&,
-        HdContainerDataSourceHandle const &sceneIndexInputArgs);
-
-    USDIMAGINGGL_API
-    void _SetRenderDelegate(
-        HdPluginRenderDelegateUniqueHandle &&,
-        HdContainerDataSourceHandle const &sceneIndexInputArgs);
-
-    USDIMAGINGGL_API
     SdfPath _ComputeControllerPath(const TfToken &pluginId);
-
-    USDIMAGINGGL_API
-    SdfPath _ComputeControllerPath(const HdPluginRenderDelegateUniqueHandle &);
 
     USDIMAGINGGL_API
     static TfToken _GetDefaultRendererPluginId();
@@ -824,25 +799,41 @@ protected:
 
     /// \deprecated Hydra 1.0
     USDIMAGINGGL_API
-    HdEngine *_GetHdEngine();
-
-    /// \deprecated Hydra 1.0
-    USDIMAGINGGL_API
     HdSelectionSharedPtr _GetSelection() const;
 
+    USDIMAGINGGL_API
+    HdContainerDataSourceHandle
+    _GetSceneIndexCreateArgs(
+        HdRendererPluginHandle const &plugin);
+
+    USDIMAGINGGL_API
+    HdContainerDataSourceHandle
+    _GetSceneIndexCreateArgsFromLegacyRenderControl();
+
     // Create UsdImagingStageSceneIndex and subsequent scene indices.
-    void
+    USDIMAGINGGL_API
+    HdSceneIndexBaseRefPtr
     _CreateUsdImagingSceneIndices(HdContainerDataSourceHandle const &inputArgs);
 
+    // Create the merging scene index and all subsequent filtering scene index
+    // and the renderer fed by those.
+    USDIMAGINGGL_API
+    void
+    _CreateSceneIndexChainAndRenderer(
+        HdContainerDataSourceHandle const &sceneIndexCreateArgs,
+        HdRendererPluginHandle const &plugin,
+        const HdRendererCreateArgsSchema &rendererCreateArgs);
+
+    Hgi *
+    _GetOrCreateHgi();
+
 protected:
+    // The Hgi used by the renderer.
+    // It is either provided by the user or the Hgi::CreatePlatformDefaultHgi().
+    Hgi * _hgi;
 
-    // Note that any of the fields below might become private
-    // in the future and subclasses should use the above getters
-    // to access them instead.
-
-    HgiUniquePtr _hgi;
-    // Similar for HdDriver.
-    HdDriver _hgiDriver;
+    // Result of Hgi::CreatePlatformDefaultHgi() if needed.
+    HgiUniquePtr _defaultHgi;
 
     VtValue _userFramebuffer;
 
@@ -852,9 +843,6 @@ protected:
 
     HdPluginRendererUniqueHandle _renderer; // Hydra 2.0
     HdxTaskControllerSceneIndexRefPtr _taskControllerSceneIndex; // Hydra 2.0
-
-    HdPluginRenderDelegateUniqueHandle _renderDelegate; // \deprecated Hydra 1.0
-    std::unique_ptr<HdRenderIndex> _renderIndex; // \deprecated Hydra 1.0
 
     SdfPath const _sceneDelegateId;
 
@@ -874,8 +862,9 @@ protected:
     bool _isPopulated;
 
 private:
-    bool _HasRenderer() const;
     HdSceneIndexBaseRefPtr _GetTerminalSceneIndex() const;
+
+    HdLegacyRenderControlInterface * _GetLegacyRenderControl() const;
 
     HdSceneIndexBaseRefPtr
     _AppendOverridesSceneIndices(
@@ -885,9 +874,7 @@ private:
 
     bool _CreateSceneIndicesAndRenderer(
         HdRendererPluginHandle const &plugin,
-        const HdRendererCreateArgsSchema &rendererCreateArgs,
-        HdContainerDataSourceHandle const &sceneIndexInputArgs,
-        bool hasRendererPluginSceneIndexInputArgs);
+        const HdRendererCreateArgsSchema &rendererCreateArgs);
 
     void _DestroyHydraObjects();
 
@@ -905,7 +892,6 @@ private:
     bool _lightPruningSceneIndexEnableSceneLights;
 
     UsdImagingSceneIndexRefPtr _usdImagingSceneIndex;
-    HdSceneIndexBaseRefPtr _usdImagingFinalSceneIndex;
 
     HdMergingSceneIndexRefPtr _mergingSceneIndex;
     HdCachingSceneIndexRefPtr _cachingSceneIndex;
@@ -913,9 +899,6 @@ private:
 
     /* Hydra 1.0 */
     std::unique_ptr<UsdImagingDelegate> _sceneDelegate;
-
-    // \deprecated
-    std::unique_ptr<HdEngine> _engine;
 
     bool _allowAsynchronousSceneProcessing = false;
     bool _enableUsdDrawModes = true;

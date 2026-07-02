@@ -667,50 +667,9 @@ HdSceneIndexAdapterSceneDelegate::GetMeshTopology(SdfPath const &id)
     TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    HdSceneIndexPrim prim = _GetInputPrim(id);
-
-    HdMeshSchema meshSchema = HdMeshSchema::GetFromParent(prim.dataSource);
-
-
-    HdMeshTopologySchema meshTopologySchema = meshSchema.GetTopology();
-    if (!meshTopologySchema.IsDefined()) {
-        return HdMeshTopology();
-    }
-
-    HdIntArrayDataSourceHandle faceVertexCountsDataSource =
-            meshTopologySchema.GetFaceVertexCounts();
-
-    HdIntArrayDataSourceHandle faceVertexIndicesDataSource =
-            meshTopologySchema.GetFaceVertexIndices();
-
-    if (!faceVertexCountsDataSource || !faceVertexIndicesDataSource) {
-        return HdMeshTopology();
-    }
-
-    TfToken scheme = PxOsdOpenSubdivTokens->none;
-    if (HdTokenDataSourceHandle schemeDs =
-            meshSchema.GetSubdivisionScheme()) {
-        scheme = schemeDs->GetTypedValue(0.0f);
-    }
-
-    VtIntArray holeIndices;
-    if (HdIntArrayDataSourceHandle holeDs =
-            meshTopologySchema.GetHoleIndices()) {
-        holeIndices = holeDs->GetTypedValue(0.0f);
-    }
-
-    TfToken orientation = PxOsdOpenSubdivTokens->rightHanded;
-    if (HdTokenDataSourceHandle orientDs =
-            meshTopologySchema.GetOrientation()) {
-        orientation = orientDs->GetTypedValue(0.0f);
-    }
-
     HdMeshTopology meshTopology(
-        scheme,
-        orientation,
-        faceVertexCountsDataSource->GetTypedValue(0.0f),
-        faceVertexIndicesDataSource->GetTypedValue(0.0f),
-        holeIndices);
+        HdMeshSchema::GetFromParent(
+            _GetInputPrim(id).dataSource));
 
     if (_geomSubsetParents.find(id) != _geomSubsetParents.end()) {
         const TfToken purpose =

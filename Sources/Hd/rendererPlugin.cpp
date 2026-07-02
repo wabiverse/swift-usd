@@ -46,17 +46,10 @@ HdRendererPlugin::CreateRenderDelegate(HdRenderSettingsMap const& settingsMap)
 HdRendererPlugin::~HdRendererPlugin() = default;
 
 HdPluginRenderDelegateUniqueHandle
-HdRendererPlugin::CreateDelegate(HdRenderSettingsMap const& settingsMap)
+HdRendererPlugin::CreateDelegate(
+    HdRenderSettingsMap const& settingsMap)
 {
-    HdRendererCreateArgs rendererCreateArgs;
-    if (const auto iter =
-            settingsMap.find(HdRenderSettingsTokens->rendererCreateArgs);
-        iter != settingsMap.end()) {
-        rendererCreateArgs =
-            iter->second.GetWithDefault<HdRendererCreateArgs>();
-    }
-
-    if (!IsSupported(rendererCreateArgs)) {
+    if (!IsSupported(HdRendererCreateArgsSchema(nullptr))) {
         return nullptr;
     }
 
@@ -93,6 +86,9 @@ HdRendererPlugin::CreateRenderer(
     const HdRendererCreateArgsSchema &rendererCreateArgs)
 {
     if (!IsSupported(rendererCreateArgs)) {
+        TF_CODING_ERROR(
+            "Clients are supposed to check HdRendererPlugin::IsSupported(...) "
+            "before calling HdRendererPlugin::CreateRenderer.");
         return nullptr;
     }
 
@@ -129,16 +125,6 @@ HdRendererPlugin::GetDisplayName() const
     return desc.displayName;
 }
 
-bool
-HdRendererPlugin::IsSupported(
-    const HdRendererCreateArgsSchema &rendererCreateArgs,
-    std::string * const reasonWhyNot) const
-{
-    return IsSupported(
-        HdRendererCreateArgs(rendererCreateArgs),
-        reasonWhyNot);
-}
-
 HdContainerDataSourceHandle
 HdRendererPlugin::GetSceneIndexCreateArgs() const
 {
@@ -155,25 +141,12 @@ HdRendererPlugin::_CreateRenderer(
         rendererCreateArgs);
 }
 
-static
-HdRenderSettingsMap
-_ToRenderSettings(
-    const HdRendererCreateArgsSchema &schema)
-{
-    HdRenderSettingsMap result;
-    result[HdRenderSettingsTokens->rendererCreateArgs] =
-        HdRendererCreateArgs(schema);
-    return result;
-}
-
 std::unique_ptr<HdRenderer>
 HdRendererPlugin::_CreateRendererFromRenderDelegate(
     HdSceneIndexBaseRefPtr const &sceneIndex,
     const HdRendererCreateArgsSchema &rendererCreateArgs)
 {
-    HdPluginRenderDelegateUniqueHandle renderDelegate =
-        CreateDelegate(
-            _ToRenderSettings(rendererCreateArgs));
+    HdPluginRenderDelegateUniqueHandle renderDelegate = CreateDelegate();
     if (!renderDelegate) {
         return nullptr;
     }

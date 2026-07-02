@@ -7,6 +7,7 @@
 
 #include "pxr/pxrns.h"
 #include "Arch/demangle.h"
+#include "Tf/diagnostic.h"
 #include "Tf/stringUtils.h"
 #include "Vt/streamOut.h"
 #include "Vt/types.h"
@@ -84,6 +85,7 @@ _StreamArrayRecursive(
         }
     }
     else {
+        TF_AXIOM(dimension < std::size(shape.otherDims));
         for (size_t j = 0; j < shape.otherDims[dimension]; ++j) {
             if (j) { out << ", "; }
             _StreamArrayRecursive(

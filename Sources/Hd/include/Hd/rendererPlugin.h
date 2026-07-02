@@ -18,7 +18,6 @@ class HdRenderer;
 class HdPluginRenderDelegateUniqueHandle;
 class HdPluginRendererUniqueHandle;
 class HdRendererCreateArgsSchema;
-struct HdRendererCreateArgs;
 TF_DECLARE_REF_PTRS(HdSceneIndexBase);
 
 ///
@@ -54,7 +53,7 @@ public:
     virtual
     bool IsSupported(
         const HdRendererCreateArgsSchema &rendererCreateArgs,
-        std::string *reasonWhyNot = nullptr) const;
+        std::string *reasonWhyNot = nullptr) const = 0;
 
     ///
     /// Arguments that an application should pass as create arguments to
@@ -110,25 +109,8 @@ public:
     HD_API
     std::string GetDisplayName() const;
 
-    /// \name Hydra 1.0 and other deprecated API
+    /// \name Hydra 1.0
     /// @{
-
-    ///
-    /// \deprecated Also implement overload taking HdRendererCreateArgsSchema
-    ///
-    /// Returns \c true if this renderer plugin is supported in the running 
-    /// process and \c false if not.
-    /// 
-    /// This gives the plugin a chance to perform some runtime checks to make
-    /// sure that the system meets minimum requirements.  The 
-    /// \p rendererCreateArgs parameter indicates the resources available when 
-    /// making this determination.
-    /// 
-    /// The \p reasonWhyNot param, when provided, can be filled with the reason
-    /// why the renderer plugin is not supported.
-    virtual bool IsSupported(
-        HdRendererCreateArgs const &rendererCreateArgs,
-        std::string *reasonWhyNot = nullptr) const = 0;
 
     ///
     /// Create a render delegate through the plugin and wrap it in a
@@ -190,7 +172,6 @@ private:
     // This class doesn't require copy support.
     HdRendererPlugin(const HdRendererPlugin &)             = delete;
     HdRendererPlugin &operator =(const HdRendererPlugin &) = delete;
-
 };
 
 

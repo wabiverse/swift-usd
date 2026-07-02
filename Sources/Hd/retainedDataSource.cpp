@@ -401,11 +401,10 @@ HdCreateTypedRetainedDataSource(VtValue const &v)
 }
 
 //-----------------------------------------------------------------------------
-// HdRetainedTypedSampledDataSource<>::New specializations
-// (using HdDataSourceFactory and HdDataSourceAllocator)
+// HdRetainedTypedSampledDataSource specializations
 
 HdRetainedTypedSampledDataSource<bool>::Handle
-HdDataSourceFactory<HdRetainedTypedSampledDataSource<bool>>::New(
+HdRetainedTypedSampledDataSource<bool>::New(
     const bool &value)
 {
     // bool has only two possible values; we statically create both

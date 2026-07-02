@@ -12,6 +12,7 @@
 #include "Ts/api.h"
 
 #include "Gf/interval.h"
+#include "Gf/timeCode.h"
 #include "Gf/vec2d.h"
 #include "Tf/preprocessorUtilsLite.h"
 
@@ -26,8 +27,15 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// \li <b>double</b>
 /// \li <b>float</b>
 /// \li <b>GfHalf</b>
+/// \li <b>GfTimeCode</b>
 /// \hideinitializer
 #define TS_SPLINE_SUPPORTED_VALUE_TYPES         \
+    ((Double,   double))                        \
+    ((Float,    float))                         \
+    ((Half,     GfHalf))                        \
+    ((TimeCode, GfTimeCode))
+
+#define TS_SPLINE_STORAGE_VALUE_TYPES           \
     ((Double,   double))                        \
     ((Float,    float))                         \
     ((Half,     GfHalf))

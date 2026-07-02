@@ -18,6 +18,7 @@
 #include "Tf/enum.h"
 #include "Tf/stl.h"
 #include "Tf/registryManager.h"
+#include "Trace/traceImpl.h"
 
 #include <algorithm>
 #include <iterator>
@@ -110,13 +111,19 @@ TfType TsSpline::GetValueType() const
 
 void TsSpline::SetTimeValued(const bool timeValued)
 {
+    if (GetValueType() == Ts_GetType<GfTimeCode>()) {
+        TF_CODING_ERROR("SetTimeValued is deprecated and cannot be invoked "
+                        "when this spline's value type is GfTimeCode.");
+        return;
+    }
     _PrepareForWrite();
     _data->timeValued = timeValued;
 }
 
 bool TsSpline::IsTimeValued() const
 {
-    return _GetData()->timeValued;
+    return _GetData()->valueType == Ts_GetType<GfTimeCode>() ||
+           _GetData()->timeValued;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -320,6 +327,9 @@ bool TsSpline::SetKnot(
     _PrepareForWrite(knot.GetValueType());
 
     // Copy knot data.
+    // Note that if we're setting a double knot on a TsTimeCode spline,
+    // we don't need to convert the knot to TsTimeCode -- all TsSpline knot
+    // getters convert the result knots' value types to that of the spline.
     const size_t idx = _data->SetKnot(knot._GetData(), knot.GetCustomData());
 
     // Update algorithmic tangents and deregress.
@@ -598,6 +608,130 @@ TsSpline::GetTruncated(
     return TsSpline();
 }
 
+TsSpline
+TsSpline::GetTimeScaled(double timeScale, double timeOffset) const
+{
+    if (timeScale == 0) {
+        TF_CODING_ERROR("Cannot scale spline by scale factor of 0. Returning "
+                        "empty spline.");
+        return TsSpline();
+    }
+
+    if (_data == nullptr || _data->times.empty()) {
+        return TsSpline(GetValueType());
+    }
+
+    Ts_SplineData* scaledData;
+    if (timeScale < 0 && HasInnerLoops()) {
+        scaledData = Ts_Bake(_GetData(), GfInterval::GetFullInterval(),
+                             /* includeExtrapLoops */ false);
+    } else {
+        scaledData = _GetData()->Clone();
+    }
+
+    if (!TF_VERIFY(scaledData, "Failed to clone or bake spline data")) {
+        return TsSpline();
+    }
+
+    scaledData->ApplyOffsetAndScale(timeOffset, timeScale);
+    return TsSpline(scaledData);
+}
+
+// static
+TsSpline
+TsSpline::Concatenate(const std::vector<TsSpline>& splines)
+{
+    // Note: This function could be optimized slightly for performance by
+    // lowering it to interface with spline data directly.
+    TRACE_FUNCTION();
+    if (splines.empty()) {
+        return TsSpline();
+    }
+
+    if (splines.size() == 1) {
+        return splines[0];
+    }
+
+    TfType valueType;
+    TsExtrapolation preExtrapolation;
+    for (const TsSpline& spline : splines) {
+        if (!spline.IsEmpty()) {
+            valueType = spline.GetValueType();
+            preExtrapolation = spline.GetPreExtrapolation();
+            break;
+        }
+    }
+    if (valueType == TfType()) {
+        return TsSpline();
+    }
+
+    TsSpline resultSpline(valueType);
+    TsKnot prevKnot(valueType);
+    TsExtrapolation postExtrapolation;
+    for (size_t i = 0; i < splines.size(); ++i) {
+        const TsSpline& spline = splines[i];
+        if (spline.IsEmpty()) {
+            continue;
+        }
+
+        if (spline.GetValueType() != valueType) {
+            TF_CODING_ERROR("Concatenation of splines with varying value types "
+                            "is not supported, returning empty spline.");
+            return TsSpline();
+        }
+
+        if (spline.HasInnerLoops()) {
+            TF_CODING_ERROR("Concatenation of splines with inner loops is "
+                            "not supported, returning empty spline.");
+            return TsSpline();
+        }
+
+        postExtrapolation = spline.GetPostExtrapolation();
+        TsKnotMap knots = spline.GetKnots();
+        TsKnot& startKnot = *knots.begin();
+
+        // Modify the start knot so that it has the pre values of the previous
+        // knot
+        if (i > 0) {
+            if (prevKnot.GetTime() != startKnot.GetTime()) {
+                TF_CODING_ERROR("Got boundary knots to TsSpline::Concatenate "
+                                "at mismatched times, returning empty spline");
+                return TsSpline();
+            }
+
+            // Set the pre value only if the prev knot's pre value is different
+            // from the start knot's value.
+            VtValue startKnotValue, prevKnotPreValue;
+            startKnot.ClearPreValue();
+            startKnot.GetValue(&startKnotValue);
+            if (prevKnot.GetPreValue(&prevKnotPreValue)
+                && startKnotValue != prevKnotPreValue)
+            {
+                startKnot.SetPreValue(prevKnotPreValue);
+            }
+
+            VtValue value;
+            if (prevKnot.GetPreTanSlope(&value)) {
+                startKnot.SetPreTanSlope(value);
+            }
+            startKnot.SetPreTanWidth(prevKnot.GetPreTanWidth());
+            startKnot.SetPreTanAlgorithm(prevKnot.GetPreTanAlgorithm());
+        }
+
+        for (const TsKnot& knot: knots) {
+            resultSpline.SetKnot(knot);
+        }
+
+        // Store the boundary knot's pre values.
+        prevKnot = *knots.rbegin();
+    }
+
+    resultSpline.SetPreExtrapolation(preExtrapolation);
+    resultSpline.SetPostExtrapolation(postExtrapolation);
+    return resultSpline;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Comparison
 
@@ -738,9 +872,11 @@ void TsSpline::_PrepareForWrite(TfType valueType)
     else if (_data && !_data->isTyped && valueType)
     {
         // If we guessed correctly, upgrade to real storage by marking typed.
-        if (valueType == Ts_GetType<double>())
+        if (valueType == Ts_GetType<double>()
+            || valueType == Ts_GetType<GfTimeCode>())
         {
             _data->isTyped = true;
+            _data->valueType = valueType;
         }
 
         // Otherwise create new storage and transfer.  The second parameter to

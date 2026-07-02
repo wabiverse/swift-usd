@@ -177,6 +177,7 @@
 #include <Hd/flattenedOverlayDataSourceProvider.h>
 #include <Hd/renderDelegate.h>
 #include <Hd/vectorSchemaTypeDefs.h>
+#include <Hd/concatenatedVectorDataSource.h>
 #include <Hd/renderPassState.h>
 #include <Hd/instanceProxyViewSceneIndex.h>
 #include <Hd/geomSubsetSchema.h>

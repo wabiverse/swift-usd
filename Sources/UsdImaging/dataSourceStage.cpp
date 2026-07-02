@@ -6,6 +6,8 @@
 //
 #include "UsdImaging/dataSourceStage.h"
 
+#include "UsdImaging/usdUpAxisSchema.h"
+
 #include "HdAr/systemSchema.h"
 
 #include "Hd/retainedDataSource.h"
@@ -14,6 +16,7 @@
 
 #include "Ar/resolverContext.h"
 #include "Usd/stage.h"
+#include "UsdGeom/metrics.h"
 #include "UsdRender/tokens.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -23,7 +26,9 @@ UsdImagingDataSourceStage::GetNames()
 {
     return {
         HdSystemSchema::GetSchemaToken(),
-        HdSceneGlobalsSchema::GetSchemaToken()
+        HdSceneGlobalsSchema::GetSchemaToken(),
+        HdSceneGlobalsSchema::GetSchemaToken(),
+        UsdImagingUsdUpAxisSchema::GetSchemaToken(),
     };
 }
 
@@ -65,6 +70,12 @@ UsdImagingDataSourceStage::Get(const TfToken& name)
                    HdRetainedTypedSampledDataSource<double>::New(
                        _stage->GetTimeCodesPerSecond()))
                .Build();
+    }
+    if (name == UsdImagingUsdUpAxisSchema::GetSchemaToken()) {
+        return HdRetainedContainerDataSource::New(
+                UsdImagingUsdUpAxisSchemaTokens->upAxis,
+                HdRetainedTypedSampledDataSource<TfToken>::New(
+                    UsdGeomGetStageUpAxis(_stage)));
     }
     return nullptr;
 }

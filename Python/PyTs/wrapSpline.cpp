@@ -280,7 +280,11 @@ void wrapSpline()
 
         .def("GetTruncated",
              &This::GetTruncated)
-        .staticmethod("GetTruncated")
+        .def("GetTimeScaled",
+             &This::GetTimeScaled)
+        .def("Concatenate",
+             &This::Concatenate)
+        .staticmethod("Concatenate")
         ;
 
     _CanBreakdownResult::Wrap<_CanBreakdownResult>("_CanBreakdownResult",

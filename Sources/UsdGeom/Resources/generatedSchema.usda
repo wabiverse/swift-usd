@@ -2497,6 +2497,13 @@ class "GeomModelAPI" (
             string userDocBrief = "In cards imaging mode, the texture applied to the Z+ quad."
         }
     )
+    uniform token model:cardVisibility = "inherited" (
+        allowedTokens = ["full", "simple", "inherited"]
+        customData = {
+            string userDocBrief = """When using the cards imaging mode, determines if cards
+                 in the upAxis direction should be visible."""
+        }
+    )
     uniform token model:drawMode = "inherited" (
         allowedTokens = ["origin", "bounds", "cards", "default", "inherited"]
         customData = {

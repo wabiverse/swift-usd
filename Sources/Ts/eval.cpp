@@ -678,7 +678,8 @@ namespace
             bool isPre);
         void _ComputeExtrapValueOffset(
             TsTime extrapLoopStart,
-            TsTime extrapLoopEnd);
+            TsTime extrapLoopEnd,
+            bool isPre);
         Ts_TypedKnotData<double> _CopyProtoKnotData(
             size_t index,
             int shiftIters) const;
@@ -1130,7 +1131,7 @@ void _LoopResolver::_DoExtrap(
     if (extrapolation.mode == TsExtrapLoopRepeat
         && _aspect != Ts_EvalDerivative)
     {
-        _ComputeExtrapValueOffset(extrapLoopStart, extrapLoopEnd);
+        _ComputeExtrapValueOffset(extrapLoopStart, extrapLoopEnd, isPre);
         _valueOffset -= iterHop * _extrapValueOffset;
     }
 
@@ -1157,7 +1158,8 @@ void _LoopResolver::_DoExtrap(
 
 void _LoopResolver::_ComputeExtrapValueOffset(
     const TsTime extrapLoopStart,
-    const TsTime extrapLoopEnd)
+    const TsTime extrapLoopEnd,
+    const bool isPre)
 {
     const auto &times = _data->times;
     const TsLoopParams &lp = _data->loopParams;
@@ -1173,18 +1175,22 @@ void _LoopResolver::_ComputeExtrapValueOffset(
                   "The value of extrapLoopStart given to "
                   "_ComputeExtrapValueOffset must correspond to a knot time.");
         const size_t index = std::distance(times.begin(), it);
-        firstValue = _data->GetKnotDataAsDouble(index).GetPreValue();
+        firstValue = isPre ? _data->GetKnotDataAsDouble(index).GetPreValue()
+                           : _data->GetKnotDataAsDouble(index).value;
     }
     else if (!_firstTimeLooped)
     {
         // Earliest knot is not from inner loops.  Read its value.
-        firstValue = _data->GetKnotDataAsDouble(0).GetPreValue();
+        firstValue = isPre ? _data->GetKnotDataAsDouble(0).GetPreValue()
+                           : _data->GetKnotDataAsDouble(0).value;
     }
     else
     {
         // Earliest knot is from inner loops.  Compute its value.
-        firstValue =
-            _data->GetKnotDataAsDouble(_firstInnerProtoIndex).GetPreValue()
+        const auto firstKnotData =
+            _data->GetKnotDataAsDouble(_firstInnerProtoIndex);
+        firstValue = (isPre ? firstKnotData.GetPreValue()
+                            : firstKnotData.value)
             - lp.numPreLoops * lp.valueOffset;
     }
 
@@ -1199,19 +1205,26 @@ void _LoopResolver::_ComputeExtrapValueOffset(
                   "The value of extrapLoopEnd given to "
                   "_ComputeExtrapValueOffset must correspond to a knot time.");
         const size_t index = std::distance(times.begin(), it);
-        lastValue = _data->GetKnotDataAsDouble(index).value;
+        lastValue = isPre ? _data->GetKnotDataAsDouble(index).GetPreValue()
+                          : _data->GetKnotDataAsDouble(index).value;
     }
     else if (!_lastTimeLooped)
     { 
         // Latest knot is not from inner loops.  Read its value.
-        lastValue = _data->GetKnotDataAsDouble(times.size() - 1).value;
+        const auto lastKnotData = _data->GetKnotDataAsDouble(times.size() - 1);
+        lastValue = isPre ? lastKnotData.GetPreValue()
+                          : lastKnotData.value;
     }
     else
     {
         // Latest knot is from inner loops.  It is the final echo of the
         // prototype start knot.  Compute its value.
-        lastValue =
-            _data->GetKnotDataAsDouble(_firstInnerProtoIndex).value
+        // Note that the value offset affects both the pre-value and value
+        // of the echoed prototype start knot.
+        const auto lastKnotData =
+            _data->GetKnotDataAsDouble(_firstInnerProtoIndex);
+        lastValue = (isPre ? lastKnotData.GetPreValue()
+                           : lastKnotData.value)
             + (lp.numPostLoops + 1) * lp.valueOffset;
     }
 
@@ -2212,7 +2225,7 @@ _BreakdownMain(
 
         // There's no nextKnot from which to compute a postTanWidth, so match
         // the prev knot instead.
-        knotData.preTanWidth = (prevData.time - knotData.time) / 3;
+        knotData.preTanWidth = (knotData.time - prevData.time) / 3;
         knotData.preTanAlgorithm = prevData.postTanAlgorithm;
         knotData.postTanWidth = prevData.postTanWidth;
         knotData.postTanAlgorithm = prevData.postTanAlgorithm;

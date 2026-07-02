@@ -189,4 +189,12 @@ ExecUsdSystem::_NoticeListener::_DidObjectsChanged(
     };
 }
 
+/* static */
+ExecUsdSystem*
+ExecUsdSystem::Create(const UsdStageRefPtr &stage)
+{
+    std::shared_ptr<ExecUsdSystem> ptr = std::make_shared<ExecUsdSystem>(stage);
+    return Tf_SharedPtrRetainReleaseHelper<ExecUsdSystem>::Register(ptr);
+}
+
 PXR_NAMESPACE_CLOSE_SCOPE

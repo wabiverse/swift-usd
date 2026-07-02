@@ -453,8 +453,6 @@ TfToken HdAovTokensMakeShader(TfToken const& shader);
     (threadLimit)                                     \
     /* interactive vs offline */                      \
     (enableInteractive)                               \
-    /* To pass HdRendererCreateArgs to HdRendererPlugin::CreateDelegate */ \
-    (rendererCreateArgs)
 
 #define HD_RENDER_SETTINGS_PRIM_TOKENS                \
     (active)                                          \

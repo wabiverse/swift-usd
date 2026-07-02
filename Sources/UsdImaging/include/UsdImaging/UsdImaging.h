@@ -104,6 +104,7 @@
 #include <UsdImaging/dataSourceAttribute.h>
 #include <UsdImaging/unloadedDrawModeSceneIndex.h>
 #include <UsdImaging/rerootingSceneIndex.h>
+#include <UsdImaging/usdUpAxisSchema.h>
 #include <UsdImaging/instancerContext.h>
 #include <UsdImaging/dataSourceMapped.h>
 #include <UsdImaging/cameraAdapter.h>

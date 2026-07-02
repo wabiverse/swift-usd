@@ -33,17 +33,9 @@ HdRendererPluginRegistry::HdRendererPluginRegistry()
 
 HdRendererPluginRegistry::~HdRendererPluginRegistry() = default;
 
-TfToken 
-HdRendererPluginRegistry::GetDefaultPluginId(bool gpuEnabled)
-{
-    HdRendererCreateArgs rendererCreateArgs;
-    rendererCreateArgs.gpuEnabled = gpuEnabled;
-    return GetDefaultPluginId(rendererCreateArgs);
-}
-
-TfToken 
+TfToken
 HdRendererPluginRegistry::GetDefaultPluginId(
-    HdRendererCreateArgs const &rendererCreateArgs)
+    HdRendererCreateArgsSchema const &rendererCreateArgs)
 {
     // Get all the available plugins to see if any of them is supported on this
     // platform and use the first one as the default.
@@ -75,13 +67,6 @@ HdRendererPluginRegistry::GetDefaultPluginId(
     TF_DEBUG(HD_RENDERER_PLUGIN).Msg(
         "Default renderer plugin: none\n");
     return TfToken();
-}
-
-TfToken
-HdRendererPluginRegistry::GetDefaultPluginId(
-    const HdRendererCreateArgsSchema &rendererCreateArgs)
-{
-    return GetDefaultPluginId(HdRendererCreateArgs(rendererCreateArgs));
 }
 
 HdRendererPlugin *

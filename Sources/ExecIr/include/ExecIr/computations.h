@@ -22,8 +22,9 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 /// These computations may be used in authoring workflows for invertible rigs.
 ///
-/// TODO: The computations defined here will be moved into
-/// ExecBuiltinComputations when OpenExec supports native inversion.
+/// > [!note]
+/// > The computations defined here will be moved into ExecBuiltinComputations
+/// > when OpenExec supports native inversion.
 ///
 struct ExecIrComputationsType
 {

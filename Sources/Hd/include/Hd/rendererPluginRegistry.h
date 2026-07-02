@@ -58,27 +58,6 @@ public:
     /// @{
 
     ///
-    /// \deprecated Use overload taking HdRendererCreateArgsSchema.
-    ///
-    /// Returns the id of plugin to use as the default.  To ensure an
-    /// appropriate default is found, the \p gpuEnabled parameter will be used
-    /// to indicate if the GPU will be available when making the determination.
-    HD_API
-    TfToken GetDefaultPluginId(bool gpuEnabled = true);
-
-    ///
-    /// \deprecated Use overload taking HdRendererCreateArgsSchema.
-    /// 
-    /// Returns the id of plugin to use as the default.  To ensure an
-    /// appropriate default is found, the \p rendererCreateArgs parameter will
-    /// be used to indicate the resources available when making the 
-    /// determination.
-    ///
-    HD_API
-    TfToken GetDefaultPluginId(
-        HdRendererCreateArgs const &rendererCreateArgs);
-
-    ///
     /// \deprecated Use GetOrCreateRendererPlugin instead.
     ///
     /// Returns the renderer plugin for the given id or null

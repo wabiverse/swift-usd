@@ -9,6 +9,7 @@
 #include "UsdImaging/debugCodes.h"
 #include "UsdImaging/tokens.h"
 #include "UsdImaging/usdPrimInfoSchema.h"
+#include "Hd/concatenatedVectorDataSource.h"
 #include "Hd/instanceSchema.h"
 #include "Hd/instancedBySchema.h"
 #include "Hd/instanceIndicesSchema.h"
@@ -152,10 +153,10 @@ class _PrimSource : public HdContainerDataSource
 public:
     HD_DECLARE_DATASOURCE(_PrimSource);
 
-    _PrimSource(HdContainerDataSourceHandle const &inputSource,
+    _PrimSource(HdContainerDataSourceHandle const &inputPrimSource,
                 _SelectionInfoSharedPtr const &selectionInfo,
                 const SdfPath &primPath)
-        : _inputSource(inputSource)
+        : _inputPrimSource(inputPrimSource)
         , _selectionInfo(selectionInfo)
         , _primPath(primPath)
     {
@@ -163,7 +164,7 @@ public:
 
     TfTokenVector GetNames() override
     {
-        TfTokenVector names = _inputSource->GetNames();
+        TfTokenVector names = _inputPrimSource->GetNames();
         auto it = _selectionInfo->primToSelections.find(_primPath);
         if (it != _selectionInfo->primToSelections.end()) {
             names.push_back(HdSelectionsSchema::GetSchemaToken());
@@ -173,20 +174,24 @@ public:
 
     HdDataSourceBaseHandle Get(const TfToken &name) override
     {
-        if (name == HdSelectionsSchema::GetSchemaToken()) {
-            auto it = _selectionInfo->primToSelections.find(_primPath);
-            if (it != _selectionInfo->primToSelections.end()) {
-                return _ToDs(it->second);
-            } else {
-                return nullptr;
-            }
+        HdDataSourceBaseHandle const inputSrc = _inputPrimSource->Get(name);
+        if (name != HdSelectionsSchema::GetSchemaToken()) {
+            return inputSrc;
+        }
+        
+        auto it = _selectionInfo->primToSelections.find(_primPath);
+        if (it == _selectionInfo->primToSelections.end()) {
+            return inputSrc;
         }
 
-        return _inputSource->Get(name);
+        return
+            HdConcatenatedVectorDataSource::ConcatenatedVectorDataSources(
+                HdVectorDataSource::Cast(inputSrc),
+                _ToDs(it->second));
     }
 
 private:
-    HdContainerDataSourceHandle const _inputSource;
+    HdContainerDataSourceHandle const _inputPrimSource;
     _SelectionInfoSharedPtr const _selectionInfo;
     const SdfPath _primPath;
 };

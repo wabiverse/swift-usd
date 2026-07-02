@@ -796,18 +796,18 @@ Ts_SegmentIterator::Ts_SegmentIterator(
     }
 
     // Compute the starting iteration.
-    _minIteration = _maxIteration = 0;
+    _curIteration = 0;
     if (_preExtrapLooped && _interval.GetMin() < _firstKnotTime) {
         const double knotSpan = _lastPreExtrapKnotTime - _firstKnotTime;
         const double offset = _interval.GetMin() - _firstKnotTime;
-        _minIteration = int32_t(std::floor(offset / knotSpan));
+        _curIteration = int32_t(std::floor(offset / knotSpan));
     } else if (_postExtrapLooped && _interval.GetMin() >= _lastKnotTime) {
         const double knotSpan = _lastKnotTime - _firstPostExtrapKnotTime;
         const double offset = _interval.GetMin() - _lastKnotTime;
-        _minIteration = 1 + int32_t(std::floor(offset / knotSpan));
+        _curIteration = 1 + int32_t(std::floor(offset / knotSpan));
     }
 
-    _curIteration = _minIteration;
+    _minIteration = _maxIteration = 0;
     if (_preExtrapLooped) {
         _minIteration = std::numeric_limits<int32_t>::min();
     }
@@ -853,10 +853,10 @@ Ts_SegmentIterator::_InitExtrapLooping(bool isPre)
     if (!extrap.loopBoundaryTime.has_value()) {
         if (isPre) {
             _lastPreExtrapKnotTime = _lastKnotTime;
-            _lastPreExtrapKnotValue = _lastKnotValue;
+            _lastPreExtrapKnotPreValue = _lastKnotPreValue;
         } else {
             _firstPostExtrapKnotTime = _firstKnotTime;
-            _firstPostExtrapKnotPreValue = _firstKnotPreValue;
+            _firstPostExtrapKnotValue = _firstKnotValue;
         }
         return true;
     }
@@ -882,10 +882,10 @@ Ts_SegmentIterator::_InitExtrapLooping(bool isPre)
     const size_t index = std::distance(times.begin(), it);
     if (isPre) {
         _lastPreExtrapKnotTime = boundary;
-        _lastPreExtrapKnotValue = _data->GetKnotValueAsDouble(index);
+        _lastPreExtrapKnotPreValue = _data->GetKnotPreValueAsDouble(index);
     } else {
         _firstPostExtrapKnotTime = boundary;
-        _firstPostExtrapKnotPreValue = _data->GetKnotPreValueAsDouble(index);
+        _firstPostExtrapKnotValue = _data->GetKnotValueAsDouble(index);
     }
     return true;
 }
@@ -1048,13 +1048,13 @@ Ts_SegmentIterator::_UpdateKnotIterator()
         _oscillating = (_data->preExtrapolation.mode == TsExtrapLoopOscillate);
         _valueShift = (_data->preExtrapolation.mode == TsExtrapLoopRepeat
                        ? _curIteration *
-                            (_lastPreExtrapKnotValue - _firstKnotPreValue)
+                            (_lastPreExtrapKnotPreValue - _firstKnotPreValue)
                        : 0.0);
     } else if (_curIteration > 0) {
         _oscillating = (_data->postExtrapolation.mode == TsExtrapLoopOscillate);
         _valueShift = (_data->postExtrapolation.mode == TsExtrapLoopRepeat
                        ? _curIteration *
-                            (_lastKnotValue - _firstPostExtrapKnotPreValue)
+                            (_lastKnotValue - _firstPostExtrapKnotValue)
                        : 0.0);
     } else {
         _oscillating = false;

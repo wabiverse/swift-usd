@@ -57,28 +57,6 @@ struct HdDataSourceAllocator
     template <typename> friend struct PXR_NS::HdDataSourceAllocator;
 #endif
 
-/// HdDataSourceFactory
-///
-/// We use HdDataSourceFactory to dispatch from data sources' static ::New()
-/// to the appropriate constructor. Any specialized ::New() function should also
-/// use HdDataSourceFactory to do this dispatch. For data source types that are
-/// template classes, specializing ::New() directly on the data source class is
-/// not possible; instead, HdDataSourceFactory<FooDataSource<T>>::New() should
-/// be specialized (see HdRetainedTypedSampledDataSource<bool> for example),
-/// but note that this pattern may be complicated outside of PXR_NS due to
-/// namespace constraints.
-template <typename U>
-struct HdDataSourceFactory
-{
-    template <typename... Args>
-    static typename U::Handle New(Args&&... args)
-    {
-        return std::allocate_shared<U>(
-            PXR_NS::HdDataSourceAllocator<U>{ },
-            std::forward<Args>(args)...);
-    }
-};
-
 /// HD_DECLARE_DATASOURCE_ABSTRACT
 /// Used for non-instantiable classes, this defines a set of functions
 /// for manipulating handles to this type of datasource. This macro should
@@ -115,7 +93,8 @@ struct HdDataSourceFactory
     _HD_ALLOCATOR_FRIEND \
     template <typename ... Args> \
     static Handle New(Args&& ... args) { \
-        return PXR_NS::HdDataSourceFactory<type>::New( \
+        return std::allocate_shared<type>( \
+            PXR_NS::HdDataSourceAllocator<type>{ }, \
             std::forward<Args>(args)...); \
     }
 
@@ -129,7 +108,9 @@ struct HdDataSourceFactory
 /// initializer_list<>
 #define HD_DECLARE_DATASOURCE_INITIALIZER_LIST_NEW(type, T) \
     static Handle New(std::initializer_list<T> initList) { \
-        return PXR_NS::HdDataSourceFactory<type>::New(initList); \
+        return std::allocate_shared<type>( \
+            PXR_NS::HdDataSourceAllocator<type>{ }, \
+            (initList)); \
     }
 
 #define HD_DECLARE_DATASOURCE_HANDLES(type) \

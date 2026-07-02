@@ -35,6 +35,7 @@
 #include "Hd/imageShader.h"
 #include "Hd/perfLog.h"
 #include "Hd/renderDelegateInfo.h"
+#include "Hd/rendererCreateArgsSchema.h"
 #include "Hd/tokens.h"
 
 #include "Hgi/hgiImpl.h"
@@ -584,17 +585,68 @@ HdStRenderDelegate::CommitResources(HdChangeTracker *tracker)
     _drawItemsCache->GarbageCollect();
 }
 
+static
+bool _GetGpuEnabled(const HdRendererCreateArgsSchema &args)
+{
+    HdBoolDataSourceHandle const ds = args.GetGpuEnabled();
+    if (!ds) {
+        return true;
+    }
+    return ds->GetTypedValue(0.0f);
+}
+
+static
+Hgi * _GetHgi(const HdRendererCreateArgsSchema &args)
+{
+    auto ds =
+        HdTypedSampledDataSource<Hgi*>::Cast(
+            args.GetDrivers().Get(HdRendererCreateArgsSchemaTokens->hgi));
+    if (!ds) {
+        return nullptr;
+    }
+    return ds->GetTypedValue(0.0f);
+}
+
+static
+const char * _NullOrReasonWhyNotSupported(
+    const HdRendererCreateArgsSchema &rendererCreateArgs)
+{
+    if (!_GetGpuEnabled(rendererCreateArgs)) {
+        return "GPU not enabled";
+    }
+    if (Hgi * const hgi = _GetHgi(rendererCreateArgs)) {
+        if (hgi->IsBackendSupported()) {
+            return nullptr;
+        } else {
+            return "Given Hgi backend not supported";
+        }
+    } else {
+        // If invalid Hgi instance is provided, check support for platform default
+        // Hgi.
+        if (Hgi::IsSupported()) {
+            return nullptr;
+        } else {
+            return "Platform default Hgi not supported";
+        }
+    }
+}
+
 bool
 HdStRenderDelegate::IsSupported(
-    HdRendererCreateArgs const& rendererCreateArgs)
+    const HdRendererCreateArgsSchema &rendererCreateArgs,
+    std::string * const reasonWhyNot)
 {
-    if (rendererCreateArgs.hgi) {
-        return rendererCreateArgs.hgi->IsBackendSupported();
+    if (const char * const result =
+                _NullOrReasonWhyNotSupported(rendererCreateArgs)) {
+        TF_DEBUG(HD_RENDERER_PLUGIN).Msg(
+            "Storm renderer not supported: %s.\n", result);
+        if (reasonWhyNot) {
+            *reasonWhyNot = result;
+        }
+        return false;
+    } else {
+        return true;
     }
-
-    // If invalid Hgi instance is provided, check support for platform default
-    // Hgi.
-    return Hgi::IsSupported();
 }
 
 TfTokenVector

@@ -157,8 +157,13 @@
 // 101 -> 102: Contiguous data source handle allocation via allocate_shared in
 //             ::New(), added by HD_DECLARE_DATASOURCE. Change is forward- and
 //             backward-compatible with existing data source implementations.
-
-#define HD_API_VERSION 102
+// 102 -> 103: Removing HdRendererCreateArgs and overloads of
+//             HdRendererPlugin::IsSupported and
+//             HdRendererPluginRegistry::GetDefaultPluginId taking
+//             HdRendererCreateArgs (or bool) in favor of overloads taking
+//             HdRendererCreateArgsSchema.
+//             Removing HdRenderSettingsTokens->renderCreateArgs.
+#define HD_API_VERSION 103
 
 // 1  ->  2: SimpleLighting -> FallbackLighting
 // 2  ->  3: Use GetLightCount() instead of NUM_LIGHTS to get light count.

@@ -18,6 +18,7 @@
 #include "Usd/attribute.h"
 
 #include <variant>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -86,6 +87,10 @@ private:
         ExecUsd_PrimComputationValueKey
     > _key;
 };
+
+
+
+typedef std::vector<ExecUsdValueKey> ExecUsdValueKeyVec;
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

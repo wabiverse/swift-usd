@@ -7,6 +7,7 @@
 #ifndef PXR_IMAGING_HD_RETAINEDDATASOURCE_H
 #define PXR_IMAGING_HD_RETAINEDDATASOURCE_H
 
+#include "Vt/value.h"
 #include "pxr/pxrns.h"
 
 #include "Hd/api.h"
@@ -14,10 +15,12 @@
 
 #include "Sdf/pathExpression.h"
 
+#include "Arch/align.h"
 #include "Tf/smallVector.h"
 #include "Tf/denseHashMap.h"
 
 #include <utility>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -152,7 +155,6 @@ template <typename T>
 class HdRetainedTypedSampledDataSource : public HdTypedSampledDataSource<T>
 {
 public:
-    //abstract to implement New outside in service of specialization
     HD_DECLARE_DATASOURCE(HdRetainedTypedSampledDataSource<T>);
 
     bool GetContributingSampleTimesForInterval(
@@ -180,26 +182,60 @@ public:
     typename HdRetainedTypedSampledDataSource<T>::Handle
     New(const T &value)
     {
-        return HdDataSourceFactory<
-            HdRetainedTypedSampledDataSource<T>>::New(value);
+        return std::allocate_shared<HdRetainedTypedSampledDataSource<T>>(
+            HdDataSourceAllocator<HdRetainedTypedSampledDataSource<T>>{ },
+            value);
     }
 
 protected:
     HdRetainedTypedSampledDataSource(const T &value)
-    : _value(value) {}
+      : _value(value) {}
 
     T _value;
 };
 
-// New is specializable via HdDataSourceFactory for cases where instances
-// may be shared for efficiency.
+// Specialization for bool that will let us use singletons. The specialization
+// must happen at the class level so we can use alignas to separate the
+// singletons from their control blocks. Keeping them out of the same cache
+// line prevents false-sharing, which we actually observed with the prior,
+// function-level specialization pattern. This class-level specialization
+// pattern is the recommended way to create type-specific specializations
+// of HdRetainedTypedSampledDataSource that use singletons for efficiency.
 
 template <>
-struct HdDataSourceFactory<HdRetainedTypedSampledDataSource<bool>>
+class alignas(ARCH_CACHE_LINE_SIZE) HdRetainedTypedSampledDataSource<bool>
+  : public HdTypedSampledDataSource<bool>
 {
+public:
+    HD_DECLARE_DATASOURCE_ABSTRACT(HdRetainedTypedSampledDataSource<bool>)
+    _HD_ALLOCATOR_FRIEND
+
+    bool GetContributingSampleTimesForInterval(
+        HdSampledDataSource::Time,
+        HdSampledDataSource::Time,
+        std::vector<HdSampledDataSource::Time>*) override
+    {
+        return false;
+    }
+
+    VtValue GetValue(HdSampledDataSource::Time) override
+    {
+        return VtValue(_value);
+    }
+
+    bool GetTypedValue(HdSampledDataSource::Time) override
+    {
+        return _value;
+    }
+
     HD_API
-    static HdRetainedTypedSampledDataSource<bool>::Handle
-    New(const bool& value);
+    static Handle New(const bool& value);
+
+protected:
+    HdRetainedTypedSampledDataSource<bool>(const bool& value)
+      : _value(value) { }
+
+    bool _value;
 };
 
 //-----------------------------------------------------------------------------

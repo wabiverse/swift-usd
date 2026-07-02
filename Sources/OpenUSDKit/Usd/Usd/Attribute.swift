@@ -36,6 +36,12 @@ public extension Usd.Attribute
   {
     value.withCString { Overlay.SetAttributeString(self, $0, time) }
   }
+  
+  @discardableResult
+  func set(_ value: Double, time: UsdTimeCode = UsdTimeCode.Default()) -> Bool
+  {
+    Set(value, time)
+  }
 
   @discardableResult
   func set(_ value: Sdf.AssetPath, time: UsdTimeCode = UsdTimeCode.Default()) -> Bool
