@@ -21,6 +21,7 @@ public enum BundleFramework: CaseIterable
   case usdGeom
   case usdShade
   case usdShaders
+  case usdLod
   case usdLux
   case usdHydra
   case sdrOsl
@@ -58,6 +59,7 @@ public enum BundleFramework: CaseIterable
       case .usdGeom: Bundle.usdGeom?.resourcePath
       case .usdShade: Bundle.usdShade?.resourcePath
       case .usdShaders: Bundle.usdShaders?.resourcePath
+      case .usdLod: Bundle.usdLod?.resourcePath
       case .usdLux: Bundle.usdLux?.resourcePath
       case .usdHydra: Bundle.usdHydra?.resourcePath
       case .sdrOsl: Bundle.sdrOsl?.resourcePath

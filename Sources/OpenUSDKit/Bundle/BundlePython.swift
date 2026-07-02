@@ -31,6 +31,7 @@ public enum BundlePython: CaseIterable
   case pyUsdGeom
   case pyUsdShade
   case pyUsdShaders
+  case pyUsdLod
   case pyUsdLux
   case pyUsdHydra
   case pyUsdAbc
@@ -72,6 +73,7 @@ public enum BundlePython: CaseIterable
       case .pyUsdGeom: Bundle.pyUsdGeom?.resourcePath
       case .pyUsdShade: Bundle.pyUsdShade?.resourcePath
       case .pyUsdShaders: Bundle.pyUsdShaders?.resourcePath
+      case .pyUsdLod: Bundle.pyUsdLod?.resourcePath
       case .pyUsdLux: Bundle.pyUsdLux?.resourcePath
       case .pyUsdHydra: Bundle.pyUsdHydra?.resourcePath
       case .pyUsdAbc: Bundle.pyUsdAbc?.resourcePath

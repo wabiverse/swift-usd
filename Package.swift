@@ -23,17 +23,17 @@ let package = Package(
       name: "swiftusd_m",
       targets: [
         "Arch", "Tf", "Js", "Gf", "Trace", "Vt", "Work", "Pegtl", "Plug", "Ts",
-        "Ar", "Kind", "Sdf", "Pcp", "Usd", "Sdr", "UsdGeom", "UsdShade", "UsdLux",
-        "UsdHydra", "SdrGlslfx", "UsdAbc", "UsdDraco", "UsdMedia", "UsdMtlx",
-        "UsdPhysics", "UsdProc", "UsdRender", "UsdRi", "UsdSkel", "UsdUI",
-        "UsdUtils", "UsdVol", "UsdProfiles", "CameraUtil", "Hf", "PxOsd", "Hd",
-        "HdAr", "HdMtlx", "HdSi", "HdSt", "HdStorm", "Hdx", "Garch", "Hgi",
+        "Ar", "Kind", "Sdf", "Pcp", "Usd", "Sdr", "UsdGeom", "UsdShade", "UsdLod",
+        "UsdLux", "UsdHydra", "SdrGlslfx", "UsdAbc", "UsdDraco", "UsdMedia",
+        "UsdMtlx", "UsdPhysics", "UsdProc", "UsdRender", "UsdRi", "UsdSkel",
+        "UsdUI", "UsdUtils", "UsdVol", "UsdProfiles", "CameraUtil", "Hf", "PxOsd",
+        "Hd", "HdAr", "HdMtlx", "HdSi", "HdSt", "HdStorm", "Hdx", "Garch", "Hgi",
         "HgiGL", "HgiInterop", "Hio", "Glf", "GeomUtil", "UsdShaders",
         "UsdImaging", "UsdImagingGL", "UsdExecImaging", "UsdIRImaging", "Vdf",
         "Esf", "Ef", "EsfUsd", "Exec", "ExecUsd", "ExecGeom", "ExecIr",
         "UsdValidation", "UsdGeomValidators", "UsdPhysicsValidators",
         "UsdShadeValidators", "UsdSkelValidators", "UsdUtilsValidators",
-        "UsdLuxValidators",
+        "UsdLodValidators", "UsdLuxValidators",
       ]
     ),
     // ---------------- Pixar -----
@@ -114,6 +114,10 @@ let package = Package(
     .library(
       name: "UsdShade",
       targets: ["UsdShade"]
+    ),
+    .library(
+      name: "UsdLod",
+      targets: ["UsdLod"]
     ),
     .library(
       name: "UsdLux",
@@ -342,6 +346,10 @@ let package = Package(
     .library(
       name: "UsdUtilsValidators",
       targets: ["UsdUtilsValidators"]
+    ),
+    .library(
+      name: "UsdLodValidators",
+      targets: ["UsdLodValidators"]
     ),
     .library(
       name: "UsdLuxValidators",
@@ -891,6 +899,33 @@ let package = Package(
       ]
     ),
 
+    .target(
+      name: "UsdLod",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Gf"),
+        .target(name: "Vt"),
+        .target(name: "Sdf"),
+        .target(name: "Usd"),
+        .target(name: "UsdGeom"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        _abiFlag,
+        .define("MFB_PACKAGE_NAME", to: "UsdLod"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "UsdLod"),
+        .define("MFB_PACKAGE_MODULE", to: "UsdLod"),
+        .define("USDLOD_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+    
     .target(
       name: "UsdLux",
       dependencies: [
@@ -2256,6 +2291,30 @@ let package = Package(
     ),
     
     .target(
+      name: "UsdLodValidators",
+      dependencies: [
+        .target(name: "Tf"),
+        .target(name: "Plug"),
+        .target(name: "Vt"),
+        .target(name: "Sdf"),
+        .target(name: "Usd"),
+        .target(name: "UsdLod"),
+        .target(name: "UsdValidation"),
+      ],
+      cxxSettings: [
+        _abiFlag,
+        .define("MFB_PACKAGE_NAME", to: "UsdLodValidators"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "UsdLodValidators"),
+        .define("MFB_PACKAGE_MODULE", to: "UsdLodValidators"),
+        .define("USDLODVALIDATORS_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+    
+    .target(
       name: "UsdLuxValidators",
       dependencies: [
         .target(name: "Plug"),
@@ -2688,6 +2747,7 @@ enum Arch
           // .target(name: "SdrOsl"),
           .target(name: "UsdGeom"),
           .target(name: "UsdShade"),
+          .target(name: "UsdLod"),
           .target(name: "UsdLux"),
           .target(name: "UsdHydra"),
           .target(name: "UsdAbc"),
@@ -2745,6 +2805,7 @@ enum Arch
           .target(name: "UsdShadeValidators"),
           .target(name: "UsdSkelValidators"),
           .target(name: "UsdUtilsValidators"),
+          .target(name: "UsdLodValidators"),
           .target(name: "UsdLuxValidators"),
           // -------- macros. ------
           .target(name: "PixarMacros"),

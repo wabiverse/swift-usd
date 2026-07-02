@@ -61,6 +61,10 @@ public extension Bundle
   static let usdLux = pxrBundle("swift-usd_UsdLux")
 
   /**
+   * Where ``UsdLod`` application bundle resources are located. */
+  static let usdLod = pxrBundle("swift-usd_UsdLod")
+  
+  /**
    * Where ``UsdHydra`` application bundle resources are located. */
   static let usdHydra = pxrBundle("swift-usd_UsdHydra")
 
@@ -224,6 +228,10 @@ public extension Bundle
    * Where ``UsdShaders`` application bundle resources are located. */
   static let pyUsdShaders = pxrBundle("swift-usd_PyUsdShaders")
 
+  /**
+   * Where ``UsdLod`` application bundle resources are located. */
+  static let pyUsdLod = pxrBundle("swift-usd_PyUsdLod")
+  
   /**
    * Where ``UsdLux`` application bundle resources are located. */
   static let pyUsdLux = pxrBundle("swift-usd_PyUsdLux")
