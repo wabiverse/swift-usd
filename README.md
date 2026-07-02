@@ -52,7 +52,7 @@
 </h4>
 
 <div align="center">
-  <image align=top width="50%" src="https://github.com/user-attachments/assets/ad0a019c-17fd-422f-9145-b88aad3f9f06">
+  <image align=top width="70%" src="https://github.com/user-attachments/assets/ad0a019c-17fd-422f-9145-b88aad3f9f06">
 </div>
 
 <div align="center">
@@ -108,9 +108,6 @@ USDStage("HelloWorldExample", ext: .usd)
 
 ### **Getting Started**
 
-> [!IMPORTANT]
-> This repository was renamed to `https://github.com/wabiverse/swift-usd.git`. If you previously specified `https://github.com/wabiverse/SwiftUSD.git` in your own SwiftPM package dependency URLs, or used `SwiftUSD` to refer to this package in your own SwiftPM package, change it to `swift-usd`. This is because the [apple/SwiftUsd](https://github.com/apple/SwiftUsd) package conflicted with our own package name, and we are currently integrating [apple/SwiftUsd](https://github.com/apple/SwiftUsd) to bring in precompiled binaries by default across all Apple Darwin platforms.
-
 ##### To use **OpenUSD** in Swift, run the following in your terminal:
 ```swift
 mkdir MySwiftApp
@@ -143,7 +140,7 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.5.2-beta.1")
+    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.5.2-beta.2")
   ],
   targets: [
     .executableTarget(
@@ -178,11 +175,13 @@ let package = Package(
 <table>
   <tr>
     <td>
-      <img width="1012" height="669" alt="Screenshot_2026-06-06_at_8 44 04_PM" src="https://github.com/user-attachments/assets/a42f5611-a841-470a-8eb0-d304cbfc65f6" />
+      <img width="90%" alt="Screenshot_2026-06-06_at_8 44 04_PM" src="https://github.com/user-attachments/assets/a42f5611-a841-470a-8eb0-d304cbfc65f6" />
       <br/>
-      <img width="3840" height="2160" alt="Simulator Screenshot - Apple Vision Pro - 2026-06-08 at 17 32 46" src="https://github.com/user-attachments/assets/6325d824-6eb4-47d2-ac0c-3e32b105d167" />
+      <img width="60%" alt="Simulator Screenshot - Apple Vision Pro - 2026-06-08 at 17 32 46" src="https://github.com/user-attachments/assets/6325d824-6eb4-47d2-ac0c-3e32b105d167" />
     </td>
-    <td><img width="585" height="1266" alt="usdview_on_ios" src="https://github.com/user-attachments/assets/7a5716e4-78ff-44bf-89df-892fe33297d4" /></td>
+    <td>
+      <img width="100%" alt="usdview_on_ios" src="https://github.com/user-attachments/assets/7a5716e4-78ff-44bf-89df-892fe33297d4" />
+    </td>
   </tr>
 </table>
 
@@ -193,56 +192,78 @@ let package = Package(
 
   ### Linux
 
-  > [!IMPORTANT]
-  > The [**bundler**](https://github.com/stackotter/swift-bundler.git) is currently in development to support bundling apps on **Linux**, until then please follow these instructions to run **UsdView** on **Linux**:
-
-<div align="center">
-
-  <div align="left">
-
-  ```pwsh
-  git clone https://github.com/wabiverse/swift-usd.git
-  cd swift-usd
-
-  swift run -c release UsdView
-  ```
-
-  </div>
-
-</div>
-
-  ### Apple Devices (macOS, visionOS, iOS)
-
   > [!TIP]
-  > Install the [**bundler**](https://github.com/stackotter/swift-bundler.git) locally by running the following commands in your terminal:
+  > Install the [**bundler**](https://github.com/moreSwift/swift-bundler.git) locally by running the following commands in your terminal:
 
 <div align="center">
 
   <div align="left">
+  
+  #### **Debian**
 
+  Install the required dependencies, as well as [`appimagetool`](https://swiftbundler.dev/documentation/swift-bundler/installation#appimagetool-required-for-AppImage-bundling).
   ```pwsh
-  git clone https://github.com/stackotter/swift-bundler
-  cd swift-bundler
+  sudo apt install patchelf
+  sudo apt install rpm
+  ```
+  
+  #### **Fedora**
 
+  Install the required dependencies, as well as [`appimagetool`](https://swiftbundler.dev/documentation/swift-bundler/installation#appimagetool-required-for-AppImage-bundling).
+  ```pwsh
+  sudo dnf install patchelf
+  sudo dnf install rpmdevtools
+  ```
+  
+  #### **Install Swift Bundler**
+  ```pwsh
+  git clone https://github.com/moreSwift/swift-bundler.git
+  cd swift-bundler
+  
   swift build -c release
   sudo cp .build/release/swift-bundler /usr/local/bin/
   ```
 
   </div>
-
-
+  
   <div align="left">
 
-  Finally, to run and bundle **UsdView** or any other app (such as your own!) with the bundler installed locally, run the following commands:
+  Finally, to run and bundle **UsdView** on **Linux**:
   ```pwsh
   git clone https://github.com/wabiverse/swift-usd.git
   cd swift-usd
+  
+  swift bundler run -c release UsdView
+  ```
+  
+  </div>
+
+</div>
+
+  ### Apple Platforms (macOS, visionOS, iOS)
+
+  > [!TIP]
+  > Install the [**bundler**](https://github.com/moreSwift/swift-bundler.git) locally by running the following commands in your terminal:
+
+<div align="center">
+
+  <div align="left">
+
+  ```pwsh
+  git clone https://github.com/moreSwift/swift-bundler.git
+  cd swift-bundler
+  
+  swift build -c release
+  sudo cp .build/release/swift-bundler /usr/local/bin/
   ```
 
   #### **macOS**
 
   Run and bundle **UsdView** on **macOS**.
   ```pwsh
+  git clone https://github.com/wabiverse/swift-usd.git
+  cd swift-usd
+  
   swift bundler run -c release UsdView
   ```
 
