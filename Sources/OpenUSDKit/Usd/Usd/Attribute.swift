@@ -48,6 +48,26 @@ public extension Usd.Attribute
   {
     Set(value, time)
   }
+  
+  #if canImport(Usd)
+  private borrowing func GetTypeNameCopy() -> Pixar.SdfValueTypeName
+  {
+    __GetTypeNameUnsafe()
+  }
+  #endif
+
+  public var typeName: Pixar.SdfValueTypeName
+  {
+    get
+    {
+      #if canImport(Usd)
+        GetTypeNameCopy()
+      #else
+        GetTypeName()
+      #endif
+    }
+    set { SetTypeName(newValue) }
+  }
 }
 
 #if !canImport(Usd)
