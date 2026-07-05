@@ -42,8 +42,17 @@ public protocol Prim
                        custom: Bool,
                        variability: Sdf.Variability) -> Usd.Attribute?
   
+  func createAttribute(name: String,
+                       typeName: Sdf.ValueTypeNameType,
+                       custom: Bool,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
   func createAttribute(name: Tf.Token,
                        typeName: Sdf.ValueTypeName,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(name: String,
+                       typeName: Sdf.ValueTypeNameType,
                        variability: Sdf.Variability) -> Usd.Attribute?
   
   func createAttribute(nameComponents: Overlay.String_Vector,
@@ -52,7 +61,16 @@ public protocol Prim
                        variability: Sdf.Variability) -> Usd.Attribute?
   
   func createAttribute(nameComponents: Overlay.String_Vector,
+                       typeName: Sdf.ValueTypeNameType,
+                       custom: Bool,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(nameComponents: Overlay.String_Vector,
                        typeName: Sdf.ValueTypeName,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(nameComponents: Overlay.String_Vector,
+                       typeName: Sdf.ValueTypeNameType,
                        variability: Sdf.Variability) -> Usd.Attribute?
   
   func attribute(named name: Tf.Token) -> Usd.Attribute?
@@ -60,6 +78,8 @@ public protocol Prim
   func attribute(named name: String) -> Usd.Attribute?
   
   func hasAttribute(named name: Tf.Token) -> Bool
+  
+  func hasAttribute(named name: String) -> Bool
   
   func findAllAttributeConnectionPaths(traversalPredicate: Pixar.Usd_PrimFlagsPredicate,
                                        recurseOnSources: Bool) -> Pixar.SdfPathVector

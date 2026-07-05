@@ -230,6 +230,54 @@ extension Usd.Prim: Prim
     CreateAttribute(name, typeName, custom, variability).validOrNil
   }
   
+  /// Author scene description for the attribute named \a attrName at the
+  /// current EditTarget if none already exists.  Return a valid attribute if
+  /// scene description was successfully authored or if it already existed,
+  /// return invalid attribute otherwise.  Note that the supplied \a typeName
+  /// and \a custom arguments are only used in one specific case.  See below
+  /// for details.
+  ///
+  /// Suggested use:
+  /// ```swift
+  /// if let myAttr = prim.createAttribute(...) {
+  ///   // success.
+  /// }
+  /// ```
+  ///
+  /// To call this, GetPrim() must return a valid prim.
+  ///
+  /// - If a spec for this attribute already exists at the current edit
+  /// target, do nothing.
+  ///
+  /// - If a spec for \a attrName of a different spec type (e.g. a
+  /// relationship) exists at the current EditTarget, issue an error.
+  ///
+  /// - If \a name refers to a builtin attribute according to the prim's
+  /// definition, author an attribute spec with required metadata from the
+  /// definition.
+  ///
+  /// - If \a name refers to a builtin relationship, issue an error.
+  ///
+  /// - If there exists an absolute strongest authored attribute spec for
+  /// \a attrName, author an attribute spec at the current EditTarget by
+  /// copying required metadata from that strongest spec.
+  ///
+  /// - If there exists an absolute strongest authored relationship spec for
+  /// \a attrName, issue an error.
+  ///
+  /// - Otherwise author an attribute spec at the current EditTarget using
+  /// the provided \a typeName and \a custom for the required metadata fields.
+  /// Note that these supplied arguments are only ever used in this particular
+  /// circumstance, in all other cases they are ignored.
+  @discardableResult
+  public func createAttribute(name: String,
+                              typeName: Sdf.ValueTypeNameType,
+                              custom: Bool,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(Tf.Token(name), Sdf.getValueType(for: typeName), custom, variability).validOrNil
+  }
+  
   /// \overload
   /// Create a custom attribute with \p name, \p typeName and \p variability.
   @discardableResult
@@ -238,6 +286,16 @@ extension Usd.Prim: Prim
                               variability: Sdf.Variability = .varying) -> Usd.Attribute?
   {
     CreateAttribute(name, typeName, variability).validOrNil
+  }
+  
+  /// \overload
+  /// Create a custom attribute with \p name, \p typeName and \p variability.
+  @discardableResult
+  public func createAttribute(name: String,
+                              typeName: Sdf.ValueTypeNameType,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(Tf.Token(name), Sdf.getValueType(for: typeName), variability).validOrNil
   }
   
   /// \overload
@@ -254,6 +312,19 @@ extension Usd.Prim: Prim
   }
   
   /// \overload
+  /// This overload of CreateAttribute() accepts a vector of name components
+  /// used to construct a \em namespaced property name.  For details, see
+  /// \ref Usd_Ordering
+  @discardableResult
+  public func createAttribute(nameComponents: Overlay.String_Vector,
+                              typeName: Sdf.ValueTypeNameType,
+                              custom: Bool,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    return CreateAttribute(nameComponents, Sdf.getValueType(for: typeName), custom, variability).validOrNil
+  }
+  
+  /// \overload
   /// Create a custom attribute with \p nameComponents, \p typeName, and \p variability.
   @discardableResult
   public func createAttribute(nameComponents: Overlay.String_Vector,
@@ -261,6 +332,16 @@ extension Usd.Prim: Prim
                               variability: Sdf.Variability = .varying) -> Usd.Attribute?
   {
     CreateAttribute(nameComponents, typeName, variability).validOrNil
+  }
+  
+  /// \overload
+  /// Create a custom attribute with \p nameComponents, \p typeName, and \p variability.
+  @discardableResult
+  public func createAttribute(nameComponents: Overlay.String_Vector,
+                              typeName: Sdf.ValueTypeNameType,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(nameComponents, Sdf.getValueType(for: typeName), variability).validOrNil
   }
   
   /// Like GetProperties(), but exclude all relationships from the result.
@@ -315,6 +396,13 @@ extension Usd.Prim: Prim
   public func hasAttribute(named name: Tf.Token) -> Bool
   {
     HasAttribute(name)
+  }
+  
+  /// Return `true` if this prim has an attribute named \p name, `false`
+  /// otherwise.
+  public func hasAttribute(named name: String) -> Bool
+  {
+    HasAttribute(Tf.Token(name))
   }
   
   /// Search the prim subtree rooted at this prim according to \p traversalPredicate,
