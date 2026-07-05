@@ -112,16 +112,6 @@ extension Usd.Prim: Prim
   {
     doc.withCString { Overlay.SetDocumentation(self, $0) }
   }
-
-  public func set(active: Bool)
-  {
-    SetActive(active)
-  }
-
-  public func isActive() -> Bool
-  {
-    IsActive()
-  }
   
   public func getStage() -> UsdStageWeakPtr
   {
@@ -180,6 +170,17 @@ extension Usd.Prim: Prim
   public var children: [any Prim]
   {
     IteratorSequence(GetChildren()).map { $0 }
+  }
+  
+  public var isActive: Bool
+  {
+    get { IsActive() }
+    set { SetActive(newValue) }
+  }
+  
+  public var isValid: Bool
+  {
+    IsValid()
   }
   
   /// Author scene description for the attribute named \a attrName at the

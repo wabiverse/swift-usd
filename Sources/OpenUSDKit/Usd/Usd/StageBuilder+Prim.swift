@@ -22,18 +22,18 @@ public protocol Prim
   var path: Sdf.Path { get }
 
   var name: Tf.Token { get }
+  
+  var typeName: Tf.Token { get set }
 
   var children: [any Prim] { get }
   
-  var typeName: Tf.Token { get }
+  var isActive: Bool { get set }
+  
+  var isValid: Bool { get }
   
   var attributes: Pixar.UsdAttributeVector { get }
   
   var authoredAttributes: Pixar.UsdAttributeVector { get }
-  
-  func isActive() -> Bool
-  
-  func set(active: Bool)
   
   func set(doc: String)
   

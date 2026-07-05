@@ -42,6 +42,18 @@ public extension Usd.Attribute
   {
     Set(value, time)
   }
+  
+  @discardableResult
+  func set(_ value: GfVec3f, time: UsdTimeCode = UsdTimeCode.Default()) -> Bool
+  {
+    Set(value, time)
+  }
+  
+  @discardableResult
+  func set(_ value: GfVec3d, time: UsdTimeCode = UsdTimeCode.Default()) -> Bool
+  {
+    Set(value, time)
+  }
 
   @discardableResult
   func set(_ value: Sdf.AssetPath, time: UsdTimeCode = UsdTimeCode.Default()) -> Bool

@@ -43,7 +43,7 @@ public struct PrimEntry: Identifiable, Hashable, Sendable
     typeName = prim.typeName.isEmpty ? "-" : prim.typeName.string
     self.depth = depth
     hasChildren = !prim.children.isEmpty
-    isVisible = prim.isActive()
+    isVisible = prim.isActive
   }
 
   /// the top-level rows shown when a stage first loads: direct children of
