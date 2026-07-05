@@ -1,4 +1,5 @@
 --acronyms ID,URL,UUID
+--anonymous-for-each ignore
 --allman true
 --assetliterals visual-width
 --asynccapturing 
@@ -26,7 +27,8 @@
 --generictypes 
 --groupedextension "MARK: %c"
 --guardelse auto
---header "/* ----------------------------------------------------------------\n * :: :  M  E  T  A  V  E  R  S  E  :                            ::\n * ----------------------------------------------------------------\n * Licensed under the terms set forth in the LICENSE.txt file, this\n * file is available at https://openusd.org/license.\n *\n *                                        Copyright (C) 2016 Pixar.\n *         Copyright (C) 2024 Wabi Foundation. All Rights Reserved.\n * ----------------------------------------------------------------\n *  . x x x . o o o . x x x . : : : .    o  x  o    . : : : .\n * ---------------------------------------------------------------- */"
+--enable fileHeader
+--header "/* ----------------------------------------------------------------\n * :: :  O  P  E  N  U  S  D  :                                  ::\n * ----------------------------------------------------------------\n * Licensed under the terms set forth in the LICENSE.txt file, this\n * file is available at https://openusd.org.\n *\n *                   Copyright (C) 2016 Pixar. All Rights Reserved.\n *                              Copyright (C) 2024 Wabi Foundation.\n * ----------------------------------------------------------------\n *  . x x x . o o o . x x x . : : : .    o  x  o    . : : : .\n * ---------------------------------------------------------------- */"
 --hexgrouping 4,8
 --hexliteralcase uppercase
 --ifdef indent
@@ -80,5 +82,5 @@
 --wraptypealiases preserve
 --xcodeindentation disabled
 --yodaswap always
---disable trailingCommas
+--disable trailingCommas,preferForLoop
 --enable blankLineAfterImports,docComments,isEmpty

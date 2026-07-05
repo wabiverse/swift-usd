@@ -56,7 +56,7 @@ public extension Usd.Attribute
   }
   #endif
 
-  public var typeName: Pixar.SdfValueTypeName
+  var typeName: Pixar.SdfValueTypeName
   {
     get
     {
@@ -67,6 +67,18 @@ public extension Usd.Attribute
       #endif
     }
     set { SetTypeName(newValue) }
+  }
+  
+  /// Returns `true` if `IsValid()` is `true`, otherwise `false`.
+  func isValid() -> Bool
+  {
+    IsValid()
+  }
+  
+  /// Returns `self` if `IsValid()`, otherwise `nil`.
+  var validOrNil: Usd.Attribute?
+  {
+    IsValid() ? self : nil
   }
 }
 

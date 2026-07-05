@@ -1724,6 +1724,9 @@ let package = Package(
         .target(name: "UsdShade"),
         .target(name: "UsdVol"),
       ],
+      resources: [
+        .process("Resources")
+      ],
       cxxSettings: [
         _abiFlag,
         .define("MFB_PACKAGE_NAME", to: "HdSi"),

@@ -40,6 +40,7 @@ public enum BundleFramework: CaseIterable
   case hgiMetal
   case hgiVulkan
   case hgiGL
+  case hdSi
   case hdSt
   case hdStorm
   case hdx
@@ -78,6 +79,7 @@ public enum BundleFramework: CaseIterable
       case .hgiMetal: Bundle.hgiMetal?.resourcePath
       case .hgiVulkan: Bundle.hgiVulkan?.resourcePath
       case .hgiGL: Bundle.hgiGL?.resourcePath
+      case .hdSi: Bundle.hdSi?.resourcePath
       case .hdSt: Bundle.hdSt?.resourcePath
       case .hdStorm: Bundle.hdStorm?.resourcePath
       case .hdx: Bundle.hdx?.resourcePath

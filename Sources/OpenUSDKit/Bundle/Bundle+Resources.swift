@@ -133,6 +133,10 @@ public extension Bundle
   static let hgiGL = pxrBundle("swift-usd_HgiGL")
 
   /**
+   * Where ``HdSi`` application bundle resources are located. */
+  static let hdSi = pxrBundle("swift-usd_HdSi")
+  
+  /**
    * Where ``HdSt`` application bundle resources are located. */
   static let hdSt = pxrBundle("swift-usd_HdSt")
 

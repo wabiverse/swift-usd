@@ -128,6 +128,7 @@
       ("swift-usd_UsdUI.resources", usdUIPlugInfo),
       ("swift-usd_UsdVol.resources", usdVolPlugInfo),
       ("swift-usd_Hd.resources", hdPlugInfo),
+      ("swift-usd_HdSi.resources", hdSiPlugInfo),
       ("swift-usd_HdSt.resources", hdStPlugInfo),
       ("swift-usd_HdStorm.resources", hdStormPlugInfo),
       ("swift-usd_Hdx.resources", hdxPlugInfo),
@@ -970,6 +971,32 @@
     }
     """
 
+    // MARK: - HdSi
+
+    private static let hdSiPlugInfo = """
+    {
+      "Plugins": [
+        {
+          "Info": {
+            "Types": {
+              "HdsiDebuggingSceneIndexPlugin" : {
+                "bases": ["HdSceneIndexPlugin"],
+                "loadWithRenderer": "",
+                "priority": 0,
+                "displayName": "Add debugging scene index if corresponding env var is set."
+              }
+            }
+          },
+          "LibraryPath": "",
+          "Name": "HdSi",
+          "ResourcePath": ".",
+          "Root": ".",
+          "Type": "library"
+        }
+      ]
+    }
+    """
+    
     // MARK: - HdSt
 
     private static let hdStPlugInfo = """

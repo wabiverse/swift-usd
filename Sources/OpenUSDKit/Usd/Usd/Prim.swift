@@ -21,6 +21,8 @@ import Foundation
 public typealias UsdStageWeakPtr = Pixar.UsdStageWeakPtr
 public typealias UsdPrim = Pixar.UsdPrim
 
+public typealias Usd_PrimFlagsPredicate = Pixar.Usd_PrimFlagsPredicate
+
 public extension Usd
 {
   /**
@@ -84,6 +86,8 @@ public extension Usd
    */
   typealias Prim = UsdPrim
   typealias StageWeakPtr = UsdStageWeakPtr
+
+  typealias PrimFlagsPredicate = Usd_PrimFlagsPredicate
 }
 
 #if canImport(Usd)
@@ -177,8 +181,190 @@ extension Usd.Prim: Prim
   {
     IteratorSequence(GetChildren()).map { $0 }
   }
+  
+  /// Author scene description for the attribute named \a attrName at the
+  /// current EditTarget if none already exists.  Return a valid attribute if
+  /// scene description was successfully authored or if it already existed,
+  /// return invalid attribute otherwise.  Note that the supplied \a typeName
+  /// and \a custom arguments are only used in one specific case.  See below
+  /// for details.
+  ///
+  /// Suggested use:
+  /// ```swift
+  /// if let myAttr = prim.createAttribute(...) {
+  ///   // success.
+  /// }
+  /// ```
+  ///
+  /// To call this, GetPrim() must return a valid prim.
+  ///
+  /// - If a spec for this attribute already exists at the current edit
+  /// target, do nothing.
+  ///
+  /// - If a spec for \a attrName of a different spec type (e.g. a
+  /// relationship) exists at the current EditTarget, issue an error.
+  ///
+  /// - If \a name refers to a builtin attribute according to the prim's
+  /// definition, author an attribute spec with required metadata from the
+  /// definition.
+  ///
+  /// - If \a name refers to a builtin relationship, issue an error.
+  ///
+  /// - If there exists an absolute strongest authored attribute spec for
+  /// \a attrName, author an attribute spec at the current EditTarget by
+  /// copying required metadata from that strongest spec.
+  ///
+  /// - If there exists an absolute strongest authored relationship spec for
+  /// \a attrName, issue an error.
+  ///
+  /// - Otherwise author an attribute spec at the current EditTarget using
+  /// the provided \a typeName and \a custom for the required metadata fields.
+  /// Note that these supplied arguments are only ever used in this particular
+  /// circumstance, in all other cases they are ignored.
+  @discardableResult
+  public func createAttribute(name: Tf.Token,
+                              typeName: Sdf.ValueTypeName,
+                              custom: Bool,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(name, typeName, custom, variability).validOrNil
+  }
+  
+  /// \overload
+  /// Create a custom attribute with \p name, \p typeName and \p variability.
+  @discardableResult
+  public func createAttribute(name: Tf.Token,
+                              typeName: Sdf.ValueTypeName,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(name, typeName, variability).validOrNil
+  }
+  
+  /// \overload
+  /// This overload of CreateAttribute() accepts a vector of name components
+  /// used to construct a \em namespaced property name.  For details, see
+  /// \ref Usd_Ordering
+  @discardableResult
+  public func createAttribute(nameComponents: Overlay.String_Vector,
+                              typeName: Sdf.ValueTypeName,
+                              custom: Bool,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(nameComponents, typeName, custom, variability).validOrNil
+  }
+  
+  /// \overload
+  /// Create a custom attribute with \p nameComponents, \p typeName, and \p variability.
+  @discardableResult
+  public func createAttribute(nameComponents: Overlay.String_Vector,
+                              typeName: Sdf.ValueTypeName,
+                              variability: Sdf.Variability = .varying) -> Usd.Attribute?
+  {
+    CreateAttribute(nameComponents, typeName, variability).validOrNil
+  }
+  
+  /// Like GetProperties(), but exclude all relationships from the result.
+  public var attributes: Pixar.UsdAttributeVector
+  {
+    GetAttributes()
+  }
+  
+  /// Like `attributes`, but exclude attributes without authored scene
+  /// description from the result.  See `UsdProperty/IsAuthored()`.
+  public var authoredAttributes: Pixar.UsdAttributeVector
+  {
+    GetAuthoredAttributes()
+  }
+  
+  /// Return a UsdAttribute with the named \a name. The attribute
+  /// returned may or may not \b actually exist so it must be checked for
+  /// validity. Suggested use:
+  ///
+  /// ```swift
+  /// if let myAttr = prim.attribute(named: Tf.Token("myAttr")) {
+  ///   // myAttr is safe to use.
+  ///   // Edits to the owning stage requires subsequent validation.
+  /// } else {
+  ///   // myAttr was not defined/authored
+  /// }
+  /// ```
+  public func attribute(named name: Tf.Token) -> Usd.Attribute?
+  {
+    GetAttribute(name).validOrNil
+  }
+  
+  /// Return a UsdAttribute with the named \a name. The attribute
+  /// returned may or may not \b actually exist so it must be checked for
+  /// validity. Suggested use:
+  ///
+  /// ```swift
+  /// if let myAttr = prim.attribute(named: "myAttr") {
+  ///   // myAttr is safe to use.
+  ///   // Edits to the owning stage requires subsequent validation.
+  /// } else {
+  ///   // myAttr was not defined/authored
+  /// }
+  /// ```
+  public func attribute(named name: String) -> Usd.Attribute?
+  {
+    GetAttribute(Tf.Token(name)).validOrNil
+  }
+  
+  /// Return `true` if this prim has an attribute named \p name, `false`
+  /// otherwise.
+  public func hasAttribute(named name: Tf.Token) -> Bool
+  {
+    HasAttribute(name)
+  }
+  
+  /// Search the prim subtree rooted at this prim according to \p traversalPredicate,
+  /// collect their connection source paths and return them in an arbitrary order.  If
+  /// \p recurseOnSources is true, act as if this function was invoked on the connected
+  /// prims and owning prims of connected properties also and return the union.
+  public func findAllAttributeConnectionPaths(traversalPredicate: Usd.PrimFlagsPredicate,
+                                              recurseOnSources: Bool = false) -> Pixar.SdfPathVector
+  {
+    FindAllAttributeConnectionPaths(traversalPredicate, .init(), recurseOnSources)
+  }
+  
+  @available(*, unavailable, renamed: "findAllAttributeConnectionPaths(traversalPredicate:recurseOnSources:)")
+  public func findAllAttributeConnectionPaths(traversalPredicate: Usd.PrimFlagsPredicate,
+                                              predicate: ((Usd.Attribute) -> Bool)?,
+                                              recurseOnSources: Bool) -> Pixar.SdfPathVector
+  {
+    fatalError("This function is not yet supported. Use the version without the predicate parameter.")
+  }
+  
+  /// \overload
+  /// Invoke FindAllAttributeConnectionPaths() with the UsdPrimDefaultPredicate as its traversalPredicate.
+  public func findAllAttributeConnectionPaths(recurseOnSources: Bool = false) -> Pixar.SdfPathVector
+  {
+    FindAllAttributeConnectionPaths(.init(), recurseOnSources)
+  }
+  
+  @available(*, unavailable, renamed: "findAllAttributeConnectionPaths(recurseOnSources:)")
+  public func findAllAttributeConnectionPaths(predicate: ((Usd.Attribute) -> Bool)?,
+                                              recurseOnSources: Bool) -> Pixar.SdfPathVector
+  {
+    fatalError("This function is not yet supported. Use the version without the predicate parameter.")
+  }
 }
 
+extension Pixar.Usd_PrimFlagsPredicate
+{
+  public static let active = Self(Pixar.Usd_PrimActiveFlag)
+  public static let loaded = Self(Pixar.Usd_PrimLoadedFlag)
+  public static let model = Self(Pixar.Usd_PrimModelFlag)
+  public static let group = Self(Pixar.Usd_PrimGroupFlag)
+  public static let abstract = Self(Pixar.Usd_PrimAbstractFlag)
+  public static let defined = Self(Pixar.Usd_PrimDefinedFlag)
+  public static let instance = Self(Pixar.Usd_PrimInstanceFlag)
+  public static let classSpecifier = Self(Pixar.Usd_PrimHasClassSpecifierFlag)
+  public static let definingSpecifier = Self(Pixar.Usd_PrimHasDefiningSpecifierFlag)
+
+  public static let allPrims = Pixar.UsdPrimAllPrimsPredicate
+  public static let defaultPredicate = Pixar.UsdPrimDefaultPredicate
+}
 
 #if !canImport(Usd)
 extension Overlay

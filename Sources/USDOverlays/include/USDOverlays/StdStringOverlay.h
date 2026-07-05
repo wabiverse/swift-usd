@@ -67,6 +67,8 @@ namespace Overlay
   bool AddReference(Pixar::UsdReferences references, const char *assetPath, const Pixar::SdfLayerOffset &layerOffset, Pixar::UsdListPosition position);
 
   Pixar::UsdAttribute CreateIdAttr(const Pixar::UsdShadeShader &shader, const char *defaultValue, bool writeSparsely);
+    
+  typedef std::vector<std::string> String_Vector;
 
   std::vector<std::string> MakeStringVector();
   std::vector<std::string> PushBackPath(std::vector<std::string> paths, const char *path);

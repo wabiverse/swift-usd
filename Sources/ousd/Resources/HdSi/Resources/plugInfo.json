@@ -1,0 +1,22 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                    "HdsiDebuggingSceneIndexPlugin" : {
+                        "bases": ["HdSceneIndexPlugin"],
+                        "loadWithRenderer": "",
+                        "priority": 0,
+                        "displayName": "Add debugging scene index if corresponding env var is set."
+                    }
+                }
+            },
+            "LibraryPath": "",
+            "Name": "HdSi",
+            "ResourcePath": ".",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}
+

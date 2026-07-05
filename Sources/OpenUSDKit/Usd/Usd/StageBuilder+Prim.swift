@@ -27,11 +27,44 @@ public protocol Prim
   
   var typeName: Tf.Token { get }
   
+  var attributes: Pixar.UsdAttributeVector { get }
+  
+  var authoredAttributes: Pixar.UsdAttributeVector { get }
+  
   func isActive() -> Bool
   
   func set(active: Bool)
   
   func set(doc: String)
+  
+  func createAttribute(name: Tf.Token,
+                       typeName: Sdf.ValueTypeName,
+                       custom: Bool,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(name: Tf.Token,
+                       typeName: Sdf.ValueTypeName,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(nameComponents: Overlay.String_Vector,
+                       typeName: Sdf.ValueTypeName,
+                       custom: Bool,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func createAttribute(nameComponents: Overlay.String_Vector,
+                       typeName: Sdf.ValueTypeName,
+                       variability: Sdf.Variability) -> Usd.Attribute?
+  
+  func attribute(named name: Tf.Token) -> Usd.Attribute?
+  
+  func attribute(named name: String) -> Usd.Attribute?
+  
+  func hasAttribute(named name: Tf.Token) -> Bool
+  
+  func findAllAttributeConnectionPaths(traversalPredicate: Pixar.Usd_PrimFlagsPredicate,
+                                       recurseOnSources: Bool) -> Pixar.SdfPathVector
+  
+  func findAllAttributeConnectionPaths(recurseOnSources: Bool) -> Pixar.SdfPathVector
 }
 
 /**
