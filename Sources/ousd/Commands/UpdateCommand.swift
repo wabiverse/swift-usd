@@ -1065,11 +1065,17 @@ public enum Pxr: String, CaseIterable
       source = source.replacingOccurrences(of: "\"@PLUG_INFO_ROOT@\"", with: "\".\"")
     }
 
-    /** Fixes plugInfo.json "Name" to use SwiftUSD capitalized target name (e.g. "usdGeom" -> "UsdGeom"). */
+    /** Fixes plugInfo.json "Name" to use SwiftUSD capitalized target name (e.g. "hdsi" -> "HdSi"). */
     public static func pluginfoName(to source: inout String, target: String)
     {
-      let lower = target.prefix(1).lowercased() + target.dropFirst()
-      source = source.replacingOccurrences(of: "\"Name\": \"\(lower)\"", with: "\"Name\": \"\(target)\"")
+      // upstream's name is the cmake library name, whose casing doesn't always
+      // reverse from the target (ex. "hdsi", not "hdSi", for target "HdSi").
+      let pattern = #"("Name":\s*")\#(target)(")"#
+      source = source.replacingOccurrences(
+        of: pattern,
+        with: "$1\(target)$2",
+        options: [.regularExpression, .caseInsensitive]
+      )
     }
 
     /** Patches schema.usda: fixes libraryName/libraryPath, pxr/ includes, and subLayer paths to SwiftUSD conventions. */

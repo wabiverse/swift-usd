@@ -150,11 +150,9 @@ let package = Package(
         .product(name: "OpenUSDKit", package: "swift-usd"),
       ],
       cxxSettings: [
-        // required because swiftc's embedded clang (swift 6+)
-        // defines _LIBCPP_ABI_NO_COMPRESSED_PAIR_PADDING for
-        // swift modules, but c++ module builds dont, causing
-        // odr violations on any stdlib include. this flag is
-        // required to align both compilation contexts.
+        // forces swift's internal clang header parser to use a
+        // unified stdlib memory layout across all module boundaries
+        // to prevent ODR errors.
         .define("_LIBCPP_ABI_NO_COMPRESSED_PAIR_PADDING")
       ],
       swiftSettings: [
@@ -163,8 +161,8 @@ let package = Package(
       ]
     ),
   ],
-  // use cxx17 language standard.
-  cxxLanguageStandard: .cxx17
+  // use gnucxx17 language standard.
+  cxxLanguageStandard: .gnucxx17
 )
 ```
 
