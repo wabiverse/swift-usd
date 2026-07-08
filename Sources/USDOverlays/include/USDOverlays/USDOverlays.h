@@ -7,6 +7,7 @@
 #include "USDOverlays/ReferenceTypeConformances.h"
 #include "USDOverlays/StdStringOverlay.h"
 #include "USDOverlays/SwiftCxxMacros.h"
+#include "USDOverlays/VtArrayOverlay.h"
 #include "USDOverlays/XformableOverlay.h"
 
 #endif // __SWIFTUSD_USD_OVERLAYS_H__
