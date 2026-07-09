@@ -78,4 +78,69 @@ namespace Overlay
   {
     return array.cdata();
   }
+
+  Pixar::VtBoolArray vtArray(const bool *src, size_t count)
+  {
+    return count ? Pixar::VtBoolArray(src, src + count) : Pixar::VtBoolArray();
+  }
+
+  Pixar::VtIntArray vtArray(const int *src, size_t count)
+  {
+    return count ? Pixar::VtIntArray(src, src + count) : Pixar::VtIntArray();
+  }
+
+  Pixar::VtUIntArray vtArray(const unsigned int *src, size_t count)
+  {
+    return count ? Pixar::VtUIntArray(src, src + count) : Pixar::VtUIntArray();
+  }
+
+  Pixar::VtInt64Array vtArray(const int64_t *src, size_t count)
+  {
+    return count ? Pixar::VtInt64Array(src, src + count) : Pixar::VtInt64Array();
+  }
+
+  Pixar::VtUInt64Array vtArray(const uint64_t *src, size_t count)
+  {
+    return count ? Pixar::VtUInt64Array(src, src + count) : Pixar::VtUInt64Array();
+  }
+
+  Pixar::VtFloatArray vtArray(const float *src, size_t count)
+  {
+    return count ? Pixar::VtFloatArray(src, src + count) : Pixar::VtFloatArray();
+  }
+
+  Pixar::VtDoubleArray vtArray(const double *src, size_t count)
+  {
+    return count ? Pixar::VtDoubleArray(src, src + count) : Pixar::VtDoubleArray();
+  }
+
+  Pixar::VtVec2fArray vtArray(const Pixar::GfVec2f *src, size_t count)
+  {
+    return count ? Pixar::VtVec2fArray(src, src + count) : Pixar::VtVec2fArray();
+  }
+
+  Pixar::VtVec3fArray vtArray(const Pixar::GfVec3f *src, size_t count)
+  {
+    return count ? Pixar::VtVec3fArray(src, src + count) : Pixar::VtVec3fArray();
+  }
+
+  Pixar::VtVec4fArray vtArray(const Pixar::GfVec4f *src, size_t count)
+  {
+    return count ? Pixar::VtVec4fArray(src, src + count) : Pixar::VtVec4fArray();
+  }
+
+  Pixar::VtVec2dArray vtArray(const Pixar::GfVec2d *src, size_t count)
+  {
+    return count ? Pixar::VtVec2dArray(src, src + count) : Pixar::VtVec2dArray();
+  }
+
+  Pixar::VtVec3dArray vtArray(const Pixar::GfVec3d *src, size_t count)
+  {
+    return count ? Pixar::VtVec3dArray(src, src + count) : Pixar::VtVec3dArray();
+  }
+
+  Pixar::VtVec4dArray vtArray(const Pixar::GfVec4d *src, size_t count)
+  {
+    return count ? Pixar::VtVec4dArray(src, src + count) : Pixar::VtVec4dArray();
+  }
 }  // namespace Overlay
