@@ -40,12 +40,8 @@ jobs:
         run: sudo apt install libgtk-4-dev clang
       - name: 🪄 Install ImageMagick
         run: sudo apt install imagemagick
-      - name: ✨ Install xcbeautify
-        run: |
-          git clone https://github.com/cpisciotta/xcbeautify.git
-          cd xcbeautify && make install && cd .. && rm -rf xcbeautify
       - name: 🔨 Build
-        run: set -o pipefail && swift build --build-system swiftbuild --product UsdView | xcbeautify --preserve-unbeautified --renderer github-actions
+        run: swift build --build-system swiftbuild --product UsdView
       - name: 🎬 Run
         run: |
           export PATH="$PWD/.build/out/Products/Debug-linux:$PATH"
@@ -68,7 +64,7 @@ jobs:
       - name: 📚 Create Monolithic Library
         run: |
           mkdir -p /tmp/artifacts
-          set -o pipefail && swift build --build-system swiftbuild --product swiftusd_m | xcbeautify --preserve-unbeautified --renderer github-actions
+          swift build --build-system swiftbuild --product swiftusd_m
           cp .build/out/Products/Debug-linux/libswiftusd_m.a /tmp/artifacts/libswiftusd_m.a
       - name: 📂 Create Single Shared C++ Include Directory
         run: |
