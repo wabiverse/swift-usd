@@ -140,7 +140,7 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.5.2-beta.2")
+    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.5.2-beta.3")
   ],
   targets: [
     .executableTarget(

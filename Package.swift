@@ -2644,6 +2644,7 @@ enum Arch
       #endif
       
       if isOnAndroid || !usePrecompiledOpenUSD {
+        FileHandle.standardError.write("Building OpenUSD from source\n".data(using: .utf8)!)
         return [
           // ---------- base. ------
           .target(name: "Arch"),
@@ -2733,6 +2734,7 @@ enum Arch
           .target(name: "USDOverlays"),
         ]
       } else {
+        FileHandle.standardError.write("Using precompiled OpenUSD libraries from apple/SwiftUsd\n".data(using: .utf8)!)
         return [
           .product(name: "OpenUSD", package: "SwiftUsd", condition: .when(platforms: Arch.OS.apple.platform)),
           .product(name: "Logging", package: "swift-log"),

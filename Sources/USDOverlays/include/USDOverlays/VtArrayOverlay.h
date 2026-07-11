@@ -45,19 +45,10 @@ namespace Overlay
   ///   pointer is in use.
   ///
   /// The returned pointer is null for empty arrays.
-  const bool *cdata(const Pixar::VtBoolArray &array);
-  const int *cdata(const Pixar::VtIntArray &array);
-  const unsigned int *cdata(const Pixar::VtUIntArray &array);
-  const int64_t *cdata(const Pixar::VtInt64Array &array);
-  const uint64_t *cdata(const Pixar::VtUInt64Array &array);
-  const float *cdata(const Pixar::VtFloatArray &array);
-  const double *cdata(const Pixar::VtDoubleArray &array);
-  const Pixar::GfVec2f *cdata(const Pixar::VtVec2fArray &array);
-  const Pixar::GfVec3f *cdata(const Pixar::VtVec3fArray &array);
-  const Pixar::GfVec4f *cdata(const Pixar::VtVec4fArray &array);
-  const Pixar::GfVec2d *cdata(const Pixar::VtVec2dArray &array);
-  const Pixar::GfVec3d *cdata(const Pixar::VtVec3dArray &array);
-  const Pixar::GfVec4d *cdata(const Pixar::VtVec4dArray &array);
+  template <typename ScalarType, class T>
+  inline const ScalarType* cdata(const T &array) {
+      return array.cdata();
+  }
 
   /// Single-copy `VtArray` construction from a contiguous buffer - the
   /// write-side complement to `cdata`. `VtArray`'s range constructor is a
@@ -65,19 +56,10 @@ namespace Overlay
   /// these the only construction path from Swift is per-element `push_back` -
   /// one cross-language call per element. Each of these performs one C++-side
   /// range copy instead. `src` may be null only when `count` is zero.
-  Pixar::VtBoolArray vtArray(const bool *src, size_t count);
-  Pixar::VtIntArray vtArray(const int *src, size_t count);
-  Pixar::VtUIntArray vtArray(const unsigned int *src, size_t count);
-  Pixar::VtInt64Array vtArray(const int64_t *src, size_t count);
-  Pixar::VtUInt64Array vtArray(const uint64_t *src, size_t count);
-  Pixar::VtFloatArray vtArray(const float *src, size_t count);
-  Pixar::VtDoubleArray vtArray(const double *src, size_t count);
-  Pixar::VtVec2fArray vtArray(const Pixar::GfVec2f *src, size_t count);
-  Pixar::VtVec3fArray vtArray(const Pixar::GfVec3f *src, size_t count);
-  Pixar::VtVec4fArray vtArray(const Pixar::GfVec4f *src, size_t count);
-  Pixar::VtVec2dArray vtArray(const Pixar::GfVec2d *src, size_t count);
-  Pixar::VtVec3dArray vtArray(const Pixar::GfVec3d *src, size_t count);
-  Pixar::VtVec4dArray vtArray(const Pixar::GfVec4d *src, size_t count);
+  template <class T, typename ScalarType>
+  inline T vtArray(const ScalarType *src, std::size_t count) {
+      return count ? T(src, src + count) : T();
+  }
 }  // namespace Overlay
 
 #endif  // SWIFTUSD_SWIFTOVERLAY_VTARRAY_OVERLAY_H
