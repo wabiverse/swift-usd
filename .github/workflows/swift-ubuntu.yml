@@ -36,16 +36,12 @@ jobs:
         run: sudo apt install libxcursor-dev libxt-dev libxi-dev libxinerama-dev libxrandr-dev
       - name: 💻 Install GTK
         run: sudo apt install libgtk-4-dev clang
-      - name: ✨ Install xcbeautify
-        run: |
-          git clone https://github.com/cpisciotta/xcbeautify.git
-          cd xcbeautify && make install && cd .. && rm -rf xcbeautify
       - name: 🔨 Build
-        run: set -o pipefail && swift build --build-system swiftbuild -c release --product UsdView | xcbeautify --preserve-unbeautified --renderer github-actions
+        run: swift build --build-system swiftbuild -c release --product UsdView
       - name: 📚 Create Monolithic Library
         run: |
           mkdir -p /tmp/artifacts
-          set -o pipefail && swift build --build-system swiftbuild -c release --product swiftusd_m | xcbeautify --preserve-unbeautified --renderer github-actions
+          swift build --build-system swiftbuild -c release --product swiftusd_m
           cp .build/out/Products/Release-linux/libswiftusd_m.a /tmp/artifacts/libswiftusd_m.a
       - name: 📂 Create Single Shared C++ Include Directory
         run: |
