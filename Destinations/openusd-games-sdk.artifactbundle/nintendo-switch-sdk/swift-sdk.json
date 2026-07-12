@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "3.0",
+  "runTimeTriples": {
+    "aarch64-none-none-elf": {
+      "sdkRootPath": "/opt/devkitpro/devkitA64/aarch64-none-elf",
+      "toolsetPaths": [
+        "toolset.json"
+      ]
+    }
+  }
+}

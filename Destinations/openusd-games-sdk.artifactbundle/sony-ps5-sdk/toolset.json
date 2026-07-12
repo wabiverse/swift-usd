@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "rootPath": "/opt/ps5-payload-sdk/bin",
+  "cCompiler": {
+    "path": "prospero-clang",
+    "extraCLIOptions": [
+      "-Qunused-arguments",
+      "-target", "x86_64-scei-ps5",
+      "--sysroot=/opt/ps5-payload-sdk/target",
+      "-D__PS5__",
+      "-fPIE"
+    ]
+  },
+  "cxxCompiler": {
+    "path": "prospero-clang++",
+    "extraCLIOptions": [
+      "-Qunused-arguments",
+      "-target", "x86_64-scei-ps5",
+      "--sysroot=/opt/ps5-payload-sdk/target",
+      "-resource-dir=/opt/homebrew/Cellar/llvm@18/18.1.8/lib/clang/18",
+      "-isystem", "/opt/ps5-payload-sdk/target/include/c++/v1",
+      "-isystem", "/opt/ps5-payload-sdk/target/include",
+      "-std=c++17",
+      "-frtti",
+      "-fexceptions",
+      "-D__PS5__",
+      "-fPIE"
+    ]
+  },
+  "swiftCompiler": {
+    "extraCLIOptions": [
+      "-enable-experimental-feature", "Embedded",
+      "-wmo",
+      "-Xcc", "-Qunused-arguments",
+      "-Xcc", "-target", "-Xcc", "x86_64-scei-ps5",
+      "-Xcc", "--sysroot=/opt/ps5-payload-sdk/target",
+      "-Xcc", "-resource-dir=/opt/homebrew/Cellar/llvm@18/18.1.8/lib/clang/18",
+      "-Xcc", "-isystem", "-Xcc", "/opt/ps5-payload-sdk/target/include/c++/v1",
+      "-Xcc", "-isystem", "-Xcc", "/opt/ps5-payload-sdk/target/include",
+      "-Xcc", "-std=c++17",
+      "-Xcc", "-frtti",
+      "-Xcc", "-fexceptions",
+      "-Xcc", "-D__PS5__",
+      "-Xlinker", "-target", "-Xlinker", "x86_64-scei-ps5",
+      "-Xlinker", "/opt/ps5-payload-sdk/target/lib/crt.o",
+      "-Xlinker", "-L/opt/ps5-payload-sdk/target/lib",
+      "-Xlinker", "-lkernel",
+      "-Xlinker", "--gc-sections",
+      "-Xlinker", "-pie"
+    ]
+  }
+}

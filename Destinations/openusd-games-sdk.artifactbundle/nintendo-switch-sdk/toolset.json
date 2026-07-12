@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "rootPath": "/opt/devkitpro/devkitA64/bin",
+  "cCompiler": {
+    "path": "aarch64-none-elf-gcc",
+    "extraCLIOptions": [
+      "-march=armv8-a+crc+crypto",
+      "-mtune=cortex-a57",
+      "-fPIE",
+      "-fno-common",
+      "-D__SWITCH__",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-fno-blocks",
+      "-specs=/opt/devkitpro/libnx/switch.specs",
+      "-isystem", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0",
+      "-isystem", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0/aarch64-none-elf",
+      "-I/opt/devkitpro/libnx/include"
+    ]
+  },
+  "cxxCompiler": {
+    "path": "aarch64-none-elf-g++",
+    "extraCLIOptions": [
+      "-march=armv8-a+crc+crypto",
+      "-mtune=cortex-a57",
+      "-fPIE",
+      "-fno-common",
+      "-D__SWITCH__",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-fno-blocks",
+      "-specs=/opt/devkitpro/libnx/switch.specs",
+      "-isystem", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0",
+      "-isystem", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0/aarch64-none-elf",
+      "-I/opt/devkitpro/libnx/include"
+    ]
+  },
+  "swiftCompiler": {
+    "extraCLIOptions": [
+      "-enable-experimental-feature", "Embedded",
+      "-wmo",
+      "-Xcc", "-march=armv8-a+crc+crypto",
+      "-Xcc", "-mtune=cortex-a57",
+      "-Xcc", "-D__SWITCH__",
+      "-Xcc", "-D_POSIX_C_SOURCE=200809L",
+      "-Xcc", "-fno-blocks",
+      "-Xcc", "-specs=/opt/devkitpro/libnx/switch.specs",
+      "-Xcc", "-isystem", "-Xcc", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0",
+      "-Xcc", "-isystem", "-Xcc", "/opt/devkitpro/devkitA64/aarch64-none-elf/include/c++/16.1.0/aarch64-none-elf",
+      "-Xcc", "-I/opt/devkitpro/libnx/include",
+      "-Xlinker", "-specs=/opt/devkitpro/libnx/switch.specs"
+    ]
+  }
+}

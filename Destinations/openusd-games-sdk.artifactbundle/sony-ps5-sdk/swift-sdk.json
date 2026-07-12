@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "3.0",
+  "runTimeTriples": {
+    "x86_64-scei-none-elf": {
+      "sdkRootPath": "/opt/ps5-payload-sdk",
+      "toolsetPaths": [
+        "toolset.json"
+      ]
+    }
+  }
+}
