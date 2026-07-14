@@ -12,6 +12,7 @@
 
 import Foundation
 import OpenUSDKit
+import HydraKit
 import SwiftCrossUI
 
 /**

@@ -1,11 +1,11 @@
 /* ----------------------------------------------------------------
- * :: :  M  E  T  A  V  E  R  S  E  :                            ::
+ * :: :  O  P  E  N  U  S  D  :                                  ::
  * ----------------------------------------------------------------
  * Licensed under the terms set forth in the LICENSE.txt file, this
- * file is available at https://openusd.org/license.
+ * file is available at https://openusd.org.
  *
- *                                        Copyright (C) 2016 Pixar.
- *         Copyright (C) 2024 Wabi Foundation. All Rights Reserved.
+ *                   Copyright (C) 2016 Pixar. All Rights Reserved.
+ *                              Copyright (C) 2024 Wabi Foundation.
  * ----------------------------------------------------------------
  *  . x x x . o o o . x x x . : : : .    o  x  o    . : : : .
  * ---------------------------------------------------------------- */
@@ -49,7 +49,7 @@ public extension Hydra
 
       do
       {
-        let defaultLibrary = try device.makeDefaultLibrary(bundle: .usdview)
+        let defaultLibrary = try device.makeDefaultLibrary(bundle: .hydraKit)
 
         guard let vertexFunction = defaultLibrary.makeFunction(name: "vtxBlit")
         else { Msg.logger.error("HYDRA: Failed to create vertex function."); return }
@@ -110,6 +110,10 @@ public extension Hydra
     @MainActor @discardableResult
     func drawFrame(in view: MTKView, timeCode: Double) -> Bool
     {
+      let deltaTime = 1.0 / Double(view.preferredFramesPerSecond)
+      hydra?.frameDelegate?.hydraWillPull(deltaTime: deltaTime)
+      defer { hydra?.frameDelegate?.hydraDidPull() }
+      
       #if canImport(Hgi)
       guard let hgi = hydra?.getHgi()
       else { inFlightSemaphore.signal(); return false }

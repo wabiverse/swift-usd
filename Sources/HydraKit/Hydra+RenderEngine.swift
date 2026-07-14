@@ -1,11 +1,11 @@
 /* ----------------------------------------------------------------
- * :: :  M  E  T  A  V  E  R  S  E  :                            ::
+ * :: :  O  P  E  N  U  S  D  :                                  ::
  * ----------------------------------------------------------------
  * Licensed under the terms set forth in the LICENSE.txt file, this
- * file is available at https://openusd.org/license.
+ * file is available at https://openusd.org.
  *
- *                                        Copyright (C) 2016 Pixar.
- *         Copyright (C) 2024 Wabi Foundation. All Rights Reserved.
+ *                   Copyright (C) 2016 Pixar. All Rights Reserved.
+ *                              Copyright (C) 2024 Wabi Foundation.
  * ----------------------------------------------------------------
  *  . x x x . o o o . x x x . : : : .    o  x  o    . : : : .
  * ---------------------------------------------------------------- */
@@ -39,6 +39,9 @@ public enum Hydra
     // https://github.com/apple/SwiftUsd/issues/27
     private var engine: UsdImagingGL.Engine
     #endif
+    
+    /// Weak: the app drives the frame, the engine doesn't own the driver.
+    public weak var frameDelegate: Hydra.FrameDelegate?
     
     private var viewCamera: Hydra.Camera
 

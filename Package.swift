@@ -383,6 +383,10 @@ let package = Package(
       name: "OpenUSDKit",
       targets: ["OpenUSDKit"]
     ),
+    .library(
+      name: "HydraKit",
+      targets: ["HydraKit"]
+    ),
   ],
   dependencies: [
     .package(url: "https://github.com/apple/SwiftUsd.git", from: "7.0.1"),
@@ -2349,8 +2353,8 @@ let package = Package(
       ]
     ),
     
-    .executableTarget(
-      name: "UsdView",
+    .target(
+      name: "HydraKit",
       dependencies: [
         .target(name: "OpenUSDKit"),
         .product(name: "SwiftCrossUI", package: "swift-cross-ui"),
@@ -2360,6 +2364,24 @@ let package = Package(
       ] + Arch.OS.winUIBackend + Arch.OS.androidBackend,
       resources: [
         .process("Resources")
+      ],
+      cxxSettings: [
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+        .define("_LIBCPP_ABI_NO_COMPRESSED_PAIR_PADDING"),
+      ],
+      swiftSettings: [
+        .interoperabilityMode(.Cxx),
+      ]
+    ),
+    
+    .executableTarget(
+      name: "UsdView",
+      dependencies: [
+        .target(name: "OpenUSDKit"),
+        .target(name: "HydraKit"),
       ],
       cxxSettings: [
         .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
