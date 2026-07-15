@@ -43,6 +43,15 @@ public enum Hydra
     /// Weak: the app drives the frame, the engine doesn't own the driver.
     public weak var frameDelegate: Hydra.FrameDelegate?
     
+    /// The color management mode applied during rendering.
+    ///
+    /// Expected tokens include:
+    /// - `.disabled`: Raw linear color values are passed straight through.
+    /// - `.sRGB`: Applies a standard sRGB gamma curve without filmic compression.
+    /// - `.openColorIO`: Activates OpenColorIO processing for advanced cinematic
+    ///   tonemapping (requires a valid `.ocio` configuration).
+    public var colorCorrectionMode: Tf.Token
+    
     private var viewCamera: Hydra.Camera
 
     private var worldCenter: Pixar.GfVec3d = .init(0.0, 0.0, 0.0)
@@ -60,9 +69,10 @@ public enum Hydra
     private static let flickDamping: Double = 0.94
     private static let flickThreshold: Double = 0.01
 
-    public required init(stage: UsdStage)
+    public required init(stage: UsdStage, colorCorrectionMode: Tf.Token = .sRGB)
     {
       self.stage = stage
+      self.colorCorrectionMode = colorCorrectionMode
 
 #if canImport(Metal)
       hgi = HgiMetal.createHgi()
@@ -116,7 +126,7 @@ public enum Hydra
       var params = UsdImagingGL.RenderParams()
       params.frame = Usd.TimeCode(timeCode)
       params.clearColor = .init(0.0, 0.0, 0.0, 1.0)
-      params.colorCorrectionMode = .sRGB
+      params.colorCorrectionMode = self.colorCorrectionMode
       params.showGuides = true
       params.showRender = true
       params.showProxy = true

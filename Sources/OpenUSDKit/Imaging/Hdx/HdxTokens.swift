@@ -42,13 +42,17 @@ public extension Hdx
    * the static Hdx tokens. */
   enum ColorCorrectionTokens: String, CaseIterable
   {
+    case disabled
     case sRGB
+    case openColorIO
 
     public var token: Tf.Token
     {
       switch self
       {
+        case .disabled: StaticData.shared.tokens.disabled
         case .sRGB: StaticData.shared.tokens.sRGB
+        case .openColorIO: StaticData.shared.tokens.openColorIO
       }
     }
   }
@@ -56,5 +60,7 @@ public extension Hdx
 
 public extension Tf.Token
 {
+  nonisolated(unsafe) static let disabled = Hdx.ColorCorrectionTokens.disabled.token
   nonisolated(unsafe) static let sRGB = Hdx.ColorCorrectionTokens.sRGB.token
+  nonisolated(unsafe) static let openColorIO = Hdx.ColorCorrectionTokens.openColorIO.token
 }
