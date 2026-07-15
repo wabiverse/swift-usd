@@ -49,7 +49,7 @@ import OpenUSDKit
         public func makeCoordinator() -> Coordinator
         {
           let mtkView = HydraMTKView()
-          mtkView.isPaused = false // driven by display link
+          mtkView.isPaused = true // warm up the stage before the first real frame
           mtkView.framebufferOnly = false // we're using the drawable in our own render pass
           mtkView.enableSetNeedsDisplay = false // don't wait for setNeedsDisplay
           mtkView.presentsWithTransaction = true // sync presentation with our command buffer
@@ -82,6 +82,16 @@ import OpenUSDKit
           metalView.hydra = hydra
 
           metalView.becomeFirstResponder()
+          
+          // warm up: force stage population off the main thread while
+          // the view stays paused, then start the normal frame loop.
+          Task.detached(priority: .userInitiated) { [hydra] in
+            _ = hydra?.render(at: 0, viewSize: CGSize(width: 1, height: 1))
+            await MainActor.run {
+              metalView.isPaused = false
+            }
+          }
+          
           return metalView
         }
 

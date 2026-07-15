@@ -41,8 +41,8 @@ struct UsdView: App
     // register all usd plugins & resources.
     Pixar.Bundler.shared.setup(.resources)
 
-    // create a new usd stage.
-    stage = UsdView.createScene()
+    // create new or open (--usd) stage.
+    stage = UsdView.createOrOpenScene()
 
     // setup hydra to render the usd stage.
     engine = Hydra.RenderEngine(stage: stage)

@@ -59,4 +59,20 @@ extension UsdView
 
     return stage
   }
+  
+  /**
+   * Open a usd scene if the executable was passed
+   * '--usd /path/to/usd/stage.usda' , otherwise create
+   * a new basic usd scene. */
+  static func createOrOpenScene() -> UsdStage
+  {
+    let stage: UsdStage
+    if let scenePath = scenePathFromArgs() {
+      stage = Usd.Stage.open(scenePath)
+    } else {
+      stage = Self.createScene()
+    }
+    
+    return stage
+  }
 }

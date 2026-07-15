@@ -68,10 +68,26 @@ public func documentsDirPath() -> String
   #elseif os(Android)
     // On Android, the working directory is `/` (no write permission).
     // Use the app's private files directory, which is already set by
-    // UsdView.init() before createScene() is called.
+    // UsdView.init() before createOrOpenScene() is called.
     let filesDir = Pixar.Bundler.androidFilesDir
     return filesDir.isEmpty ? "/data/local/tmp" : filesDir
   #else
     return "."
   #endif
+}
+
+/// returns the stage path if the executable was passed
+/// '--usd /path/to/usd/stage.usda' , otherwise `nil`.
+public func scenePathFromArgs() -> String?
+{
+  let arguments = CommandLine.arguments
+  if let index = arguments.firstIndex(of: "--usd"), index + 1 < arguments.count
+  {
+    return arguments[index + 1]
+  }
+  if let path = ProcessInfo.processInfo.environment["LATTICE_USD_SCENE"], !path.isEmpty
+  {
+    return path
+  }
+  return nil
 }
