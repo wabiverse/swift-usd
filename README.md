@@ -106,6 +106,60 @@ USDStage("HelloWorldExample", ext: .usd)
 .save()
 ```
 
+##### Example of composing a Hydra viewport with [**SwiftCrossUI**](https://github.com/moreSwift/swift-cross-ui)
+```swift
+import Foundation
+import OpenUSDKit
+import HydraKit
+import SwiftCrossUI
+
+@main
+struct MyApp: App {
+  typealias Backend = PlatformBackend
+
+  let stage: UsdStage
+  let engine: Hydra.RenderEngine
+
+  init() {
+    Pixar.Bundler.shared.setup(.resources)
+
+    stage = UsdStage.createInMemory()
+    engine = Hydra.RenderEngine(stage: stage)
+  }
+  
+  var body: some Scene {
+    WindowGroup("MyApp") {
+      Hydra.Viewport(engine: engine)
+    }
+  }
+}
+```
+
+```swift
+import SwiftCrossUI
+  
+// Platform backend selection is explicit for now, this will eventually just end up
+// in HydraKit to handle this by default, but figured it was worth showing what is
+// going on under the hood, if developers wish to make extensible backends for
+// their own apps.
+#if os(Android)
+  import AndroidBackend
+  public typealias PlatformBackend = AndroidBackend
+#elseif os(Linux)
+  import GtkBackend
+  public typealias PlatformBackend = GtkBackend
+#elseif os(Windows)
+  import WinUIBackend
+  public typealias PlatformBackend = WinUIBackend
+#elseif os(macOS)
+  import AppKitBackend
+  public typealias PlatformBackend = AppKitBackend
+#else
+  import UIKitBackend
+  public typealias PlatformBackend = UIKitBackend
+#endif
+```
+
 ### **Getting Started**
 
 ##### To use **OpenUSD** in Swift, run the following in your terminal:
@@ -140,7 +194,7 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.5.2-beta.3")
+    .package(url: "https://github.com/wabiverse/swift-usd.git", from: "26.8.1")
   ],
   targets: [
     .executableTarget(
@@ -148,6 +202,8 @@ let package = Package(
       dependencies: [
         // add the monolithic OpenUSDKit product as a dependency.
         .product(name: "OpenUSDKit", package: "swift-usd"),
+        // (optional) compose Hydra.Viewport with SwiftCrossUI apps.
+        .product(name: "HydraKit", package: "swift-usd"),
       ],
       cxxSettings: [
         // forces swift's internal clang header parser to use a
