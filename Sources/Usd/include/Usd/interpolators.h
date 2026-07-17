@@ -9,7 +9,6 @@
 
 #include "pxr/pxrns.h"
 #include "Usd/common.h"
-#include "Usd/clipSet.h"
 #include "Usd/interpolation.h"
 #include "Usd/valueUtils.h"
 #include "Sdf/layer.h"
@@ -21,6 +20,7 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 class UsdAttribute;
+class Usd_ClipSet;
 
 // Helper struct to bundle a value and a time.
 struct Usd_ValueTimeSample
@@ -77,7 +77,7 @@ public:
     // Same as the above, except fetch samples from the `clipSet` instead.
     USD_API
     bool GetInterpolatingSamples(
-        const Usd_ClipSetRefPtr& clipSet, const SdfPath& path,
+        const std::shared_ptr<Usd_ClipSet>& clipSet, const SdfPath& path,
         double time, double lower, double upper,
         Usd_InterpolationSampleSeries *out) const;
 

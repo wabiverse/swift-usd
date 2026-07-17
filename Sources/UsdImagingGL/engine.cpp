@@ -537,16 +537,10 @@ UsdImagingGLEngine::PrepareBatch(
             _ScopedHydraNoticeBatch noticeBatch(
                 _usdImagingSceneIndex->
                     GetPostInstancingNoticeBatchingSceneIndex());
-
-            // XXX(USD-7113): Add pruning based on _rootPath
-
-            // XXX(USD-7115): Add invis overrides from _invisedPrimPaths.
-
             _usdImagingSceneIndex->SetStage(stage);
             if (_execStageSceneIndex) {
                 _execStageSceneIndex->SetStage(stage);
             }
-
         } else {
             TF_VERIFY(_sceneDelegate);
             _sceneDelegate->SetUsdDrawModesEnabled(
@@ -555,12 +549,10 @@ UsdImagingGLEngine::PrepareBatch(
                 stage->GetPrimAtPath(_rootPath),
                 _excludedPrimPaths);
             _sceneDelegate->SetInvisedPrimPaths(_invisedPrimPaths);
-
             // This is only necessary when using the legacy scene delegate.
             // The stage scene index provides this functionality.
             _SetActiveRenderSettingsPrimFromStageMetadata(stage);
         }
-
         _isPopulated = true;
     }
 }

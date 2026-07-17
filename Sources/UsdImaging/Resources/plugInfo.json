@@ -29,6 +29,11 @@
                     }
                 },
                 "Types": {
+                    "UsdImagingBackPlateAPIAdapter" : {
+                        "bases": ["UsdImagingAPISchemaAdapter"],
+                        "isInternal": true,
+                        "apiSchemaName": "BackPlateAPI"
+                    },
                     "UsdImagingBasisCurvesAdapter": {
                         "bases": [
                             "UsdImagingGprimAdapter"

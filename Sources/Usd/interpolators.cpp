@@ -8,6 +8,7 @@
 #include "Usd/interpolators.h"
 
 #include "Usd/attribute.h"
+#include "Usd/clipSet.h"
 #include "Usd/interpolation.h"
 #include "Usd/stage.h"
 

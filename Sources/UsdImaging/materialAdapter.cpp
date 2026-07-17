@@ -5,6 +5,7 @@
 // https://openusd.org/license.
 //
 #include "UsdImaging/materialAdapter.h"
+#include "Tf/stringUtils.h"
 #include "UsdImaging/dataSourceMaterial.h"
 #include "UsdImaging/delegate.h"
 #include "UsdImaging/indexProxy.h"
@@ -280,6 +281,22 @@ UsdImagingMaterialAdapter::InvalidateImagingSubprimFromDescendent(
 
     UsdShadeMaterial material(prim);
     if (!TF_VERIFY(material)) {
+        return result;
+    }
+
+    // Check whether the only changes made were UI related.
+    // If so do not invalidate the material, since UI changes are not propagated
+    // to Hydra
+    bool onlyUIChanges = true;
+    static const std::string uiNodegraph("ui:nodegraph:");
+    for (const TfToken& property : properties) {
+        if (!TfStringStartsWith(property.GetString(), uiNodegraph)) {
+            onlyUIChanges = false;
+            break;
+        }
+    }
+
+    if (onlyUIChanges) {
         return result;
     }
 

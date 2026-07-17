@@ -41,10 +41,22 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// Use UsdProfilesTokens like so:
 ///
 /// \code
-///     gprim.GetMyTokenValuedAttr().Set(UsdProfilesTokens->ClaimsAPI);
+///     gprim.GetMyTokenValuedAttr().Set(UsdProfilesTokens->enhancement);
 /// \endcode
 struct UsdProfilesTokensType {
     USDPROFILES_API UsdProfilesTokensType();
+    /// \brief "enhancement"
+    /// 
+    /// Degradation class: capability improves quality but absence is allowable.
+    const TfToken enhancement;
+    /// \brief "hard"
+    /// 
+    /// Degradation class: capability is load-bearing; absence produces incorrect results.
+    const TfToken hard;
+    /// \brief "soft"
+    /// 
+    /// Degradation class: capability degrades gracefully if absent.
+    const TfToken soft;
     /// \brief "ClaimsAPI"
     /// 
     /// Schema identifer and family for UsdProfilesClaimsAPI

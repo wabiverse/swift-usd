@@ -13,6 +13,7 @@ TF_WRAP_MODULE
 {
     // Include non-schema classes here in the format TF_WRAP(CPP_class_name);
     TF_WRAP(UsdProfileRegistry);
+    TF_WRAP(UsdProfilesDocUtils);
 
     // Generated Schema classes.  Do not remove or edit the following line.
     #include <UsdProfiles/generatedSchema.module.h>

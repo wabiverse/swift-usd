@@ -194,6 +194,26 @@ HdStMaterialXShaderGen<Base>::HdStMaterialXShaderGen(
             ? "st" : mxHdInfo.defaultTexcoordName;
 }
 
+// Map a MaterialX type name to a type name understood by HioGlslfxConfig.
+// The glslfx config parser only recognizes a fixed set of type names
+// (float/int/vec2/vec3/vec4). Returns an empty string for unsupported types.
+static std::string
+_GetGlslfxPrimvarTypeName(std::string const& mxTypeName)
+{
+    static const std::unordered_map<std::string, std::string> typeMap = {
+        { "float",    "float" },
+        { "integer",  "int" },
+        { "boolean",  "int" },
+        { "vector2",  "vec2" },
+        { "vector3",  "vec3" },
+        { "color3",   "vec3" },
+        { "vector4",  "vec4" },
+        { "color4",   "vec4" },
+    };
+    const auto it = typeMap.find(mxTypeName);
+    return it != typeMap.end() ? it->second : std::string();
+}
+
 template<typename Base>
 void
 HdStMaterialXShaderGen<Base>::_EmitGlslfxHeader(
@@ -226,8 +246,7 @@ HdStMaterialXShaderGen<Base>::_EmitGlslfxHeader(
         std::string line = ""; unsigned int i = 0;
         for (mx::StringMap::const_reference primvarPair : _mxHdPrimvarMap) {
             const std::string type =
-                HdStMaterialXHelpers::MxGetTypeString(
-                    Base::_syntax, mxContext, primvarPair.second);
+                _GetGlslfxPrimvarTypeName(primvarPair.second);
             if (type.empty() ) {
                 TF_WARN("MaterialX geomprop '%s' has unknown type '%s'",
                         primvarPair.first.c_str(), primvarPair.second.c_str());
@@ -759,6 +778,14 @@ HdStMaterialXShaderGen<Base>::_EmitConstantsUniformsAndTypeDefs(
             std::to_string(int(
                 mxContext.getOptions().hwDirectionalAlbedoMethod)),
             mxStage, false);
+
+#if MTLX_COMBINED_VERSION >= 13905
+    // Define Airy Fresnel iterations
+    emitLine("#define AIRY_FRESNEL_ITERATIONS " + 
+        std::to_string(mxContext.getOptions().hwAiryFresnelIterations), 
+        mxStage, false);
+#endif
+
     Base::emitLineBreak(mxStage);
 
     // Add all constants and ensure that values are initialized

@@ -2162,6 +2162,20 @@ private:
         const UsdResolveInfo *resolveInfo=nullptr,
         const UsdResolveTarget *resolveTarget=nullptr) const;
 
+    bool _HasSpline(const UsdAttribute &attr) const;
+    bool _GetSpline(const UsdAttribute &attr, TsSpline* spline) const;
+
+    // Resolve spline from existing resolve info.
+    bool _HasSplineFromResolveInfo(
+        const UsdResolveInfo &info,
+        const UsdAttribute &attr,
+        const UsdResolveTarget *resolveTarget) const;
+    bool _GetSplineFromResolveInfo(
+        const UsdResolveInfo &info,
+        const UsdAttribute &attr,
+        const UsdResolveTarget *resolveTarget,
+        TsSpline *spline) const;
+
     bool _ValueMightBeTimeVarying(const UsdAttribute &attr) const;
 
     bool _ValueMightBeTimeVaryingFromResolveInfo(

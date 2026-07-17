@@ -157,6 +157,49 @@ _GetBracketingTimeSegment(
     return true;
 }
 
+// Overload of _GetBracketingTimeSegment for usage relying on differentiation
+// on pre time vs. regular time.
+//
+// XXX: We should unify the two overloads if possible, since the segment
+// resolution logic should in theory not change whether the underlying data
+// format is time samples or splines.
+static bool
+_GetBracketingTimeSegment(
+    const Usd_Clip::TimeMappings& times,
+    const UsdTimeCode externalTime,
+    size_t* m1, size_t* m2)
+{
+    if (!_GetBracketingTimeSegment(times, externalTime.GetValue(), m1, m2)) {
+        return false;
+    }
+
+    if (externalTime.IsPreTime()) {
+        // A pre time was requested, adjust the segment accordingly.
+        if (*m1 > 0 && times[*m1].isJumpDiscontinuity)
+        {
+            (*m1)--;
+            (*m2)--;
+        }
+    } else {
+        // We must adjust the segment for a regular time query in certain
+        // scenarios. For example:
+        // `times` is [(0, 0), (5, -5), (10, 10)]. 
+        // _GetBracketingTimeSegment with a Usd_Clip::ExternalTime query of 5
+        // will give us the segment from (0, 0) to (5, -5). A caller that is
+        // trying to determine whether a segment is flipped will see that the
+        // section is flipped. However, that determination is only correct
+        // if computed from the intended segment from (5, -5) to (10, 10) for
+        // regular time queries.
+        if (times[*m2].externalTime == externalTime.GetValue() &&
+            *m2 < times.size() - 1)
+        {
+            (*m1)++;
+            (*m2)++;
+        }
+    }
+    return true;
+}
+
 static 
 Usd_Clip::ExternalTime
 _GetTime(Usd_Clip::ExternalTime d)
@@ -556,14 +599,36 @@ Usd_Clip::HasAuthoredTimeSamples(const SdfPath& path) const
 }
 
 bool
+Usd_Clip::HasAuthoredSpline(const SdfPath& path) const
+{
+    return _GetLayerForClip()->HasField(_TranslatePathToClip(path),
+                                        SdfFieldKeys->Spline);
+}
+
+bool
 Usd_Clip::IsBlocked(const SdfPath& path, ExternalTime time) const
 {
-    SdfAbstractDataTypedValue<SdfValueBlock> blockValue(nullptr);
-    if (_GetLayerForClip()->QueryTimeSample(
-            _TranslatePathToClip(path), _TranslateTimeToInternal(time), 
-            (SdfAbstractDataValue*)&blockValue)
-        && blockValue.isValueBlock) {
-        return true;
+    const SdfPath clipPath = _TranslatePathToClip(path);
+    bool hasTimeSamples =
+        _GetLayerForClip()->HasField(clipPath, SdfFieldKeys->TimeSamples);
+
+    TsSpline spline;
+    const bool hasSpline =
+        _GetLayerForClip()->HasField(clipPath, SdfFieldKeys->Spline, &spline);
+
+    if (hasTimeSamples) {
+        SdfAbstractDataTypedValue<SdfValueBlock> blockValue(nullptr);
+        if (_GetLayerForClip()->QueryTimeSample(
+                clipPath, _TranslateTimeToInternal(time), 
+                (SdfAbstractDataValue*)&blockValue)
+            && blockValue.isValueBlock) {
+            return true;
+        }
+    } else if (hasSpline) {
+        const TsKnotMap knots = spline.GetKnots();
+        if (knots.find(_TranslateTimeToInternal(time)) != knots.end()) {
+            return true;
+        }
     }
     return false;
 }
@@ -929,6 +994,46 @@ _Interpolate(
     return false;
 }
 
+TsSpline
+_MakeHeldSpline(
+    const TsSpline& clipSpline,
+    Usd_Clip::ExternalTime sectionStart,
+    Usd_Clip::ExternalTime sectionEnd,
+    Usd_Clip::InternalTime clipQueryTime)
+{
+    TsSpline spline(clipSpline.GetValueType());
+    TsKnot knot(clipSpline.GetValueType());
+
+    // Note that held sections of spline always set the held section value to
+    // the result of the value query (not pre-value).
+    VtValue knotValue;
+    const bool hasValue = Usd_QuerySpline(clipSpline, clipQueryTime,
+                                          SdfLayerOffset(), &knotValue);
+
+    if (sectionStart == Usd_ClipTimesEarliest) {
+        spline.SetPreExtrapolation(hasValue ? TsExtrapHeld
+                                            : TsExtrapValueBlock);
+    } else {
+        knot.SetTime(sectionStart);
+        hasValue ? knot.SetValue(knotValue)
+                 : knot.SetNextInterpolation(TsInterpValueBlock);
+        spline.SetKnot(knot);
+    }
+
+    if (sectionEnd == Usd_ClipTimesLatest) {
+        spline.SetPostExtrapolation(hasValue ? TsExtrapHeld
+                                             : TsExtrapValueBlock);
+    } else {
+        knot.SetTime(sectionEnd);
+        if (hasValue) {
+            knot.SetValue(knotValue);
+        }
+        spline.SetKnot(knot);
+    }
+
+    return spline;
+}
+
 }; // End anonymous namespace
 
 const std::type_info &
@@ -985,6 +1090,241 @@ template bool Usd_Clip::QueryTimeSample(
     const SdfPath&, UsdTimeCode,
     Usd_Interpolator const &,
     VtValue*) const;
+
+template <class T>
+bool
+Usd_Clip::QuerySpline(
+    const SdfPath& path,
+    UsdTimeCode time,
+    T* value) const
+{
+    if (!HasAuthoredSpline(path)) {
+        return false;
+    }
+
+    TsSpline spline;
+    const SdfPath clipPath = _TranslatePathToClip(path);
+    const SdfLayerRefPtr& clip = _GetLayerForClip();
+    clip->HasField(clipPath, SdfFieldKeys->Spline, &spline);
+
+    bool localPreTime = time.IsPreTime();
+
+    // If we're in a reversed clip times section, flip the desired time query
+    // from pre time to regular time or vice versa. When negative time scaling
+    // a knot, pre and post values of the knot are flipped.
+    size_t m1, m2;
+    if (_GetBracketingTimeSegment(*times, time, &m1, &m2) &&
+        (*times)[m1].internalTime > (*times)[m2].internalTime)
+    {
+        localPreTime = !localPreTime;
+    }
+
+    // Clamp the external time to the clip times range if it exists;
+    // past the times range the active clip's spline value is held
+    // at the clip time associated with the clip times range boundary.
+    // Note that this clip time is always a regular time code, not a
+    // pre time code.
+    if (times && !times->empty()) {
+        if (times->front().externalTime > time) {
+            time = times->front().externalTime;
+            localPreTime = false;
+        } else if (times->back().externalTime < time) {
+            time = times->back().externalTime;
+            localPreTime = false;
+        }
+    }
+    const InternalTime clipTime = _TranslateTimeToInternal(time);
+
+    const UsdTimeCode localTimeCode =
+        localPreTime ? UsdTimeCode::PreTime(clipTime)
+                     : UsdTimeCode(clipTime);
+
+    // Note that we don't need to apply a layer offset, since it's baked
+    // into clip times upon clipset construction.
+    bool ok = Usd_QuerySpline(spline, localTimeCode, SdfLayerOffset(),
+                              value);
+    if (!ok) {
+        return false;
+    }
+
+    // Convert GfTimeCode if necessary.
+    // Conversion of the evaluation vs. evaluation of a converted
+    // spline may result in slightly different numbers because of differences
+    // in floating point operator rounding accumulation.
+    _ConvertValueForTime(time.GetValue(), clipTime, value);
+    return true;
+}
+
+#define _INSTANTIATE_QUERY_SPLINE(unused, elem)                 \
+    template bool Usd_Clip::QuerySpline(                        \
+        const SdfPath&, UsdTimeCode,                            \
+        TS_SPLINE_VALUE_CPP_TYPE(elem)*) const;
+
+TF_PP_SEQ_FOR_EACH(_INSTANTIATE_QUERY_SPLINE, ~, TS_SPLINE_SUPPORTED_VALUE_TYPES)
+#undef _INSTANTIATE_QUERY_SPLINE
+
+template bool Usd_Clip::QuerySpline(
+    const SdfPath&, UsdTimeCode,
+    SdfAbstractDataValue*) const;
+template bool Usd_Clip::QuerySpline(
+    const SdfPath&, UsdTimeCode,
+    VtValue*) const;
+
+bool
+Usd_Clip::BuildSpline(const SdfPath& path, TsSpline* result) const
+{
+    TsSpline clipSpline;
+    const SdfPath clipPath = _TranslatePathToClip(path);
+    const SdfLayerRefPtr& clip = _GetLayerForClip();
+    if (!clip->HasField(clipPath, SdfFieldKeys->Spline, &clipSpline)) {
+        return false;
+    }
+
+    if (clipSpline.IsEmpty()) {
+        // We set queryTime to 0, but really any query time will work
+        // because we should get a value block no matter the query time.
+        *result = _MakeHeldSpline(clipSpline, startTime, endTime, 0);
+        return true;
+    }
+
+
+    // If there are no times, truncate and return the spline as-is. This is
+    // likely the most common case.
+    if (times->empty()) {
+        const GfInterval interval(startTime, endTime,
+                  /* minClosed */ startTime != Usd_ClipTimesEarliest,
+                  /* maxClosed */ false);
+        *result = clipSpline.GetTruncated(interval);
+        return true;
+    }
+
+    // There are times. Collect one timing section at a time, adding truncated
+    // and scaled sub-splines to `splines` as we go.
+    std::vector<TsSpline> splines;
+    auto it = std::upper_bound(times->begin(), times->end(), startTime,
+                               Usd_Clip::Usd_SortByExternalTime());
+    ExternalTime extSectionStart = startTime; 
+    InternalTime clipSectionStart = _TranslateTimeToInternal(extSectionStart);
+
+    if (it == times->begin()) {
+        // Encountered a time section that precedes values in `times`, so
+        // we need to build out a held section of spline. The first TimeMapping
+        // is repeated, so we can skip it.
+        ++it;
+        ExternalTime extSectionEnd = std::min(it->externalTime, endTime);
+        InternalTime queryTime = it->internalTime;
+        splines.push_back(_MakeHeldSpline(clipSpline, extSectionStart,
+                                          extSectionEnd, queryTime));
+
+        // Start the next section at the current segment.
+        extSectionStart = extSectionEnd;
+        clipSectionStart = queryTime;
+        it++;
+    } else if (it != times->end()) {
+        // We want to start at the first time that is <= startTime, so we
+        // need to decrement the iterator to get the section start data.
+        it--;
+        extSectionStart = std::max(it->externalTime, startTime);
+        clipSectionStart = _TranslateTimeToInternal(extSectionStart);
+        it++;
+    }
+
+    // Each iteration builds a spline for [extSectionStart, extSectionEnd).
+    // Skip the last entry in times because it's a sentinel value -- a repeat
+    // of the real last TimeMapping.
+    while (std::distance(it, times->end()) > 1 && endTime > extSectionStart)
+    {
+        // If we're ending at a jump discontinuity, we need to get the actual
+        // external time instead of the stored "external - SafeStep()" time.
+        const ExternalTime extTime =
+            it->isJumpDiscontinuity ? (it+1)->externalTime
+                                    : it->externalTime;
+
+        // Compute the endpoint for the current timing section.
+        const ExternalTime extSectionEnd = std::min(extTime, endTime);
+        const UsdTimeCode extTimeCode =
+            it->isJumpDiscontinuity ? UsdTimeCode::PreTime(extSectionEnd)
+                                    : UsdTimeCode(extSectionEnd);
+        const InternalTime clipSectionEnd =
+            _TranslateTimeToInternal(extTimeCode);
+
+        TsSpline spline;
+        if (clipSectionEnd == clipSectionStart) {
+            spline = _MakeHeldSpline(clipSpline, extSectionStart,
+                                     extSectionEnd, clipSectionStart);
+        } else {
+            // Get a truncated spline for the current timing section. We set the
+            // pre and post extrap fallbacks to held because we need the
+            // overall pre and post extrapolations of the concatenation result
+            // to be held. Any splines in the middle don't contribute extraps.
+            const InternalTime clipTimeStart =
+                std::min(clipSectionStart, clipSectionEnd);
+            const InternalTime clipTimeEnd =
+                std::max(clipSectionStart, clipSectionEnd);
+            const GfInterval interval(clipTimeStart, clipTimeEnd,
+                      /* minClosed */ clipTimeStart != Usd_ClipTimesEarliest,
+                      /* maxClosed */ false);
+            spline = clipSpline.GetTruncated(interval, TsExtrapHeld, TsExtrapHeld);
+
+            // Compute time scaling factors for this timing section
+            const double timeScale = (extSectionEnd - extSectionStart)
+                                   / (clipSectionEnd - clipSectionStart);
+            const double clipSectionStartScaled = timeScale * clipSectionStart;
+            const double timeOffset = extSectionStart - clipSectionStartScaled;
+            spline = spline.GetTimeScaled(timeScale, timeOffset);
+
+            // Normalize spline. Concatenate relies on the boundary knots of
+            // input splines' GetKnots being at exactly the same times. We
+            // adjust the desired knot times directly without adjusting values
+            // because any discrepancies between knot times are due to slight
+            // differences in floating point operation rounding accumulation.
+            const TsKnotMap knots = spline.GetKnots();
+            TF_VERIFY(knots.size() >= 2);
+            TsKnot startKnot = *knots.begin();
+            if (startKnot.GetTime() != extSectionStart) {
+                spline.RemoveKnot(startKnot.GetTime());
+                startKnot.SetTime(extSectionStart);
+                spline.SetKnot(startKnot);
+            }
+            TsKnot endKnot = *knots.rbegin();
+            if (endKnot.GetTime() != extSectionEnd) {
+                spline.RemoveKnot(endKnot.GetTime());
+                endKnot.SetTime(extSectionEnd);
+                spline.SetKnot(endKnot);
+            }
+        }
+
+        splines.push_back(spline);
+        if (it->isJumpDiscontinuity) {
+            it++;
+            extSectionStart = it->externalTime;
+            clipSectionStart = it->internalTime;
+        } else {
+            extSectionStart = extSectionEnd;
+            clipSectionStart = clipSectionEnd;
+        }
+        it++;
+    }
+
+    if ((it+1) >= times->end() && endTime > extSectionStart) {
+        // Encountered a time section that follows values in `times`, so
+        // we need to build out a held section of spline.
+        splines.push_back(_MakeHeldSpline(clipSpline, extSectionStart,
+                                          endTime, clipSectionStart));
+    }
+
+    if (splines.empty()) {
+        return false;
+    }
+
+    if (splines.size() == 1) {
+        *result = splines[0];
+        return true;
+    }
+
+    *result = TsSpline::Concatenate(splines);
+    return true;
+}
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

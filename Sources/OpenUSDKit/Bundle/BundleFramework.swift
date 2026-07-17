@@ -45,6 +45,11 @@ public enum BundleFramework: CaseIterable
   case hdStorm
   case hdx
   case hio
+  case hioAVIF
+  case hioImageIO
+  case hioOIIO
+  case hioOpenEXR
+  case hioOpenVDB
   case glf
   case usdImaging
   case usdImagingGL
@@ -84,6 +89,11 @@ public enum BundleFramework: CaseIterable
       case .hdStorm: Bundle.hdStorm?.resourcePath
       case .hdx: Bundle.hdx?.resourcePath
       case .hio: Bundle.hio?.resourcePath
+      case .hioAVIF: Bundle.hioAVIF?.resourcePath
+      case .hioImageIO: Bundle.hioImageIO?.resourcePath
+      case .hioOIIO: Bundle.hioOIIO?.resourcePath
+      case .hioOpenEXR: Bundle.hioOpenEXR?.resourcePath
+      case .hioOpenVDB: Bundle.hioOpenVDB?.resourcePath
       case .glf: Bundle.glf?.resourcePath
       case .usdImaging: Bundle.usdImaging?.resourcePath
       case .usdImagingGL: Bundle.usdImagingGL?.resourcePath

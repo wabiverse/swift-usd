@@ -252,6 +252,26 @@ let package = Package(
       targets: ["Hio"]
     ),
     .library(
+      name: "HioAVIF",
+      targets: ["HioAVIF"]
+    ),
+    .library(
+      name: "HioImageIO",
+      targets: ["HioImageIO"]
+    ),
+    .library(
+      name: "HioOIIO",
+      targets: ["HioOIIO"]
+    ),
+    .library(
+      name: "HioOpenEXR",
+      targets: ["HioOpenEXR"]
+    ),
+    .library(
+      name: "HioOpenVDB",
+      targets: ["HioOpenVDB"]
+    ),
+    .library(
       name: "Glf",
       targets: ["Glf"]
     ),
@@ -417,18 +437,6 @@ let package = Package(
       dependencies: [
         /* ------------ pxr Namespace. ---------- */
         .target(name: "pxr"),
-        /* ------------ VFX Platform. ----------- */
-        .product(name: "MetaTBB", package: "MetaverseKit"),
-        .product(name: "MaterialX", package: "MetaverseKit"),
-        .product(name: "Alembic", package: "MetaverseKit"),
-        .product(name: "OpenColorIO", package: "MetaverseKit"),
-        .product(name: "OpenImageIO", package: "MetaverseKit"),
-        .product(name: "OpenEXR", package: "MetaverseKit"),
-        .product(name: "OpenSubdiv", package: "MetaverseKit"),
-        .product(name: "OpenVDB", package: "MetaverseKit"),
-        .product(name: "Ptex", package: "MetaverseKit"),
-        .product(name: "Draco", package: "MetaverseKit"),
-        .product(name: "Eigen", package: "MetaverseKit"),
         /* ---------- Console logging. ---------- */
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Rainbow", package: "Rainbow", condition: .when(platforms: Arch.OS.noandroid.platform)),
@@ -440,18 +448,8 @@ let package = Package(
         .define("PXR_USE_NAMESPACES", to: "1"),
         .define("PXR_PYTHON_SUPPORT_ENABLED", to: "0"),
         .define("PXR_PREFER_SAFETY_OVER_SPEED", to: "1"),
-        .define("PXR_OCIO_PLUGIN_ENABLED", to: "1"),
-        .define("PXR_OIIO_PLUGIN_ENABLED", to: "1"),
-        .define("PXR_PTEX_SUPPORT_ENABLED", to: "1"),
-        .define("PXR_OPENVDB_SUPPORT_ENABLED", to: "1"),
-        .define("PXR_MATERIALX_SUPPORT_ENABLED", to: "1"),
-        .define("PXR_HDF5_SUPPORT_ENABLED", to: "1"),
         /* --------- OSL is temp disabled. --------- */
         .define("PXR_OSL_SUPPORT_ENABLED", to: "0"),
-        /* --------- GXAPI build settings. --------- */
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
-        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
         /* --------- Standard USD defines. --------- */
         .define("MFB_PACKAGE_NAME", to: "Arch"),
         .define("MFB_ALT_PACKAGE_NAME", to: "Arch"),
@@ -469,6 +467,7 @@ let package = Package(
       name: "Tf",
       dependencies: [
         .target(name: "Arch"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Tf"),
@@ -529,6 +528,7 @@ let package = Package(
         .target(name: "Arch"),
         .target(name: "Tf"),
         .target(name: "Js"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         /* --------- Fix missing TBB allocator funcs. --------- */
@@ -552,6 +552,7 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Gf"),
         .target(name: "Trace"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Vt"),
@@ -571,6 +572,7 @@ let package = Package(
         .target(name: "Arch"),
         .target(name: "Tf"),
         .target(name: "Trace"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Work"),
@@ -610,6 +612,7 @@ let package = Package(
         .target(name: "Js"),
         .target(name: "Trace"),
         .target(name: "Work"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Plug"),
@@ -653,6 +656,7 @@ let package = Package(
         .target(name: "Js"),
         .target(name: "Plug"),
         .target(name: "Vt"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources"),
@@ -701,6 +705,7 @@ let package = Package(
         .target(name: "Vt"),
         .target(name: "Ar"),
         .target(name: "Pegtl"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -730,6 +735,7 @@ let package = Package(
         .target(name: "Vt"),
         .target(name: "Ar"),
         .target(name: "Sdf"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Pcp"),
@@ -758,6 +764,7 @@ let package = Package(
         .target(name: "Ar"),
         .target(name: "Sdf"),
         .target(name: "Pcp"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .copy("codegenTemplates"),
@@ -811,6 +818,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Pcp"),
         .target(name: "Usd"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -837,6 +845,7 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "Sdr"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -992,11 +1001,13 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
+        .product(name: "Alembic", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
       ],
       cxxSettings: [
+        .define("PXR_HDF5_SUPPORT_ENABLED", to: "1"),
         .define("MFB_PACKAGE_NAME", to: "UsdAbc"),
         .define("MFB_ALT_PACKAGE_NAME", to: "UsdAbc"),
         .define("MFB_PACKAGE_MODULE", to: "UsdAbc"),
@@ -1018,6 +1029,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
+        .product(name: "Draco", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -1075,8 +1087,10 @@ let package = Package(
         .target(name: "UsdShade"),
         .target(name: "UsdUI"),
         .target(name: "UsdUtils"),
+        .product(name: "MaterialX", package: "MetaverseKit"),
       ],
       resources: [
+        .copy("libraries"),
         .process("Resources")
       ],
       cxxSettings: [
@@ -1104,6 +1118,7 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "UsdShade"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -1208,7 +1223,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
-
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -1265,6 +1280,7 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "UsdShade"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "UsdUtils"),
@@ -1375,6 +1391,7 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Gf"),
         .target(name: "Vt"),
+        .product(name: "OpenSubdiv", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "PxOsd"),
@@ -1402,6 +1419,7 @@ let package = Package(
         .target(name: "Hf"),
         .target(name: "PxOsd"),
         .target(name: "HgiInterop"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources"),
@@ -1464,16 +1482,14 @@ let package = Package(
         .target(name: "Trace"),
       ],
       cxxSettings: [
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
+        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
+        .define("PXR_GL_SUPPORT_ENABLED", .when(platforms: Arch.OS.noembeddedapple.platform)),
         .define("MFB_PACKAGE_NAME", to: "Hgi"),
         .define("MFB_ALT_PACKAGE_NAME", to: "Hgi"),
         .define("MFB_PACKAGE_MODULE", to: "Hgi"),
         .define("HGI_EXPORTS", to: "1"),
-        // enable when swift supports std.unique_ptr
-        .define("SWIFT_HAS_UNIQUE_PTR", to: "0"),
-        .define("PXR_GL_SUPPORT_ENABLED", .when(platforms: Arch.OS.noembeddedapple.platform)),
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
-        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
         .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
@@ -1556,14 +1572,14 @@ let package = Package(
       ],
       exclude: Arch.OS.getExcludes(for: "HgiInterop"),
       cxxSettings: [
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
+        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
+        .define("PXR_GL_SUPPORT_ENABLED", .when(platforms: Arch.OS.noembeddedapple.platform)),
         .define("MFB_PACKAGE_NAME", to: "HgiInterop"),
         .define("MFB_ALT_PACKAGE_NAME", to: "HgiInterop"),
         .define("MFB_PACKAGE_MODULE", to: "HgiInterop"),
         .define("HGIINTEROP_EXPORTS", to: "1"),
-        .define("PXR_GL_SUPPORT_ENABLED", .when(platforms: Arch.OS.noembeddedapple.platform)),
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
-        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
-        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
         .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
@@ -1601,7 +1617,146 @@ let package = Package(
         .define("NOMINMAX", .when(platforms: [.windows])),
       ]
     ),
+    
+    .target(
+      name: "HioAVIF",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Hio"),
+        .target(name: "Plug"),
+      ],
+      exclude: [
+        "compliance.cc"
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .headerSearchPath("include/HioAVIF"),
+        .headerSearchPath("include/HioAVIF/aom_mem"),
+        .define("MFB_PACKAGE_NAME", to: "HioAVIF"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HioAVIF"),
+        .define("MFB_PACKAGE_MODULE", to: "HioAVIF"),
+        .define("HIOAVIF_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
 
+    .target(
+      name: "HioImageIO",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Ar"),
+        .target(name: "Plug"),
+        .target(name: "Gf"),
+        .target(name: "Hio")
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "HioImageIO"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HioImageIO"),
+        .define("MFB_PACKAGE_MODULE", to: "HioImageIO"),
+        .define("HIOIMAGEIO_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ],
+      linkerSettings: [
+        .linkedFramework("ImageIO", .when(platforms: Arch.OS.apple.platform)),
+      ]
+    ),
+    
+    .target(
+      name: "HioOIIO",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Plug"),
+        .target(name: "Tf"),
+        .target(name: "Gf"),
+        .target(name: "Ar"),
+        .target(name: "Hio"),
+        .product(name: "OpenImageIO", package: "MetaverseKit"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "HioOIIO"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HioOIIO"),
+        .define("MFB_PACKAGE_MODULE", to: "HioOIIO"),
+        .define("HIOOIIO_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+    
+    .target(
+      name: "HioOpenEXR",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Ar"),
+        .target(name: "Gf"),
+        .target(name: "Hio"),
+      ],
+      sources: [
+        "openexr-c.c",
+        "OpenEXRImage.cpp"
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "HioOpenEXR"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HioOpenEXR"),
+        .define("MFB_PACKAGE_MODULE", to: "HioOpenEXR"),
+        .define("HIOOPENEXR_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows]))
+      ]
+    ),
+    
+    .target(
+      name: "HioOpenVDB",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Plug"),
+        .target(name: "Tf"),
+        .target(name: "Trace"),
+        .target(name: "Ar"),
+        .target(name: "Hf"),
+        .target(name: "Hio"),
+        .product(name: "OpenVDB", package: "MetaverseKit"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("OPENVDB_ALL_TYPES_INSTANTIATED", to: "1"),
+        .define("PXR_OPENVDB_SUPPORT_ENABLED", to: "1"),
+        .define("MFB_PACKAGE_NAME", to: "HioOpenVDB"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HioOpenVDB"),
+        .define("MFB_PACKAGE_MODULE", to: "HioOpenVDB"),
+        .define("HIOOPENVDB_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+    
     .target(
       name: "Glf",
       dependencies: [
@@ -1673,6 +1828,7 @@ let package = Package(
         .target(name: "PxOsd"),
         .target(name: "UsdShade"),
         .target(name: "UsdVol"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -1700,7 +1856,8 @@ let package = Package(
         .target(name: "Hd"),
         .target(name: "Sdf"),
         .target(name: "Sdr"),
-        .target(name: "UsdMtlx")
+        .target(name: "UsdMtlx"),
+        .product(name: "MaterialX", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "HdMtlx"),
@@ -1729,6 +1886,10 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Trace"),
         .target(name: "HdMtlx"),
+        .product(name: "Ptex", package: "MetaverseKit"),
+        .product(name: "MaterialX", package: "MetaverseKit"),
+        .product(name: "OpenSubdiv", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .copy("shaders"),
@@ -1736,6 +1897,11 @@ let package = Package(
         .process("Resources")
       ],
       cxxSettings: [
+        .define("PXR_PTEX_SUPPORT_ENABLED", to: "1"),
+        .define("PXR_MATERIALX_SUPPORT_ENABLED", to: "1"),
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "1", .when(platforms: Arch.OS.apple.platform)),
+        .define("PXR_METAL_SUPPORT_ENABLED", to: "0", .when(platforms: Arch.OS.linwin.platform)),
+        .define("PXR_VULKAN_SUPPORT_ENABLED", to: "0"),
         .define("MFB_PACKAGE_NAME", to: "HdSt"),
         .define("MFB_ALT_PACKAGE_NAME", to: "HdSt"),
         .define("MFB_PACKAGE_MODULE", to: "HdSt"),
@@ -1793,6 +1959,7 @@ let package = Package(
         .target(name: "Hgi"),
         .target(name: "HgiInterop"),
         .target(name: "CameraUtil"),
+        .product(name: "OpenColorIO", package: "MetaverseKit"),
       ],
       resources: [
         .copy("shaders"),
@@ -1800,6 +1967,7 @@ let package = Package(
         .process("Resources")
       ],
       cxxSettings: [
+        .define("PXR_OCIO_PLUGIN_ENABLED", to: "1"),
         .define("MFB_PACKAGE_NAME", to: "Hdx"),
         .define("MFB_ALT_PACKAGE_NAME", to: "Hdx"),
         .define("MFB_PACKAGE_MODULE", to: "Hdx"),
@@ -1808,6 +1976,7 @@ let package = Package(
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
         .define("NOMINMAX", .when(platforms: [.windows])),
+        .define("PXR_OCIO_PLUGIN_ENABLED", to: "1"),
       ]
     ),
 
@@ -1856,6 +2025,7 @@ let package = Package(
         .target(name: "UsdShade"),
         .target(name: "UsdSkel"),
         .target(name: "UsdVol"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       resources: [
         .process("Resources")
@@ -1924,6 +2094,7 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Vt"),
         .target(name: "Work"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .headerSearchPath("include/Vdf"),
@@ -1968,6 +2139,7 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Usd"),
         .target(name: "Work"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Ef"),
@@ -1989,6 +2161,7 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Sdf"),
         .target(name: "Usd"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "EsfUsd"),
@@ -2014,6 +2187,7 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "Vdf"),
         .target(name: "Vt"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Exec"),
@@ -2037,6 +2211,7 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Sdf"),
         .target(name: "Usd"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "ExecUsd"),
@@ -2725,6 +2900,11 @@ enum Arch
           .target(name: "HgiGL"),
           .target(name: "HgiInterop"),
           .target(name: "Hio"),
+          .target(name: "HioAVIF"),
+          .target(name: "HioImageIO", condition: .when(platforms: Arch.OS.apple.platform)),
+          .target(name: "HioOIIO"),
+          .target(name: "HioOpenEXR"),
+          .target(name: "HioOpenVDB"),
           .target(name: "PxOsd"),
           // --- usd imaging. ------
           .target(name: "UsdShaders"),

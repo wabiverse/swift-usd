@@ -1,0 +1,20 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                   "Hio_AVIFImage" : {
+                        "bases": ["HioImage"],
+                        "imageTypes": ["avif"],
+                        "precedence": 30
+                    }
+                }
+            },
+            "LibraryPath": "",
+            "Name": "HioAVIF",
+            "ResourcePath": ".",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}

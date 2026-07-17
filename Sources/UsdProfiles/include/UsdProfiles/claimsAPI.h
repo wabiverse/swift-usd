@@ -338,6 +338,33 @@ public:
     // Compatibility query
     // ---------------------------------------------------------------------- //
 
+    /// Walks all descendants of the prim this ClaimsAPI is attached to,
+    /// collecting implied capabilities from every applied API schema
+    /// (including capabilities inherited through the schema type hierarchy)
+    /// and from every distinct file format among the stage's used layers.
+    ///
+    /// The resulting dictionary preserves any per-capability strength the
+    /// user has already authored on this prim via \c SetCapabilityUsage —
+    /// authored entries are taken verbatim. Capabilities that are implied
+    /// but not yet authored default to \c "hard".
+    ///
+    /// Returns the merged \c VtDictionary.
+    USDPROFILES_API
+    VtDictionary ComputeCapabilityUsages() const;
+
+    /// Performs ComputeCapabilityUsages() and then writes the merged
+    /// dictionary to this prim's \c profilesInfo:capabilityUsages metadata.
+    ///
+    /// Authored entries that name a capability still implied by the prim's
+    /// applied schemas / used file formats survive the round-trip. Authored
+    /// entries that no longer correspond to any implied capability also
+    /// survive: callers wanting to prune them must do so explicitly via
+    /// \c SetCapabilityUsages.
+    ///
+    /// Returns the merged \c VtDictionary that was written.
+    USDPROFILES_API
+    VtDictionary PopulateCapabilityUsages() const;
+
     /// Returns the \c QueryStatus representing how well this prim satisfies
     /// \p profile, taking into account any exception set stored for that
     /// profile via \c SetProfileCompatibleWithExceptions.
@@ -358,7 +385,7 @@ public:
     USDPROFILES_API
     UsdProfileRegistry::QueryStatus IsCompatibleWith(
         const TfToken &profile,
-        std::vector<UsdProfileRegistry::CapabilityResult> *results = nullptr)
+        std::set<UsdProfileRegistry::CapabilityResult> *results = nullptr)
         const;
 
     /// @}

@@ -9,6 +9,7 @@
 #include "Tf/pyEnum.h"
 #include "Tf/pyResultConversions.h"
 #include "Tf/pySingleton.h"
+#include "Tf/type.h"
 
 #include "Js/json.h"
 
@@ -46,15 +47,19 @@ namespace {
 
 // CoversCapabilities has an optional out-param; wrap it to return
 // (QueryStatus, [CapabilityResult, ...]) as a Python tuple.
+// Python callers may pass lists or sets for required/excepted.
 object
 _CoversCapabilities(const TfToken& perspective,
                     const std::vector<TfToken>& required,
                     const std::vector<TfToken>& excepted)
 {
-    std::vector<UsdProfileRegistry::CapabilityResult> results;
+    std::set<UsdProfileRegistry::CapabilityResult> results;
     UsdProfileRegistry::QueryStatus status =
         UsdProfileRegistry::CoversCapabilities(
-            perspective, required, excepted, &results);
+            perspective,
+            std::set<TfToken>(required.begin(), required.end()),
+            std::set<TfToken>(excepted.begin(), excepted.end()),
+            &results);
     list pyResults;
     for (const auto& r : results) {
         pyResults.append(r);
@@ -95,6 +100,7 @@ _TestLoadFromFile(const std::string& filePath)
     }
     return make_tuple(ok, pyErrors);
 }
+
 
 } // anonymous namespace
 
@@ -142,11 +148,11 @@ void wrapUsdProfileRegistry()
             .staticmethod("CoversCapabilities")
 
             .def("GetAllCapabilities",        &This::GetAllCapabilities,
-                 return_value_policy<TfPySequenceToList>())
+                 return_value_policy<TfPySequenceToSet>())
             .staticmethod("GetAllCapabilities")
 
             .def("GetAllProfiles",            &This::GetAllProfiles,
-                 return_value_policy<TfPySequenceToList>())
+                 return_value_policy<TfPySequenceToSet>())
             .staticmethod("GetAllProfiles")
 
             .def("GetStyleForCapability",     &This::GetStyleForCapability)
@@ -163,6 +169,18 @@ void wrapUsdProfileRegistry()
 
             .def("GetCapabilityStyles",       &_GetCapabilityStyles)
             .staticmethod("GetCapabilityStyles")
+
+            .def("GetSchemaImpliedCapabilities",
+                 &This::GetSchemaImpliedCapabilities,
+                 (arg("schemaType")),
+                 return_value_policy<TfPySequenceToSet>())
+            .staticmethod("GetSchemaImpliedCapabilities")
+
+            .def("GetFileFormatImpliedCapabilities",
+                 &This::GetFileFormatImpliedCapabilities,
+                 (arg("formatType")),
+                 return_value_policy<TfPySequenceToSet>())
+            .staticmethod("GetFileFormatImpliedCapabilities")
 
             .def("_TestClear",                &Usd_ProfilesRegistryTestClear)
             .staticmethod("_TestClear")

@@ -9,6 +9,7 @@
 
 #include "UsdImaging/usdPrimInfoSchema.h"
 #include "Hd/retainedDataSource.h"
+#include "Usd/variantSets.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -58,12 +59,13 @@ _SpecifierToDataSource(const SdfSpecifier specifier)
 TfTokenVector
 UsdImagingDataSourceUsdPrimInfo::GetNames()
 {
-    TfTokenVector result = { 
+    TfTokenVector result = {
         UsdImagingUsdPrimInfoSchemaTokens->specifier,
         UsdImagingUsdPrimInfoSchemaTokens->typeName,
         UsdImagingUsdPrimInfoSchemaTokens->isLoaded,
         UsdImagingUsdPrimInfoSchemaTokens->apiSchemas,
         UsdImagingUsdPrimInfoSchemaTokens->kind,
+        UsdImagingUsdPrimInfoSchemaTokens->variantSelections,
     };
 
     if (_usdPrim.IsInstance()) {
@@ -108,6 +110,23 @@ UsdImagingDataSourceUsdPrimInfo::Get(const TfToken &name)
             return TokenDataSource::New(kind);
         }
         return nullptr;
+    }
+    if (name == UsdImagingUsdPrimInfoSchemaTokens->variantSelections) {
+        const std::map<std::string, std::string> sels =
+            _usdPrim.GetVariantSets().GetAllVariantSelections();
+        if (sels.empty()) {
+            return nullptr;
+        }
+        std::vector<TfToken> names;
+        std::vector<HdDataSourceBaseHandle> values;
+        names.reserve(sels.size());
+        values.reserve(sels.size());
+        for (auto const &[setName, sel] : sels) {
+            names.push_back(TfToken(setName));
+            values.push_back(TokenDataSource::New(TfToken(sel)));
+        }
+        return HdRetainedContainerDataSource::New(
+            names.size(), names.data(), values.data());
     }
     if (name == UsdImagingUsdPrimInfoSchemaTokens->niPrototypePath) {
         if (!_usdPrim.IsInstance()) {

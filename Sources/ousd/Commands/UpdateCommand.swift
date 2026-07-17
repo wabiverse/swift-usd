@@ -259,7 +259,27 @@ public enum Pxr: String, CaseIterable
         }
         else
         {
+          // HioOpenEXR's deflate library has separate arm and x86 cpu arch
+          // source files that share basenames (e.g. cpu_features.c in each)
+          // flattening both to Sources/HioOpenEXR/ would let one silently
+          // clobber the other. Preserve arm/ and x86/ as real subdirectories,
+          // mirroring the header-side handling in sameDirectoryIncludes().
+          if target == "HioOpenEXR"
+          {
+            let hioExrPath = suffix.split(separator: "/").dropFirst(2).joined(separator: "/")
+            if hioExrPath.hasPrefix("OpenEXR/deflate/lib/")
+            {
+              sourceFile = hioExrPath
+            }
+          }
+          
           let dest = URL(fileURLWithPath: "\(packagePath)/Sources/\(target)/\(sourceFile)")
+          
+          // for the HioOpenEXR case above, which gives sourceFile a subdirectory.
+          if sourceFile.contains("/") {
+            try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+          }
+
           let priorSrc = try? String(contentsOf: dest, encoding: .utf8)
           try? FileManager.default.removeItem(at: dest)
           try FileManager.default.moveItem(at: source, to: dest)
@@ -276,7 +296,7 @@ public enum Pxr: String, CaseIterable
       // these enumerated package directories, so it never reaches here.
       let isConfigTemplate = source.pathExtension == "in" && source.deletingPathExtension().pathExtension == "h"
 
-      if ["h", "hpp", "hxx"].contains(source.pathExtension) || isConfigTemplate
+      if ["h", "hpp", "hxx", "inc"].contains(source.pathExtension) || isConfigTemplate
       {
         if isConfigTemplate
         {
@@ -358,6 +378,37 @@ public enum Pxr: String, CaseIterable
             preservesSubdirectory = true
           }
         }
+      
+        else if target == "HioAVIF"
+        {
+          let subdirs = [
+            "AVIF",
+            "aom",
+            "aom_dsp",
+            "aom_mem",
+            "aom_ports",
+            "aom_scale",
+            "aom_util",
+            "av1",
+            "common",
+            "config"
+          ]
+
+          let hioAvifPath = suffix.split(separator: "/").dropFirst(2).joined(separator: "/")
+          if subdirs.contains(where: { hioAvifPath.hasPrefix("\($0)/") }) {
+            sourceFile = hioAvifPath
+            preservesSubdirectory = true
+          }
+        }
+        
+        else if target == "HioOpenEXR"
+        {
+          let hioExrPath = suffix.split(separator: "/").dropFirst(2).joined(separator: "/")
+          if hioExrPath.hasPrefix("OpenEXR/") {
+            sourceFile = hioExrPath
+            preservesSubdirectory = true
+          }
+        }
 
         // pxr headers must not have the name of the umbrella header, since
         // that collides on case-insensitive filesystems (ex. "tf.h" vs
@@ -376,7 +427,12 @@ public enum Pxr: String, CaseIterable
           sourceFile = "implTBB.h"
         }
 
-        let dest = URL(fileURLWithPath: "\(packagePath)/Sources/\(target)/include/\(target)/\(sourceFile)")
+        let includeRoot =
+          target == "HioOpenEXR"
+            ? "\(packagePath)/Sources/\(target)/include"
+            : "\(packagePath)/Sources/\(target)/include/\(target)"
+        
+        let dest = URL(fileURLWithPath: "\(includeRoot)/\(sourceFile)")
 
         if isConfigTemplate
         {
@@ -884,12 +940,14 @@ public enum Pxr: String, CaseIterable
       // include/<Target>/. For files in a preserved subdirectory (e.g.
       // Pegtl/internal/), pass the subdirectory so intra-subdir includes
       // resolve to <Target/subdir/file> instead of the flattened <Target/file>.
-      let includeRoot = "include/\(target)/"
+      let includeRoot: String = 
+        target == "HioOpenEXR"
+          ? "include/OpenEXR/"
+          : "include/\(target)/"
       let subdirectory: String? = {
         let p = fileURL.path
         guard let r = p.range(of: includeRoot) else { return nil }
-        let rel = String(p[r.upperBound...])  // e.g. "internal/rules.hpp" or "foo.h"
-        let parts = rel.split(separator: "/")
+        let parts = String(p[r.upperBound...]).split(separator: "/")
         guard parts.count > 1 else { return nil }
         return parts.dropLast().joined(separator: "/")
       }()
@@ -989,6 +1047,10 @@ public enum Pxr: String, CaseIterable
     "hgiinterop": "HgiInterop",
     "hgimetal": "HgiMetal",
     "hgivulkan": "HgiVulkan",
+    "hioavif": "HioAVIF",
+    "hioimageio": "HioImageIO",
+    "hiooiio": "HioOIIO",
+    "hioopenexr": "HioOpenEXR",
     "hioopenvdb": "HioOpenVDB",
     "pxosd": "PxOsd",
     "sdrglslfx": "SdrGlslfx",
@@ -2261,15 +2323,222 @@ public enum Pxr: String, CaseIterable
         }
       }
 
+      if target == "HioAVIF" {
+        source = source.replacingOccurrences(
+          of: "#include \"aom_mem.h\"",
+          with: "#include <HioAVIF/aom_mem/aom_mem.h>"
+        )
+      }
+      
+      if target == "HioOpenEXR" {
+        // openexr source uses `nil` for some
+        // of its variable names, and `nil` is
+        // defined by system headers on macOS,
+        // which causes weird errors, so just
+        // rename it (matching it exactly) to
+        // `nilVar` to disambiguate.
+        source = source.replacingOccurrences(
+          of: #"\bnil\b"#,
+          with: "nilVar",
+          options: .regularExpression
+        )
+        let hioOpenExrPrivateHeaders = [
+          // openexr deflate headers.
+          "adler32_vec_template.h": "OpenEXR/deflate/lib/",
+          "bt_matchfinder.h": "OpenEXR/deflate/lib/",
+          "cpu_features_common.h": "OpenEXR/deflate/lib/",
+          "decompress_template.h": "OpenEXR/deflate/lib/",
+          "deflate_compress.h": "OpenEXR/deflate/lib/",
+          "deflate_constants.h": "OpenEXR/deflate/lib/",
+          "hc_matchfinder.h": "OpenEXR/deflate/lib/",
+          "ht_matchfinder.h": "OpenEXR/deflate/lib/",
+          "lib_common.h": "OpenEXR/deflate/lib/",
+          "matchfinder_common.h": "OpenEXR/deflate/lib/",
+          "zlib_constants.h": "OpenEXR/deflate/lib/",
+          
+          // openexr headers.
+          "openexr_attr.h": "OpenEXR/OpenEXRCore/",
+          "openexr_base.h": "OpenEXR/OpenEXRCore/",
+          "openexr_chunkio.h": "OpenEXR/OpenEXRCore/",
+          "openexr_compression.h": "OpenEXR/OpenEXRCore/",
+          "openexr_coding.h": "OpenEXR/OpenEXRCore/",
+          "openexr_config.h": "OpenEXR/OpenEXRCore/",
+          "openexr_context.h": "OpenEXR/OpenEXRCore/",
+          "openexr_debug.h": "OpenEXR/OpenEXRCore/",
+          "openexr_decode.h": "OpenEXR/OpenEXRCore/",
+          "openexr_encode.h": "OpenEXR/OpenEXRCore/",
+          "openexr_errors.h": "OpenEXR/OpenEXRCore/",
+          "openexr_part.h": "OpenEXR/OpenEXRCore/",
+          "openexr_std_attr.h": "OpenEXR/OpenEXRCore/",
+          "openexr_version.h": "OpenEXR/OpenEXRCore/",
+          
+          // openexr source.
+          "OpenEXRCore/attributes.c": "../",
+          "OpenEXRCore/base.c": "../",
+          "OpenEXRCore/channel_list.c": "../",
+          "OpenEXRCore/chunk.c": "../",
+          "OpenEXRCore/coding.c": "../",
+          "OpenEXRCore/compression.c": "../",
+          "OpenEXRCore/context.c": "../",
+          "OpenEXRCore/debug.c": "../",
+          "OpenEXRCore/decoding.c": "../",
+          "OpenEXRCore/encoding.c": "../",
+          "OpenEXRCore/float_vector.c": "../",
+          "OpenEXRCore/internal_b44_table.c": "../",
+          "OpenEXRCore/internal_b44.c": "../",
+          "OpenEXRCore/internal_dwa.c": "../",
+          "OpenEXRCore/internal_huf.c": "../",
+          "OpenEXRCore/internal_piz.c": "../",
+          "OpenEXRCore/internal_pxr24.c": "../",
+          "OpenEXRCore/internal_rle.c": "../",
+          "OpenEXRCore/internal_structs.c": "../",
+          "OpenEXRCore/internal_zip.c": "../",
+          "OpenEXRCore/memory.c": "../",
+          "OpenEXRCore/opaque.c": "../",
+          "OpenEXRCore/pack.c": "../",
+          "OpenEXRCore/parse_header.c": "../",
+          "OpenEXRCore/part_attr.c": "../",
+          "OpenEXRCore/part.c": "../",
+          "OpenEXRCore/preview.c": "../",
+          "OpenEXRCore/std_attr.c": "../",
+          "OpenEXRCore/string_vector.c": "../",
+          "OpenEXRCore/string.c": "../",
+          "OpenEXRCore/unpack.c": "../",
+          "OpenEXRCore/validation.c": "../",
+          "OpenEXRCore/write_header.c": "../",
+          
+          // openexr headers.
+          "OpenEXRConfigInternal.h": "OpenEXR/OpenEXRCore/",
+          "OpenEXRCore/openexr_config.h": "OpenEXR/",
+          "backward_compatibility.h": "OpenEXR/OpenEXRCore/",
+          
+          // openexr deflate headers.
+          "deflate/lib/lib_common.h": "OpenEXR/",
+          "deflate/common_defs.h": "OpenEXR/",
+          
+          // openexr deflate source.
+          "deflate/lib/utils.c": "../OpenEXR/",
+          "deflate/lib/deflate_compress.c": "../OpenEXR/",
+          "deflate/lib/deflate_decompress.c": "../OpenEXR/",
+          "deflate/lib/adler32.c": "../OpenEXR/",
+          "deflate/lib/zlib_compress.c": "../OpenEXR/",
+          "deflate/lib/zlib_decompress.c": "../OpenEXR/",
+          
+          // openexr deflate arch source.
+          "deflate/lib/arm/cpu_features.c": "../OpenEXR/",
+          "deflate/lib/x86/cpu_features.c": "../OpenEXR/",
+          
+          // internal openexr headers.
+          "internal_attr.h": "OpenEXR/OpenEXRCore/",
+          "internal_coding.h": "OpenEXR/OpenEXRCore/",
+          "internal_constants.h": "OpenEXR/OpenEXRCore/",
+          "internal_compress.h": "OpenEXR/OpenEXRCore/",
+          "internal_decompress.h": "OpenEXR/OpenEXRCore/",
+          "internal_dwa_helpers.h": "OpenEXR/OpenEXRCore/",
+          "internal_file.h": "OpenEXR/OpenEXRCore/",
+          "internal_huf.h": "OpenEXR/OpenEXRCore/",
+          "internal_memory.h": "OpenEXR/OpenEXRCore/",
+          "internal_structs.h": "OpenEXR/OpenEXRCore/",
+          "internal_util.h": "OpenEXR/OpenEXRCore/",
+          "internal_xdr.h": "OpenEXR/OpenEXRCore/",
+          "internal_cpuid.h": "OpenEXR/OpenEXRCore/",
+          
+          // platform specific.
+          "internal_win32_file_impl.h": "OpenEXR/OpenEXRCore/",
+          "internal_posix_file_impl.h": "OpenEXR/OpenEXRCore/",
+          
+          // arm source.
+          "arm/adler32_impl.h": "OpenEXR/deflate/lib/",
+          "arm/cpu_features.h": "OpenEXR/deflate/lib/",
+          "arm/matchfinder_impl.h": "OpenEXR/deflate/lib/",
+          
+          // x86 source.
+          "x86/adler32_impl.h": "OpenEXR/deflate/lib/",
+          "x86/cpu_features.h": "OpenEXR/deflate/lib/",
+          "x86/decompress_impl.h": "OpenEXR/deflate/lib/",
+          "x86/matchfinder_impl.h": "OpenEXR/deflate/lib/",
+        ]
+        
+        for (h, prefix) in hioOpenExrPrivateHeaders {
+          source = source.replacingOccurrences(
+            of: "#include \"\(h)\"",
+            with: "#include <\(prefix)\(h)>"
+          )
+          source = source.replacingOccurrences(
+            of: "#include \"../\(h)\"",
+            with: "#include <\(prefix)\(h)>"
+          )
+          source = source.replacingOccurrences(
+            of: "#include <../\(h)>",
+            with: "#include \"../\(h.replacingOccurrences(of: "OpenEXRCore/", with: ""))\""
+          )
+          source = source.replacingOccurrences(
+            of: "#include <../OpenEXR/\(h)>",
+            with: "#include \"../OpenEXR/\(h)\""
+          )
+          source = source.replacingOccurrences(
+            of: "#include \"../common_defs.h\"",
+            with: "#include \"OpenEXR/deflate/common_defs.h\""
+          )
+          for exrh in [
+            "internal_win32_file_impl.h",
+            "internal_posix_file_impl.h",
+          ] {
+            source = source.replacingOccurrences(
+              of: "#\(String(repeating: " ", count: 4))include \"\(exrh)\"",
+              with: "#\(String(repeating: " ", count: 4))include \"OpenEXR/OpenEXRCore/\(exrh)\""
+            )
+          }
+          for (numSpaces, dh) in [
+            (2, "x86/decompress_impl.h"),
+            (4, "x86/matchfinder_impl.h"),
+            (2, "x86/adler32_impl.h"),
+            (2, "arm/adler32_impl.h"),
+            (4, "arm/matchfinder_impl.h"),
+            (2, "../adler32_vec_template.h"),
+            (2, "../decompress_template.h"),
+            (2, "bt_matchfinder.h"),
+          ] {
+            source = source.replacingOccurrences(
+              of: "#\(String(repeating: " ", count: numSpaces))include \"\(dh)\"",
+              with: "#\(String(repeating: " ", count: numSpaces))include \"OpenEXR/deflate/lib/\(dh.replacingOccurrences(of: "../", with: ""))\""
+            )
+          }
+          source = source.replacingOccurrences(
+            of: "#include \"../deflate/libdeflate.h\"",
+            with: "#include <OpenEXR/deflate/libdeflate.h>"
+          )
+          source = source.replacingOccurrences(
+            of: "#include \"cpu_features.h\"",
+            with: """
+            #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+            #  include \"OpenEXR/deflate/lib/x86/cpu_features.h\"
+            #elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__) || defined(_M_ARM)
+            #  include \"OpenEXR/deflate/lib/arm/cpu_features.h\"
+            #endif // defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+            """
+          )
+        }
+      }
+      
       // general rule: any remaining `#include "X.h"` with no path separator ->
       // `#include <Target/X.h>` (top-level) or `#include <Target/subdir/X.h>` when
       // the file lives in a preserved subdirectory (e.g. Pegtl/internal/).
+      // HioOpenEXR is special: its headers are exposed under the OpenEXR/ include
+      // root rather than the HioOpenEXR/ target root.
       guard let regex = try? NSRegularExpression(pattern: #"#include "([^/"]+\.(?:h|hpp|hxx))""#)
       else { return }
 
       let nsSource = source as NSString
       let range = NSRange(location: 0, length: nsSource.length)
-      let prefix = subdirectory.map { "\(target)/\($0)" } ?? target
+
+      let prefix: String
+      if target == "HioOpenEXR" {
+        prefix = subdirectory.map { "OpenEXR/\($0)" } ?? "OpenEXR"
+      } else {
+        prefix = subdirectory.map { "\(target)/\($0)" } ?? target
+      }
+
       source = regex.stringByReplacingMatches(in: source, range: range, withTemplate: "#include <\(prefix)/$1>")
     }
 

@@ -111,8 +111,19 @@ PXR_NAMESPACE_CLOSE_SCOPE
 // --(BEGIN CUSTOM CODE)--
 
 #include "UsdProfiles/profileRegistry.h"
+#include "UsdProfiles/tokens.h"
+#include "Usd/primRange.h"
+#include "Usd/schemaRegistry.h"
+#include "Usd/stage.h"
+#include "Sdf/fileFormat.h"
+#include "Sdf/layer.h"
+#include "Tf/hash.h"
+#include "Tf/type.h"
 #include "Vt/array.h"
 #include "Vt/dictionary.h"
+
+#include <unordered_map>
+#include <unordered_set>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -281,10 +292,105 @@ UsdProfilesClaimsAPI::ClearProfileCompatibility(const TfToken &profile) const
 // IsCompatibleWith
 // ---------------------------------------------------------------------- //
 
+// Collects implied capability names (no strength) from every applied schema on
+// the prim and every distinct file format among the stage's used layers.
+// Uses std::set internally for dedup across the walk.
+static std::set<TfToken>
+_GatherImpliedCapabilities(const UsdPrim& rootPrim)
+{
+    std::set<TfToken> implied;
+
+    std::unordered_map<TfType, std::set<TfToken>, TfHash> typeCache;
+
+    for (const UsdPrim& prim : UsdPrimRange(rootPrim)) {
+        for (const TfToken& schemaToken : prim.GetAppliedSchemas()) {
+            // Drop instance suffix for multi-apply schemas.
+            const TfToken typeName =
+                UsdSchemaRegistry::GetTypeNameAndInstance(schemaToken).first;
+            const TfType schemaType = UsdSchemaRegistry::GetTypeFromName(typeName);
+            if (schemaType.IsUnknown()) {
+                continue;
+            }
+
+            auto cacheIt = typeCache.find(schemaType);
+            if (cacheIt == typeCache.end()) {
+                cacheIt = typeCache.emplace(
+                    schemaType,
+                    UsdProfileRegistry::GetSchemaImpliedCapabilities(schemaType)).first;
+            }
+            implied.insert(cacheIt->second.begin(), cacheIt->second.end());
+        }
+    }
+
+    if (UsdStagePtr stage = rootPrim.GetStage()) {
+        std::unordered_set<TfType, TfHash> seenFormatTypes;
+        // skipping inputs from value clips.
+        for (const SdfLayerHandle& layer : stage->GetUsedLayers(false)) {
+            if (!layer || layer->IsAnonymous()) {
+                continue;
+            }
+            SdfFileFormatConstPtr fmt = layer->GetFileFormat();
+            if (!fmt) {
+                continue;
+            }
+            TfType formatType = TfType::Find(*fmt);
+            if (formatType.IsUnknown()
+                    || !seenFormatTypes.insert(formatType).second) {
+                continue;
+            }
+
+            std::set<TfToken> fmtCaps =
+                UsdProfileRegistry::GetFileFormatImpliedCapabilities(formatType);
+            implied.insert(fmtCaps.begin(), fmtCaps.end());
+        }
+    }
+
+    return implied;
+}
+
+VtDictionary
+UsdProfilesClaimsAPI::ComputeCapabilityUsages() const
+{
+    UsdPrim rootPrim = GetPrim();
+    if (!rootPrim) {
+        return VtDictionary();
+    }
+
+    // Start from whatever the user has already authored on this prim.
+    // Authored strengths are load-bearing: the user has explicitly declared
+    // how the application consumes the capability ("enhancement", "soft", or
+    // "hard"). These survive verbatim.
+    VtDictionary merged = GetCapabilityUsages();
+
+    // Fill in implied capabilities that the user has not declared. Default
+    // strength for an undeclared implication is "hard".
+    for (const TfToken& cap : _GatherImpliedCapabilities(rootPrim)) {
+        const std::string capStr = cap.GetString();
+        if (merged.find(capStr) == merged.end()) {
+            merged[capStr] = VtValue(UsdProfilesTokens->hard);
+        }
+    }
+
+    return merged;
+}
+
+VtDictionary
+UsdProfilesClaimsAPI::PopulateCapabilityUsages() const
+{
+    UsdPrim rootPrim = GetPrim();
+    if (!rootPrim) {
+        return VtDictionary();
+    }
+
+    VtDictionary merged = ComputeCapabilityUsages();
+    SetCapabilityUsages(merged);
+    return merged;
+}
+
 UsdProfileRegistry::QueryStatus
 UsdProfilesClaimsAPI::IsCompatibleWith(
     const TfToken &profile,
-    std::vector<UsdProfileRegistry::CapabilityResult> *results) const
+    std::set<UsdProfileRegistry::CapabilityResult> *results) const
 {
     // A compatibility entry must exist for this profile.
     VtDictionary compat;
@@ -299,15 +405,14 @@ UsdProfilesClaimsAPI::IsCompatibleWith(
     if (usages.empty()) {
         return UsdProfileRegistry::QueryStatus::NoPath;
     }
-    std::vector<TfToken> required;
-    required.reserve(usages.size());
+    std::set<TfToken> required;
     for (const auto &entry : usages) {
-        required.push_back(TfToken(entry.first));
+        required.insert(TfToken(entry.first));
     }
 
     // Pass the stored exception set for this profile.
     VtArray<TfToken> exceptions = GetProfileExceptions(profile);
-    std::vector<TfToken> excepted(exceptions.begin(), exceptions.end());
+    std::set<TfToken> excepted(exceptions.begin(), exceptions.end());
 
     return UsdProfileRegistry::CoversCapabilities(
         profile, required, excepted, results);

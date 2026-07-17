@@ -8,6 +8,7 @@
 #include <HdSt/renderPassVisibilitySceneIndexPlugin.h>
 #include <HdSt/extCompGpuComputationResource.h>
 #include <HdSt/extCompComputedInputSource.h>
+#include <HdSt/backPlateSceneIndexPlugin.h>
 #include <HdSt/velocityMotionResolvingSceneIndexPlugin.h>
 #include <HdSt/renderPass.h>
 #include <HdSt/smoothNormals.h>

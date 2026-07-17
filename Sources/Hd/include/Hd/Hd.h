@@ -60,6 +60,7 @@
 #include <Hd/dataSourceHash.h>
 #include <Hd/types.h>
 #include <Hd/coordSys.h>
+#include <Hd/backPlateSchema.h>
 #include <Hd/selectionSchema.h>
 #include <Hd/systemMessages.h>
 #include <Hd/flattenedXformDataSourceProvider.h>

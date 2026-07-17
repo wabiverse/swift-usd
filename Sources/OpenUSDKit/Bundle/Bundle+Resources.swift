@@ -151,6 +151,26 @@ public extension Bundle
   /**
    * Where ``Hio`` application bundle resources are located. */
   static let hio = pxrBundle("swift-usd_Hio")
+  
+  /**
+   * Where ``HioAVIF`` application bundle resources are located. */
+  static let hioAVIF = pxrBundle("swift-usd_HioAVIF")
+  
+  /**
+   * Where ``HioImageIO`` application bundle resources are located. */
+  static let hioImageIO = pxrBundle("swift-usd_HioImageIO")
+  
+  /**
+   * Where ``HioOIIO`` application bundle resources are located. */
+  static let hioOIIO = pxrBundle("swift-usd_HioOIIO")
+  
+  /**
+   * Where ``HioOpenEXR`` application bundle resources are located. */
+  static let hioOpenEXR = pxrBundle("swift-usd_HioOpenEXR")
+  
+  /**
+   * Where ``HioOpenVDB`` application bundle resources are located. */
+  static let hioOpenVDB = pxrBundle("swift-usd_HioOpenVDB")
 
   /**
    * Where ``Glf`` application bundle resources are located. */

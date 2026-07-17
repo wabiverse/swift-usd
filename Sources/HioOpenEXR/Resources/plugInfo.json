@@ -1,0 +1,20 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                   "Hio_OpenEXRImage" : {
+                        "bases": ["HioImage"],
+                        "imageTypes": ["exr"],
+                        "precedence": 30
+                    }
+                }
+            },
+            "LibraryPath": "",
+            "Name": "HioOpenEXR",
+            "ResourcePath": ".",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}

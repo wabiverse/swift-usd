@@ -390,6 +390,14 @@ Usd_ApplyLayerOffsetToValue(VtDictionary *value, const SdfLayerOffset &offset)
         });
 }
 
+template <class T>
+bool
+Usd_QuerySpline(
+    const TsSpline& spline,
+    UsdTimeCode timeCode,
+    const SdfLayerOffset& layerToStageOffset,
+    T* result);
+
 PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // PXR_USD_USD_VALUE_UTILS_H

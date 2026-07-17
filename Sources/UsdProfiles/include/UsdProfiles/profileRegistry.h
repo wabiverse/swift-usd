@@ -10,6 +10,7 @@
 /// \file usdProfiles/profileRegistry.h
 
 #include "UsdProfiles/api.h"
+#include "Tf/type.h"
 #include "Tf/weakBase.h"
 #include "Tf/singleton.h"
 #include "Tf/staticTokens.h"
@@ -18,9 +19,9 @@
 #include "Js/types.h"
 
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
-#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -78,29 +79,34 @@ class UsdProfileRegistry : public TfSingleton<UsdProfileRegistry>
     USDPROFILES_API
     static VtDictionary GetCapabilityMetadata(const TfToken& capability);
 
-    /// Per-capability query result
+    /// Per-capability query result.
+    /// Ordered by capability token only; status is payload, not identity.
     struct CapabilityResult {
         TfToken capability;
         QueryStatus status;
+
+        bool operator<(const CapabilityResult& rhs) const {
+            return capability < rhs.capability;
+        }
     };
 
     /// Return all direct predecessors (incoming edges) of \p capability.
     /// Each entry carries the predecessor token and \c ValidPath or
     /// \c Deprecated reflecting whether that edge is deprecated.
-    /// Returns an empty vector if \p capability is unknown or has no predecessors.
+    /// Returns an empty set if \p capability is unknown or has no predecessors.
     /// \sa HasCapability
     USDPROFILES_API static
-    std::vector<CapabilityResult> GetPredecessors(const TfToken& capability);
+    std::set<CapabilityResult> GetPredecessors(const TfToken& capability);
 
     /// Return the full transitive closure of all ancestors of \p capability.
     /// Each entry carries the ancestor token and the best \c QueryStatus of
     /// any path from \p capability to that ancestor (\c ValidPath,
     /// \c Deprecated, or \c DeprecationConflict).
     /// Does not include \p capability itself.
-    /// Returns an empty vector if \p capability is unknown or has no predecessors.
+    /// Returns an empty set if \p capability is unknown or has no predecessors.
     /// \sa HasCapability
     USDPROFILES_API static
-    std::vector<CapabilityResult> GetTransitivePredecessors(const TfToken& capability);
+    std::set<CapabilityResult> GetTransitivePredecessors(const TfToken& capability);
 
     /// Parse the \c _vN version suffix from a capability token.
     /// Returns the base name and integer version, where an unversioned
@@ -153,24 +159,63 @@ class UsdProfileRegistry : public TfSingleton<UsdProfileRegistry>
     /// capability. Each entry's \c capability field holds the \e resolved token
     /// (which may differ from the input if a higher versioned form was found),
     /// and \c status holds that capability's individual \c QueryStatus.
-    /// Entries are in the same order as \p required.
     ///
     /// Returns \c NoPath (with an empty \p results) if \p perspective is
     /// unknown after resolution, or if \p required is empty.
     /// \sa HasCapability
     USDPROFILES_API static QueryStatus CoversCapabilities(
                                     const TfToken& perspective,
-                                    const std::vector<TfToken>& required,
-                                    const std::vector<TfToken>& excepted = {},
-                                    std::vector<CapabilityResult>* results = nullptr);
+                                    const std::set<TfToken>& required,
+                                    const std::set<TfToken>& excepted = {},
+                                    std::set<CapabilityResult>* results = nullptr);
 
-    /// Return an unordered vector of all capabilities known to the registry.
-    USDPROFILES_API static std::vector<TfToken> GetAllCapabilities();
+    /// Return the union of \c impliesCapabilities declared on \p schemaType
+    /// and all of its ancestor types, as a set of capability tokens.
+    ///
+    /// Implications carry only the capability identity; the application's
+    /// usage strength (\c hard / \c soft / \c enhancement) is recorded by
+    /// the consumer on its \c UsdProfilesClaimsAPI, not at the schema
+    /// declaration site.
+    ///
+    /// Returns an empty set if \p schemaType is unknown or no ancestor
+    /// declares any implied capabilities.
+    ///
+    /// Results are cached on first call per \c TfType.
+    USDPROFILES_API
+    static std::set<TfToken>
+    GetSchemaImpliedCapabilities(const TfType& schemaType);
 
-    /// Return an unordered vector of all profiles known to the registry.
-    /// Profiles are capabilities declared with \c "isProfile": true
-    /// in plugInfo.json.
-    USDPROFILES_API static std::vector<TfToken> GetAllProfiles();
+    /// Return the union of \c impliesCapabilities declared on \p formatType
+    /// and all of its ancestor types, using the same rules as
+    /// \c GetSchemaImpliedCapabilities. Intended for \c SdfFileFormat-derived
+    /// types: obtain the \c TfType via \c TfType::Find(*fileFormatPtr) or
+    /// \c TfType::FindByName.
+    ///
+    /// Returns an empty set if \p formatType is unknown or no ancestor
+    /// declares any implied capabilities.
+    ///
+    /// Results are cached on first call per \c TfType.
+    USDPROFILES_API
+    static std::set<TfToken>
+    GetFileFormatImpliedCapabilities(const TfType& formatType);
+
+    /// Return the set of all capabilities known to the registry.
+    USDPROFILES_API static std::set<TfToken> GetAllCapabilities();
+
+    /// Return the set of all profiles known to the registry. Profiles are
+    /// capabilities declared with \c "isProfile": true in plugInfo.json.
+    USDPROFILES_API static std::set<TfToken> GetAllProfiles();
+
+    /// Extract just the capability tokens from a \c CapabilityResult set,
+    /// discarding the per-entry status.
+    static std::set<TfToken>
+    CapabilityResultsToTokens(const std::set<CapabilityResult>& results) {
+        std::set<TfToken> tokens;
+        for (const auto& r : results) {
+            tokens.insert(r.capability);
+        }
+        return tokens;
+    }
 
     // Style, Subgraph, DocString, and DisplayName are all meant for 
     // visualization purposes. Styles can be used to give a capability a distinct

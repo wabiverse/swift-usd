@@ -40,6 +40,8 @@ using HdSampledDataSourceContainerSchema =
     HdContainerOfTypedSampledDataSourcesSchema<HdSampledDataSource>;
 
 // Containers of schemas
+using HdBackPlateContainerSchema =
+    HdContainerOfSchemasSchema<class HdBackPlateSchema>;
 using HdMaterialNodeContainerSchema =
     HdContainerOfSchemasSchema<class HdMaterialNodeSchema>;
 using HdMaterialNodeParameterContainerSchema =

@@ -1,0 +1,20 @@
+{
+  "Plugins": [
+    {
+      "Info": {
+        "Types": {
+          "HioOpenVDB_TextureData" : {
+            "bases": ["HioFieldTextureData"],
+            "fieldDataTypes": ["vdb"],
+            "precedence": 0
+          }
+        }
+      },
+      "LibraryPath": "",
+      "Name": "HioOpenVDB",
+      "ResourcePath": ".",
+      "Root": ".",
+      "Type": "library"
+    }
+  ]
+}

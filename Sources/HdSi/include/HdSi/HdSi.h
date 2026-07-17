@@ -18,6 +18,7 @@
 #include <HdSi/primTypeNoticeBatchingSceneIndex.h>
 #include <HdSi/primTypeAndPathPruningSceneIndex.h>
 #include <HdSi/renderSettingsFilteringSceneIndex.h>
+#include <HdSi/backPlateSceneIndex.h>
 #include <HdSi/locatorCachingSceneIndex.h>
 #include <HdSi/legacyDisplayStyleOverrideSceneIndex.h>
 #include <HdSi/debuggingSceneIndex.h>

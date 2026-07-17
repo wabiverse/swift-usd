@@ -349,6 +349,11 @@ _RenderPassVisibilitySceneIndex::GetPrim(
 {
     HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
 
+    // If no render pass is active, do nothing.
+    if (_activeRenderPass.renderPassPath.IsEmpty()) {
+        return prim;
+    }
+
     // Do not modify prototype prims (those with instancedBy schema).
     // Prototypes are an internal detail of the system, not something
     // meant to be user-facing, so there must be no way to point

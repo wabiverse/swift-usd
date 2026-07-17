@@ -15,6 +15,7 @@
 #include "Js/types.h"
 #include "Tf/diagnostic.h"
 #include "Tf/diagnosticTrap.h"
+#include "Tf/hash.h"
 #include "Tf/instantiateSingleton.h"
 #include "Tf/iterator.h"
 #include "Tf/stringUtils.h"
@@ -23,6 +24,7 @@
 
 #include <cctype>
 #include <fstream>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -126,8 +128,8 @@ public:
     void Clear();
     bool ValidateAcyclic(std::vector<std::string>* errors = nullptr) const;
     bool ValidateEdges(std::vector<std::string>* errors = nullptr) const;
-    std::vector<TfToken> GetAllCapabilities() const;
-    std::vector<TfToken> GetAllProfiles() const;
+    std::set<TfToken> GetAllCapabilities() const;
+    std::set<TfToken> GetAllProfiles() const;
     std::optional<Capability> GetMetadata(const TfToken& cap) const;
     bool HasCapability(const TfToken& cap) const;
 
@@ -137,10 +139,10 @@ public:
                                         std::unordered_set<TfToken,
                                         TfToken::HashFunctor>& visited) const;
 
-    std::vector<UsdProfileRegistry::CapabilityResult> 
+    std::set<UsdProfileRegistry::CapabilityResult>
         GetPredecessors(const TfToken& cap) const;
 
-    std::vector<UsdProfileRegistry::CapabilityResult> 
+    std::set<UsdProfileRegistry::CapabilityResult>
         GetTransitivePredecessors(const TfToken& cap) const;
 
     bool ValidateRoot(std::vector<std::string>* errors = nullptr) const;
@@ -323,21 +325,20 @@ bool UsdProfileRegistry::_CapabilityGraph::ValidateRoot(
 }
 
 /// Get all capability IDs in the graph.
-std::vector<TfToken> UsdProfileRegistry::_CapabilityGraph::GetAllCapabilities() const {
-    std::vector<TfToken> result;
-    result.reserve(incomingEdgeMap.size());
+std::set<TfToken> UsdProfileRegistry::_CapabilityGraph::GetAllCapabilities() const {
+    std::set<TfToken> result;
     for (const auto& [id, edges] : incomingEdgeMap) {
-        result.push_back(id);
+        result.insert(id);
     }
     return result;
 }
 
 /// Get all capability IDs tagged as profiles (isProfile=true).
-std::vector<TfToken> UsdProfileRegistry::_CapabilityGraph::GetAllProfiles() const {
-    std::vector<TfToken> result;
+std::set<TfToken> UsdProfileRegistry::_CapabilityGraph::GetAllProfiles() const {
+    std::set<TfToken> result;
     for (const auto& [id, cap] : metadata) {
         if (cap.IsProfile()) {
-            result.push_back(id);
+            result.insert(id);
         }
     }
     return result;
@@ -401,16 +402,16 @@ UsdProfileRegistry::_CapabilityGraph::DepthFirstSearch(
     return result;
 }
 
-std::vector<UsdProfileRegistry::CapabilityResult>
+std::set<UsdProfileRegistry::CapabilityResult>
 UsdProfileRegistry::_CapabilityGraph::GetPredecessors(const TfToken& cap) const {
-    std::vector<UsdProfileRegistry::CapabilityResult> result;
+    std::set<UsdProfileRegistry::CapabilityResult> result;
     auto it = incomingEdgeMap.find(cap);
     if (it != incomingEdgeMap.end()) {
         for (const auto& edge : it->second) {
             UsdProfileRegistry::QueryStatus status = edge.deprecated
                 ? UsdProfileRegistry::QueryStatus::Deprecated
                 : UsdProfileRegistry::QueryStatus::ValidPath;
-            result.push_back({edge.name, status});
+            result.insert({edge.name, status});
         }
     }
     return result;
@@ -421,7 +422,7 @@ UsdProfileRegistry::_CapabilityGraph::GetPredecessors(const TfToken& cap) const 
 /// Single-pass O(V+E): each node's status can escalate at most once
 /// (ValidPath → DeprecationConflict or Deprecated → DeprecationConflict),
 /// so each edge is traversed at most twice. Does not include \p cap itself.
-std::vector<UsdProfileRegistry::CapabilityResult>
+std::set<UsdProfileRegistry::CapabilityResult>
 UsdProfileRegistry::_CapabilityGraph::GetTransitivePredecessors(const TfToken& cap) const {
     std::unordered_map<TfToken, UsdProfileRegistry::QueryStatus,
                        TfToken::HashFunctor> status;
@@ -434,10 +435,9 @@ UsdProfileRegistry::_CapabilityGraph::GetTransitivePredecessors(const TfToken& c
         }
     }
 
-    std::vector<UsdProfileRegistry::CapabilityResult> result;
-    result.reserve(status.size());
+    std::set<UsdProfileRegistry::CapabilityResult> result;
     for (const auto& [node, s] : status) {
-        result.push_back({node, s});
+        result.insert({node, s});
     }
     return result;
 }
@@ -524,9 +524,9 @@ UsdProfileRegistry::HasCapability(const TfToken& capability)
 UsdProfileRegistry::QueryStatus
 UsdProfileRegistry::CoversCapabilities(
     const TfToken& perspective,
-    const std::vector<TfToken>& required,
-    const std::vector<TfToken>& excepted,
-    std::vector<CapabilityResult>* results)
+    const std::set<TfToken>& required,
+    const std::set<TfToken>& excepted,
+    std::set<CapabilityResult>* results)
 {
     if (results) {
         results->clear();
@@ -579,7 +579,7 @@ UsdProfileRegistry::CoversCapabilities(
         }
 
         if (results) {
-            results->push_back({reportToken, s});
+            results->insert({reportToken, s});
         }
 
         if (s == QueryStatus::NoPath || s == QueryStatus::CycleFound
@@ -629,14 +629,14 @@ UsdProfileRegistry::GetCapabilityMetadata(const TfToken& capability)
 }
 
 /* static */
-std::vector<UsdProfileRegistry::CapabilityResult>
+std::set<UsdProfileRegistry::CapabilityResult>
 UsdProfileRegistry::GetPredecessors(const TfToken& capability)
 {
     return GetInstance()._capabilityGraph->GetPredecessors(capability);
 }
 
 /* static */
-std::vector<UsdProfileRegistry::CapabilityResult>
+std::set<UsdProfileRegistry::CapabilityResult>
 UsdProfileRegistry::GetTransitivePredecessors(const TfToken& capability)
 {
     return GetInstance()._capabilityGraph->GetTransitivePredecessors(capability);
@@ -735,6 +735,72 @@ UsdProfileRegistry::HasPredecessor(const TfToken& capabilityA, const TfToken& ca
 }
 
 
+// Shared implementation: gather impliesCapabilities from plugInfo for a type
+// and all its ancestor types (including the type itself). The plugInfo value
+// is a JSON string array (e.g. ["usd.core.colorspace"]); strengths live on
+// the consumer's claim, not on the implication. Results are cached per TfType
+// in a shared static cache behind cacheMutex.
+static std::set<TfToken>
+_GetTypeImpliedCapabilities(const TfType& type)
+{
+    if (type.IsUnknown()) {
+        return {};
+    }
+
+    static std::mutex cacheMutex;
+    static std::unordered_map<TfType, std::set<TfToken>, TfHash> cache;
+
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        auto it = cache.find(type);
+        if (it != cache.end()) {
+            return it->second;
+        }
+    }
+
+    // Walk the full inheritance chain (type itself at index 0).
+    std::vector<TfType> ancestors;
+    type.GetAllAncestorTypes(&ancestors);
+
+    std::set<TfToken> result;
+    PlugRegistry& plugReg = PlugRegistry::GetInstance();
+
+    static const TfToken impliesKey("impliesCapabilities");
+    for (const TfType& t : ancestors) {
+        if (t.IsUnknown()) {
+            TF_CODING_ERROR("Malformed impliesCapabilities found");
+            continue;
+        }
+        JsValue impliesVal = plugReg.GetDataFromPluginMetaData(t, impliesKey);
+        if (impliesVal.IsNull() || !impliesVal.IsArray()) {
+            continue;
+        }
+        for (const JsValue& capVal : impliesVal.GetJsArray()) {
+            if (!capVal.IsString()) {
+                continue;
+            }
+            result.insert(TfToken(capVal.GetString()));
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    return cache.emplace(type, std::move(result)).first->second;
+}
+
+/* static */
+std::set<TfToken>
+UsdProfileRegistry::GetSchemaImpliedCapabilities(const TfType& schemaType)
+{
+    return _GetTypeImpliedCapabilities(schemaType);
+}
+
+/* static */
+std::set<TfToken>
+UsdProfileRegistry::GetFileFormatImpliedCapabilities(const TfType& formatType)
+{
+    return _GetTypeImpliedCapabilities(formatType);
+}
+
 /* static */
 TfToken
 UsdProfileRegistry::GetStyleForCapability(const TfToken& cap)
@@ -775,7 +841,7 @@ UsdProfileRegistry::GetCapabilityStyles()
 }
 
 /* static */
-std::vector<TfToken>
+std::set<TfToken>
 UsdProfileRegistry::GetAllCapabilities()
 {
     UsdProfileRegistry& instance = UsdProfileRegistry::GetInstance();
@@ -783,7 +849,7 @@ UsdProfileRegistry::GetAllCapabilities()
 }
 
 /* static */
-std::vector<TfToken>
+std::set<TfToken>
 UsdProfileRegistry::GetAllProfiles()
 {
     UsdProfileRegistry& instance = UsdProfileRegistry::GetInstance();

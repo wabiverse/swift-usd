@@ -265,28 +265,15 @@ UsdAttribute::Set(const VtValue& value, UsdTimeCode time) const
 bool
 UsdAttribute::HasSpline() const
 {
-    UsdResolveInfo resolveInfo = GetResolveInfo();
-    return resolveInfo.GetSource() == UsdResolveInfoSourceSpline;
+    return _GetStage()->_HasSpline(*this);
 }
 
 TsSpline
 UsdAttribute::GetSpline() const
 {
-    UsdResolveInfo resolveInfo = GetResolveInfo();
-    if (resolveInfo.GetSource() == UsdResolveInfoSourceSpline) {
-        // Don't return resolveInfo._spline directly because we need
-        // to compute layer offsets
-        TsSpline spline;
-        _GetStage()->_GetMetadata(
-            *this,                 // read a field in our attribute spec
-            SdfFieldKeys->Spline,  // read the Spline field
-            TfToken(),             // not a dict field, so no dict key
-            false,                 // want authored opinions only
-            &spline);              // read into this variable
-        return spline;
-    } else {
-        return TsSpline();
-    }
+    TsSpline spline;
+    _GetStage()->_GetSpline(*this, &spline);
+    return spline;
 }
 
 bool

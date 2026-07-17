@@ -15,6 +15,7 @@
 #include <UsdImaging/niInstanceAggregationSceneIndex.h>
 #include <UsdImaging/implicitSurfaceMeshUtils.h>
 #include <UsdImaging/usdPrimInfoSchema.h>
+#include <UsdImaging/backPlateAPIAdapter.h>
 #include <UsdImaging/version.h>
 #include <UsdImaging/lightFilterAdapter.h>
 #include <UsdImaging/dataSourcePoints.h>
@@ -26,6 +27,7 @@
 #include <UsdImaging/primvarUtils.h>
 #include <UsdImaging/portalLightAdapter.h>
 #include <UsdImaging/diskLightAdapter.h>
+#include <UsdImaging/collectionPredicateLibrary.h>
 #include <UsdImaging/dataSourcePrimvars.h>
 #include <UsdImaging/tetMeshAdapter.h>
 #include <UsdImaging/lightAPIAdapter.h>

@@ -5,5 +5,6 @@
 #include <UsdProfiles/profileRegistry.h>
 #include <UsdProfiles/tokens.h>
 #include <UsdProfiles/api.h>
+#include <UsdProfiles/profilesDocUtils.h>
 #include <UsdProfiles/claimsAPI.h>
 #endif  // __PXR_USD_USDPROFILES_H__

@@ -9,8 +9,14 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 UsdProfilesTokensType::UsdProfilesTokensType() :
+    enhancement("enhancement", TfToken::Immortal),
+    hard("hard", TfToken::Immortal),
+    soft("soft", TfToken::Immortal),
     ClaimsAPI("ClaimsAPI", TfToken::Immortal),
     allTokens({
+        enhancement,
+        hard,
+        soft,
         ClaimsAPI
     })
 {

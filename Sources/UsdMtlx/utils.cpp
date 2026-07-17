@@ -16,6 +16,8 @@
 #include "Sdf/types.h"
 #include "Sdr/shaderProperty.h"
 #include "Arch/fileSystem.h"
+#include "Arch/symbols.h"
+#include "Arch/systemInfo.h"
 #include "Gf/matrix3d.h"
 #include "Gf/matrix4d.h"
 #include "Gf/vec2f.h"
@@ -190,11 +192,17 @@ _ComputeStdlibSearchPaths()
     // with environment variables
     static PlugPluginPtr plugin = PLUG_THIS_PLUGIN;
     const std::string resourceMtlxLibrary = PlugFindPluginResource(plugin,
-            "libraries");
+#ifdef PXR_APPLE_FRAMEWORK_RELATIVE_RESOURCES
+            "../" TF_PP_STRINGIZE(PXR_APPLE_FRAMEWORK_RELATIVE_RESOURCES) "/libraries"
+#else
+            "libraries"
+#endif
+        );
     if (! resourceMtlxLibrary.empty()) {
         stdlibSearchPaths =
             _MergeSearchPaths(stdlibSearchPaths, { resourceMtlxLibrary });
     }
+
     return stdlibSearchPaths;
 }
 

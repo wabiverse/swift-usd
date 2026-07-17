@@ -19,5 +19,8 @@ void wrapUsdProfilesTokens()
 {
     pxr_boost::python::class_<UsdProfilesTokensType, pxr_boost::python::noncopyable>
         cls("Tokens", pxr_boost::python::no_init);
+    _ADD_TOKEN(cls, enhancement);
+    _ADD_TOKEN(cls, hard);
+    _ADD_TOKEN(cls, soft);
     _ADD_TOKEN(cls, ClaimsAPI);
 }

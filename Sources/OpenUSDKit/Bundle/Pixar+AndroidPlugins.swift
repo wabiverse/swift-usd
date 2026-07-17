@@ -133,6 +133,11 @@
       ("swift-usd_HdStorm.resources", hdStormPlugInfo),
       ("swift-usd_Hdx.resources", hdxPlugInfo),
       ("swift-usd_Hio.resources", hioPlugInfo),
+      ("swift-usd_HioAVIF.resources", hioAVIFPlugInfo),
+      ("swift-usd_HioImageIO.resources", hioImageIOPlugInfo),
+      ("swift-usd_HioOIIO.resources", hioOIIOPlugInfo),
+      ("swift-usd_HioOpenEXR.resources", hioOpenEXRPlugInfo),
+      ("swift-usd_HioOpenVDB.resources", hioOpenVDBPlugInfo),
       ("swift-usd_Glf.resources", glfPlugInfo),
       ("swift-usd_HgiGL.resources", hgiGLPlugInfo),
       ("swift-usd_HgiVulkan.resources", hgiVulkanPlugInfo),
@@ -1090,6 +1095,131 @@
     }
     """
 
+    // MARK: - HioAVIF
+
+    private static let hioAVIFPlugInfo = """
+    {
+        "Plugins": [
+            {
+                "Info": {
+                    "Types": {
+                       "Hio_AVIFImage" : {
+                            "bases": ["HioImage"],
+                            "imageTypes": ["avif"],
+                            "precedence": 30
+                        }
+                    }
+                },
+                "LibraryPath": "",
+                "Name": "HioAVIF",
+                "ResourcePath": ".",
+                "Root": ".",
+                "Type": "library"
+            }
+        ]
+    }
+    """
+    
+    // MARK: - HioImageIO
+
+    private static let hioImageIOPlugInfo = """
+    {
+      "Plugins": [
+        {
+          "Info": {
+            "Types": {
+              "HioImageIO_Image" : {
+                "bases": ["HioImage"],
+                "imageTypes": ["tif", "tiff"],
+                "precedence": 15
+              }
+            }
+          },
+          "LibraryPath": "",
+          "Name": "HioImageIO",
+          "ResourcePath": ".",
+          "Root": ".",
+          "Type": "library"
+        }
+      ]
+    }
+    """
+    
+    // MARK: - HioOIIO
+
+    private static let hioOIIOPlugInfo = """
+    {
+      "Plugins": [
+        {
+          "Info": {
+            "Types": {
+              "HioOIIO_Image" : {
+                "bases": ["HioImage"],
+                "imageTypes": ["tif", "tiff", "zfile", "tx"],
+                "precedence": 10
+              }
+            }
+          },
+          "LibraryPath": "",
+          "Name": "HioOIIO",
+          "ResourcePath": ".",
+          "Root": ".",
+          "Type": "library"
+        }
+      ]
+    }
+    """
+    
+    // MARK: - HioOpenEXR
+
+    private static let hioOpenEXRPlugInfo = """
+    {
+        "Plugins": [
+            {
+                "Info": {
+                    "Types": {
+                       "Hio_OpenEXRImage" : {
+                            "bases": ["HioImage"],
+                            "imageTypes": ["exr"],
+                            "precedence": 30
+                        }
+                    }
+                },
+                "LibraryPath": "",
+                "Name": "HioOpenEXR",
+                "ResourcePath": ".",
+                "Root": ".",
+                "Type": "library"
+            }
+        ]
+    }
+    """
+    
+    // MARK: - HioOpenVDB
+
+    private static let hioOpenVDBPlugInfo = """
+    {
+      "Plugins": [
+        {
+          "Info": {
+            "Types": {
+              "HioOpenVDB_TextureData" : {
+                "bases": ["HioFieldTextureData"],
+                "fieldDataTypes": ["vdb"],
+                "precedence": 0
+              }
+            }
+          },
+          "LibraryPath": "",
+          "Name": "HioOpenVDB",
+          "ResourcePath": ".",
+          "Root": ".",
+          "Type": "library"
+        }
+      ]
+    }
+    """
+    
     // MARK: - Glf
 
     private static let glfPlugInfo = """
