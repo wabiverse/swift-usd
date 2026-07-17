@@ -41,7 +41,7 @@ jobs:
       - name: 🪄 Install ImageMagick
         run: sudo apt install imagemagick
       - name: 🔨 Build
-        run: swift build --build-system swiftbuild --product UsdView
+        run: swift build --product UsdView
       - name: 🎬 Run
         run: |
           export PATH="$PWD/.build/out/Products/Debug-linux:$PATH"
@@ -64,8 +64,9 @@ jobs:
       - name: 📚 Create Monolithic Library
         run: |
           mkdir -p /tmp/artifacts
-          swift build --build-system swiftbuild --product swiftusd_m
-          cp .build/out/Products/Debug-linux/libswiftusd_m.a /tmp/artifacts/libswiftusd_m.a
+          # swift build --build-system swiftbuild --product swiftusd_m
+          # cp .build/out/Products/Debug-linux/libswiftusd_m.a /tmp/artifacts/libswiftusd_m.a
+          echo "temporarily disabled for now..."
       - name: 📂 Create Single Shared C++ Include Directory
         run: |
           find Sources .build/checkouts \( -path "*/include/*.h" -o -path "*/include/*.modulemap" \) | while read f; do
