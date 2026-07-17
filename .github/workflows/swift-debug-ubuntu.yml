@@ -44,7 +44,12 @@ jobs:
         run: swift build --product UsdView
       - name: 🎬 Run
         run: |
-          export PATH="$PWD/.build/x86_64-unknown-linux/debug:$PATH"
+          BIN_PATH="$(swift build --show-bin-path)"
+          if [ ! -x "$BIN_PATH/UsdView" ]; then
+            echo "::error::UsdView binary not found at $BIN_PATH - was it actually built?"
+            exit 1
+          fi
+          export PATH="$BIN_PATH:$PATH"
           xvfb-run --auto-servernum --server-num=99 UsdView > /tmp/usdview.log 2>&1 &
           PID=$!
           sleep 30
