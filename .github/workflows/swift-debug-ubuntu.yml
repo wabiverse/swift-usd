@@ -44,7 +44,7 @@ jobs:
         run: swift build --product UsdView
       - name: 🎬 Run
         run: |
-          export PATH="$PWD/.build/out/Products/Debug-linux:$PATH"
+          export PATH="$PWD/.build/x86_64-unknown-linux/debug:$PATH"
           xvfb-run --auto-servernum --server-num=99 UsdView > /tmp/usdview.log 2>&1 &
           PID=$!
           sleep 30
