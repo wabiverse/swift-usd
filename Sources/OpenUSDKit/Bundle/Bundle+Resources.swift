@@ -147,6 +147,10 @@ public extension Bundle
   /**
    * Where ``Hdx`` application bundle resources are located. */
   static let hdx = pxrBundle("swift-usd_Hdx")
+  
+  /**
+   * Where ``HdGp`` application bundle resources are located. */
+  static let hdGp = pxrBundle("swift-usd_HdGp")
 
   /**
    * Where ``Hio`` application bundle resources are located. */

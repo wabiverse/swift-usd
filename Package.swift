@@ -224,6 +224,10 @@ let package = Package(
       targets: ["Hdx"]
     ),
     .library(
+      name: "HdGp",
+      targets: ["HdGp"]
+    ),
+    .library(
       name: "Garch",
       targets: ["Garch"]
     ),
@@ -1976,7 +1980,28 @@ let package = Package(
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
         .define("NOMINMAX", .when(platforms: [.windows])),
-        .define("PXR_OCIO_PLUGIN_ENABLED", to: "1"),
+      ]
+    ),
+    
+    .target(
+      name: "HdGp",
+      dependencies: [
+        .target(name: "Hd"),
+        .target(name: "Hf"),
+        .product(name: "MetaTBB", package: "MetaverseKit"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "HdGp"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "HdGp"),
+        .define("MFB_PACKAGE_MODULE", to: "HdGp"),
+        .define("HDGP_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
       ]
     ),
 
@@ -2894,6 +2919,7 @@ enum Arch
           .target(name: "HdSt"),
           .target(name: "HdStorm"),
           .target(name: "Hdx"),
+          .target(name: "HdGp"),
           .target(name: "Hgi"),
           .target(name: "HgiMetal", condition: .when(platforms: Arch.OS.apple.platform)),
           // .target(name: "HgiVulkan", condition: .when(platforms: Arch.OS.linux.platform)),

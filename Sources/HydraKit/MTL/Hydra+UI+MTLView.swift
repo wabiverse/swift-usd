@@ -79,11 +79,9 @@ public extension Hydra
       
       // warm up: force stage population off the main thread while
       // the view stays paused, then start the normal frame loop.
-      Task.detached(priority: .userInitiated) { [hydra] in
-        _ = hydra?.render(at: 0, viewSize: CGSize(width: 1, height: 1))
-        await MainActor.run {
-          metalView.isPaused = false
-        }
+      Task { @MainActor in
+        await hydra.waitUntilSceneReady()
+        metalView.isPaused = false
       }
       
       return metalView

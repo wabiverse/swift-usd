@@ -1,0 +1,32 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                    "HdGpSceneIndexPlugin": {
+                        "bases": [
+                            "HdSceneIndexPlugin"
+                        ],
+                        "displayName":
+                            "HdGpGenerativeProceduralResolvingSceneIndex",
+                        "loadWithRenderer": "",
+                        "priority": 0,
+
+                        "tags": ["hdGp:proceduralResolution"],
+                        "ordering": {
+                            # hd:sceneAssembly is a special/built-in tag, used
+                            # here for clarity to indicate that procedural
+                            # resolution should happen after scene assembly.
+                            "after": "hd:sceneAssembly"
+                        }
+                    }
+                }
+            },
+            "LibraryPath": "",
+            "Name": "HdGp",
+            "ResourcePath": ".",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}

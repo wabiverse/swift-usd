@@ -132,6 +132,7 @@
       ("swift-usd_HdSt.resources", hdStPlugInfo),
       ("swift-usd_HdStorm.resources", hdStormPlugInfo),
       ("swift-usd_Hdx.resources", hdxPlugInfo),
+      ("swift-usd_HdGp.resources", hdGpPlugInfo),
       ("swift-usd_Hio.resources", hioPlugInfo),
       ("swift-usd_HioAVIF.resources", hioAVIFPlugInfo),
       ("swift-usd_HioImageIO.resources", hioImageIOPlugInfo),
@@ -1067,6 +1068,43 @@
           "Type": "library"
         }
       ]
+    }
+    """
+    
+    // MARK: - HdGp
+    
+    private static let hdGpPlugInfo = """
+    {
+        "Plugins": [
+            {
+                "Info": {
+                    "Types": {
+                        "HdGpSceneIndexPlugin": {
+                            "bases": [
+                                "HdSceneIndexPlugin"
+                            ],
+                            "displayName":
+                                "HdGpGenerativeProceduralResolvingSceneIndex",
+                            "loadWithRenderer": "",
+                            "priority": 0,
+
+                            "tags": ["hdGp:proceduralResolution"],
+                            "ordering": {
+                                # hd:sceneAssembly is a special/built-in tag, used
+                                # here for clarity to indicate that procedural
+                                # resolution should happen after scene assembly.
+                                "after": "hd:sceneAssembly"
+                            }
+                        }
+                    }
+                },
+                "LibraryPath": "",
+                "Name": "HdGp",
+                "ResourcePath": ".",
+                "Root": ".",
+                "Type": "library"
+            }
+        ]
     }
     """
 

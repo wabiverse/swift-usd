@@ -43,6 +43,8 @@ public enum Hydra
     /// Weak: the app drives the frame, the engine doesn't own the driver.
     public weak var frameDelegate: Hydra.FrameDelegate?
     
+    private var populateTask: Task<Void, Never>?
+    
     /// The color management mode applied during rendering.
     ///
     /// Expected tokens include:
@@ -68,8 +70,19 @@ public enum Hydra
     private static let flickInterval: TimeInterval = 1.0 / 60.0
     private static let flickDamping: Double = 0.94
     private static let flickThreshold: Double = 0.01
-
-    public required init(stage: UsdStage, colorCorrectionMode: Tf.Token = .sRGB)
+    
+    // sorted args with default arguments in order from most
+    // common to least commonly used, for simplified ergonomics.
+    public required init(stage: UsdStage,
+                         colorCorrectionMode: Tf.Token = .sRGB,
+                         rendererPluginId: Tf.Token = Tf.Token(),
+                         excludedPaths: Sdf.PathVector = Sdf.PathVector(),
+                         invisedPaths: Sdf.PathVector = Sdf.PathVector(),
+                         sceneDelegateId: Sdf.Path = Sdf.Path.absoluteRootPath(),
+                         allowAsynchronousSceneProcessing: Bool = false,
+                         enableUsdDrawModes: Bool = true,
+                         displayUnloadedPrimsWithBounds: Bool = false,
+                         gpuEnabled: Bool = true)
     {
       self.stage = stage
       self.colorCorrectionMode = colorCorrectionMode
@@ -84,10 +97,15 @@ public enum Hydra
 
       engine = UsdImagingGL.Engine.createEngine(
         rootPath: stage.getPseudoRoot().getPath(),
-        excludedPaths: Sdf.PathVector(),
-        invisedPaths: Sdf.PathVector(),
-        sceneDelegateId: Sdf.Path.absoluteRootPath(),
-        driver: driver
+        excludedPaths: excludedPaths,
+        invisedPaths: invisedPaths,
+        sceneDelegateId: sceneDelegateId,
+        driver: driver,
+        rendererPluginId: rendererPluginId,
+        gpuEnabled: gpuEnabled,
+        displayUnloadedPrimsWithBounds: displayUnloadedPrimsWithBounds,
+        allowAsynchronousSceneProcessing: allowAsynchronousSceneProcessing,
+        enableUsdDrawModes: enableUsdDrawModes
       )
 
       engine.setEnablePresentation(false)
@@ -369,6 +387,43 @@ public enum Hydra
     static func isZUp(for stage: UsdStage) -> Bool
     {
       Pixar.UsdGeomGetStageUpAxis(Overlay.TfWeakPtr(stage)) == .z
+    }
+    
+    /// Populates the stage off the main thread if this hasn't already
+    /// started, then returns once population is complete. Safe to call
+    /// from multiple places - population only actually runs once,
+    /// backed by a single memoized task.
+    @MainActor
+    public func waitUntilSceneReady() async
+    {
+      if populateTask == nil
+      {
+        populateTask = Task.detached(priority: .userInitiated) { [self] in
+          _ = render(at: 0, viewSize: CGSize(width: 1, height: 1))
+        }
+      }
+      await populateTask!.value
+    }
+    
+    /// Polls `PollForAsynchronousUpdates()` at a fixed interval, calling
+    /// `onChange` on the main actor whenever the engine reports the scene
+    /// changed. Requires `allowAsynchronousSceneProcessing: true`
+    /// to have been passed at engine construction - otherwise this always returns
+    /// `false` and `onChange` is never called, with no error to indicate why.
+    ///
+    /// Cancel the enclosing `Task` to stop polling.
+    @MainActor
+    func poll(every interval: Duration = .milliseconds(16),
+              onChange: @MainActor () -> Void) async
+    {
+      while !Task.isCancelled
+      {
+        if engine.PollForAsynchronousUpdates()
+        {
+          onChange()
+        }
+        try? await Task.sleep(for: interval)
+      }
     }
   }
 }

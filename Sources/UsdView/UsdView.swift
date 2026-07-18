@@ -51,6 +51,7 @@ struct UsdView: App
   }
 
   @State private var selectedPath: String? = nil
+  @State private var isReady = false
 
   var body: some Scene
   {
@@ -60,9 +61,19 @@ struct UsdView: App
           .sidebarFrame()
 
         Hydra.Viewport(engine: engine)
+          .if(!isReady) { view in
+            view.overlay {
+              ProgressView("Loading Stage...")
+            }
+          }
       }
       .splitPaneMinSize()
       .colorScheme(.dark)
+      .task
+      {
+        await engine.waitUntilSceneReady()
+        isReady = true
+      }
     }
   }
 }
