@@ -2930,12 +2930,12 @@ enum Arch
           .target(name: "HioImageIO", condition: .when(platforms: Arch.OS.apple.platform)),
           .target(name: "HioOIIO"),
           .target(name: "HioOpenEXR"),
-          // Hio's OpenVDB plugin is restricted to apple platforms for now,
+          // Hio's OpenVDB plugin is disabled on all platforms for now,
           // since the swift compiler complains that openvdb is imported in
           // the openvdb::v12_0::tools namespace, which is not allowed with
-          // clang modules, this issue only appears to affect linux derivatives,
+          // clang modules.
           // todo(furbytm): fix openvdb's nested imports in MetaverseKit.
-          .target(name: "HioOpenVDB", condition: .when(platforms: Arch.OS.apple.platform)),
+          // .target(name: "HioOpenVDB"),
           .target(name: "PxOsd"),
           // --- usd imaging. ------
           .target(name: "UsdShaders"),
