@@ -413,7 +413,7 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/SwiftUsd.git", from: "7.0.1"),
+    .package(url: "https://github.com/apple/SwiftUsd.git", from: "8.0.0"),
     .package(url: "https://github.com/furbytm/swift-cross-ui.git", from: "0.7.2"),
     .package(url: "https://github.com/furbytm/MetaverseKit.git", from: "2.0.6"),
     .package(url: "https://github.com/swiftlang/swift-syntax", "601.0.0"..<"604.0.0"),

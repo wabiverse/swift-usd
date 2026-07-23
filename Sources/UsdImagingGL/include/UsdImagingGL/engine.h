@@ -25,6 +25,7 @@
 #include "Hd/noticeBatchingSceneIndex.h"
 #include "Hd/rprimCollection.h"
 #include "Hd/pluginRendererUniqueHandle.h"
+#include "Hd/renderBuffer.h"
 
 #include "Hdx/selectionTracker.h"
 #include "Hdx/renderSetupTask.h"
@@ -500,6 +501,12 @@ public:
     USDIMAGINGGL_API
     bool SetRendererAovs(TfTokenVector const &ids);
 
+    /// Set which AOV is colorized and shown in the viewport. SetRendererAovs
+    /// disables this when given more than one AOV; call this afterwards to keep
+    /// drawing e.g. color while extra id AOVs are rendered for readback.
+    USDIMAGINGGL_API
+    void SetViewportRenderOutput(TfToken const &aovName);
+
     /// Returns an AOV texture handle for the given token.
     USDIMAGINGGL_API
     HgiTextureHandle GetAovTexture(TfToken const& name) const;
@@ -513,6 +520,30 @@ public:
     /// Returns the AOV render buffer for the given token.
     USDIMAGINGGL_API
     HdRenderBuffer* GetAovRenderBuffer(TfToken const& name) const;
+
+    /// The raw HgiTexture backing an AOV's render buffer.
+    /// GetAovTexturePtr reads the task context, where only
+    /// the viewport (color) AOV is published, this reads the
+    /// render buffer directly, so id AOVs like primId/instanceId
+    /// are reachable for a GPU readback.
+    HgiTexture* _Nullable GetAovRenderBufferTexturePtr(TfToken const& name) const {
+        HdRenderBuffer* const renderBuffer = GetAovRenderBuffer(name);
+        if (!renderBuffer) {
+            return nullptr;
+        }
+        // prefer the multisampled texture: integer AOVs (primId/instanceId)
+        // cannot be resolved by Metal, so the single-sample "resolved" texture
+        // is uninitialized. the caller reads each sample of the multisampled one.
+        // fall back to single-sample when MSAA is off.
+        VtValue resource = renderBuffer->GetResource(/* multiSampled = */ true);
+        if (!resource.IsHolding<HgiTextureHandle>()) {
+            resource = renderBuffer->GetResource(/* multiSampled = */ false);
+        }
+        if (!resource.IsHolding<HgiTextureHandle>()) {
+            return nullptr;
+        }
+        return resource.Get<HgiTextureHandle>().Get();
+    }
 
     // ---------------------------------------------------------------------
     /// \name Render Settings (Legacy)

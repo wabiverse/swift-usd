@@ -261,7 +261,15 @@ HgiMetalGraphicsPipeline::_CreateRenderPipelineState(HgiMetal *hgi)
         metalColorAttachment.writeMask = HgiMetalConversions::GetColorWriteMask(
             hgiColorAttachment.colorMask);
 
-        if (hgiColorAttachment.blendEnabled) {
+        // integer render targets (e.g. the primId/instanceId id AOVs) are
+        // not blendable in metal, and enabling blending on them fails the
+        // pipeline validation. storm sets blendEnabled uniformly across
+        // attachments, so gate it on the format here.
+        const bool isIntFormat =
+            hgiColorAttachment.format >= HgiFormatInt16 &&
+            hgiColorAttachment.format <= HgiFormatInt32Vec4;
+
+        if (hgiColorAttachment.blendEnabled && !isIntFormat) {
             metalColorAttachment.blendingEnabled = YES;
             
             metalColorAttachment.sourceRGBBlendFactor =

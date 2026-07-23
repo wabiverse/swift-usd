@@ -129,6 +129,21 @@ public extension Hydra
     {
       addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:))))
       addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:))))
+      addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap(_:))))
+    }
+
+    @objc
+    private func handleTap(_ gesture: UITapGestureRecognizer)
+    {
+      guard let hydra, gesture.state == .ended else { return }
+
+      // uikit view space is y-down, but `pick`
+      // expects y-up (AppKit's convention), so
+      // flip before handing the tap point over.
+      let loc = gesture.location(in: self)
+      let viewPoint = CGPoint(x: loc.x, y: bounds.height - loc.y)
+      let result = hydra.pick(at: viewPoint, viewSize: bounds.size)
+      hydra.onPick?(result)
     }
     
     @objc

@@ -1397,6 +1397,23 @@ public enum Pxr: String, CaseIterable
             """
           )
 
+        case "graphicsPipeline.mm":
+          // integer render targets (e.g. the primId/instanceId id AOVs HydraKit's
+          // selection outline reads) are not blendable in Metal, and Storm sets
+          // blendEnabled uniformly across attachments, enabling blend on them
+          // fails pipeline validation, so gate it on the format.
+          source = source.replacingOccurrences(
+            of: "        if (hgiColorAttachment.blendEnabled) {\n            metalColorAttachment.blendingEnabled = YES;",
+            with: """
+                    const bool isIntFormat =
+                        hgiColorAttachment.format >= HgiFormatInt16 &&
+                        hgiColorAttachment.format <= HgiFormatInt32Vec4;
+
+                    if (hgiColorAttachment.blendEnabled && !isIntFormat) {
+                        metalColorAttachment.blendingEnabled = YES;
+            """
+          )
+
         default:
           return
       }
@@ -1628,6 +1645,48 @@ public enum Pxr: String, CaseIterable
             }
             """
           )
+          // HydraKit's selection outline needs to choose the shown AOV: SetRendererAovs
+          // disables the viewport output when given more than one AOV, so forward the
+          // task controller's SetViewportRenderOutput to set (e.g. color).
+          source = source.replacingOccurrences(
+            of: "    bool SetRendererAovs(TfTokenVector const &ids);",
+            with: """
+                bool SetRendererAovs(TfTokenVector const &ids);
+
+                /// Sets which AOV is colorized and shown in the viewport. SetRendererAovs
+                /// disables this when given more than one AOV; call this afterwards to
+                /// keep drawing e.g. color while extra id AOVs are rendered for readback.
+                USDIMAGINGGL_API
+                void SetViewportRenderOutput(TfToken const &aovName);
+            """
+          )
+          // read-back of an AOV's render buffer texture.
+          // GetAovTexturePtr reads the task context (only
+          // the viewport/color AOV is published there).
+          // this reads the render buffer directly so id
+          // AOVs are reachable, preferring the multisampled
+          // texture (integer AOVs cannot be resolved by Metal).
+          source = source.replacingOccurrences(
+            of: "    HdRenderBuffer* GetAovRenderBuffer(TfToken const& name) const;",
+            with: """
+                HdRenderBuffer* GetAovRenderBuffer(TfToken const& name) const;
+
+                HgiTexture* _Nullable GetAovRenderBufferTexturePtr(TfToken const& name) const {
+                    HdRenderBuffer* const renderBuffer = GetAovRenderBuffer(name);
+                    if (!renderBuffer) {
+                        return nullptr;
+                    }
+                    VtValue resource = renderBuffer->GetResource(/* multiSampled = */ true);
+                    if (!resource.IsHolding<HgiTextureHandle>()) {
+                        resource = renderBuffer->GetResource(/* multiSampled = */ false);
+                    }
+                    if (!resource.IsHolding<HgiTextureHandle>()) {
+                        return nullptr;
+                    }
+                    return resource.Get<HgiTextureHandle>().Get();
+                }
+            """
+          )
         case "engine.cpp":
           source = source.replacingOccurrences(
             of: "PXR_NAMESPACE_CLOSE_SCOPE",
@@ -1664,6 +1723,33 @@ public enum Pxr: String, CaseIterable
             }
 
             PXR_NAMESPACE_CLOSE_SCOPE
+            """
+          )
+          // implementation for the SetViewportRenderOutput declaration injected
+          // into engine.h above. forwards to the task controller scene index.
+          source = source.replacingOccurrences(
+            of: "    _taskControllerSceneIndex->SetRenderOutputs(ids);\n    return true;\n}",
+            with: """
+                _taskControllerSceneIndex->SetRenderOutputs(ids);
+                return true;
+            }
+
+            void
+            UsdImagingGLEngine::SetViewportRenderOutput(TfToken const &aovName)
+            {
+                if (ARCH_UNLIKELY(!_renderer)) {
+                    return;
+                }
+
+                if (!_taskControllerSceneIndex) {
+                    TF_CODING_ERROR("No task controller scene index.");
+                    return;
+                }
+
+                TF_PY_ALLOW_THREADS_IN_SCOPE();
+
+                _taskControllerSceneIndex->SetViewportRenderOutput(aovName);
+            }
             """
           )
         default:

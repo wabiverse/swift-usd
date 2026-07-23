@@ -70,6 +70,38 @@ public extension UsdImagingGL.Engine
     SetRendererAov(aovName.token)
   }
 
+  func setRendererAovs(_ aovNames: [Hd.AovTokens])
+  {
+    var tokens = Pixar.TfTokenVector()
+    for aov in aovNames { tokens.push_back(aov.token) }
+    SetRendererAovs(tokens)
+  }
+
+  func setViewportRenderOutput(_ aovName: Hd.AovTokens)
+  {
+    SetViewportRenderOutput(aovName.token)
+  }
+
+  func aovRenderBuffer(_ aovName: Hd.AovTokens) -> Pixar.HgiTexture?
+  {
+    GetAovRenderBufferTexturePtr(aovName.token)
+  }
+  
+  func setSelectionColor(_ color: Pixar.GfVec4f)
+  {
+    SetSelectionColor(color)
+  }
+
+  /// Maps an id-AOV primId back to its scene path. Stateless (it uses the render
+  /// index's id -> path table), so it resolves any prim, not just the last pick, which
+  /// lets the outline gather every prim in a picked model.
+  func decodePrimPath(primId: Int32, instanceId: Int32) -> Sdf.Path?
+  {
+    var path = Sdf.Path()
+    let ok = DecodeIntersection(primId, instanceId, &path, nil, nil, nil)
+    return (ok && !path.IsEmpty()) ? path : nil
+  }
+
   func render(rootPrim: Usd.Prim, params: UsdImagingGL.RenderParams)
   {
     Render(rootPrim, params)
@@ -117,6 +149,42 @@ public extension UsdImagingGL.Engine
   mutating func setRendererAov(_ aovName: Hd.AovTokens)
   {
     SetRendererAov(aovName.token)
+  }
+
+  mutating func setRendererAovs(_ aovNames: [Hd.AovTokens])
+  {
+    var tokens = Pixar.TfTokenVector()
+    for aov in aovNames { tokens.push_back(aov.token) }
+    SetRendererAovs(tokens)
+  }
+  
+  mutating func setViewportRenderOutput(_ aovName: Hd.AovTokens)
+  {
+    Msg.logger.log(level: .warning, """
+      UsdImagingGL.Engine.SetViewportRenderOutput(_:) is not yet implemented for apple/SwiftUsd.
+    """)
+  }
+  
+  mutating func aovRenderBuffer(_ aovName: Hd.AovTokens) -> Pixar.HdRenderBuffer
+  {
+    GetAovRenderBuffer(aovName.token)
+  }
+  
+  mutating func setSelectionColor(_ color: Pixar.GfVec4f)
+  {
+    SetSelectionColor(color)
+  }
+
+  // apple/swiftusd does not expose the id -> path decode yet,
+  // so model scoped outlining falls back to the single-prim
+  // selection instead.
+  mutating func decodePrimPath(primId: Int32, instanceId: Int32) -> Sdf.Path?
+  {
+    Msg.logger.log(level: .warning, """
+      UsdImagingGL.Engine.decodePrimPath(primId:instanceId:) is not yet implemented for apple/SwiftUsd.
+    """)
+    
+    return nil
   }
 
   mutating func render(rootPrim: Usd.Prim, params: UsdImagingGL.RenderParams)

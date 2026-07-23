@@ -563,6 +563,11 @@ public extension Usd.Stage
   {
     result = String(cString: Overlay.ExportStageToString(self, addSourceFileComment))
   }
+  
+  func getStartTimeCode() -> Double
+  {
+    GetStartTimeCode()
+  }
 }
 
 #if !canImport(Usd)

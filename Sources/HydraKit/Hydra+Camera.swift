@@ -98,5 +98,14 @@ public extension Hydra
     {
       return params
     }
+
+    /// The camera's right and up directions in world space, used to pan the focus point within the screen plane.
+    public func screenAxes() -> (right: Pixar.GfVec3d, up: Pixar.GfVec3d)
+    {
+      let transform = getTransform()
+      let right = transform.TransformDir(Pixar.GfVec3d(1.0, 0.0, 0.0))
+      let up = transform.TransformDir(Pixar.GfVec3d(0.0, 1.0, 0.0))
+      return (right, up)
+    }
   }
 }

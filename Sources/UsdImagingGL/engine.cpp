@@ -1860,6 +1860,23 @@ UsdImagingGLEngine::SetRendererAovs(TfTokenVector const &ids)
     return true;
 }
 
+void
+UsdImagingGLEngine::SetViewportRenderOutput(TfToken const &aovName)
+{
+    if (ARCH_UNLIKELY(!_renderer)) {
+        return;
+    }
+
+    if (!_taskControllerSceneIndex) {
+        TF_CODING_ERROR("No task controller scene index.");
+        return;
+    }
+
+    TF_PY_ALLOW_THREADS_IN_SCOPE();
+
+    _taskControllerSceneIndex->SetViewportRenderOutput(aovName);
+}
+
 HgiTextureHandle
 UsdImagingGLEngine::GetAovTexture(
     TfToken const& name) const
