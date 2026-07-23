@@ -203,16 +203,22 @@ public enum Hydra
       return engine.getAovTexture(.color)
     }
 
+    #if canImport(Hgi)
+    public typealias AovTexture = Optional<Pixar.HgiTexture>
+    #else
+    public typealias AovTexture = Optional<Pixar.HgiTextureHandle>
+    #endif
+    
     /// The id AOV textures the custom selection outline reads. Uses the render
     /// buffer, not the task context, since `getAovTexture` only publishes the
     /// viewport (color) AOV there, so the id AOVs would come back nil.
-    public func aovTexture(_ aov: Hd.AovTokens) -> RenderTexture
+    public func aovTexture(_ aov: Hd.AovTokens) -> AovTexture
     {
       #if canImport(UsdImagingGL)
         return engine.aovRenderBuffer(aov)
       #else
         // todo(furbytm): (no-op) expose GetAovRenderBuffer(_:) in apple/SwiftUsd.
-        return Pixar.HgiTextureHandle()
+        return nil
       #endif
     }
 
