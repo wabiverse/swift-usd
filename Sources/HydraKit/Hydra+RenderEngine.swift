@@ -341,17 +341,24 @@ public enum Hydra
     public func frameSelected()
     {
       stopFlick()
+      
+      // nothing picked -> frames everything.
       guard let path = lastPickedPath else { frameAll(); return }
 
-      var bboxCache = computeBBoxCache()
+      // include render purpose so a render-only prim frames
+      // rather than coming back empty.
+      var bboxCache = computeBBoxCache(includeRender: true)
       let bbox = bboxCache.ComputeWorldBound(stage.GetPrimAtPath(path))
+
+      // something picked but no usable bound -> leaves the view where it is.
+      guard !isInfiniteBBox(bbox) else { return }
+      
       let range = bbox.ComputeAlignedRange()
+      guard !range.IsEmpty() else { return }
 
       #if canImport(Gf)
-      guard !range.IsEmpty() else { frameAll(); return }
       let targetFocus = (range.GetMin().pointee + range.GetMax().pointee) / 2.0
       #else
-      guard !range.IsEmpty() else { frameAll(); return }
       let targetFocus = (range.GetMin() + range.GetMax()) / 2.0
       #endif
       let targetDistance = max(range.GetSize().GetLength(), 0.01)
@@ -438,8 +445,38 @@ public enum Hydra
     {
       var bboxCache = computeBBoxCache()
 
+      // per-prim bounds (the model level prims), so a giant
+      // skydome or backdrop sphere can be rejected/ignored
+      // instead of it dominating the frame and sending our
+      // camera way out ~8.6 billion parsecs into the next
+      // galactic universe.
+      var ranges: [Pixar.GfRange3d] = []
+      for top in stage.getPseudoRoot().childPrims
+      {
+        let kids = top.childPrims
+        for prim in (kids.isEmpty ? [top] : kids)
+        {
+          let box = bboxCache.ComputeWorldBound(prim)
+          guard !isInfiniteBBox(box) else { continue }
+          let range = box.ComputeAlignedRange()
+          if !range.IsEmpty() { ranges.append(range) }
+        }
+      }
+
+      if let framed = framingRange(from: ranges)
+      {
+        #if canImport(Gf)
+        worldCenter = (framed.GetMin().pointee + framed.GetMax().pointee) / 2.0
+        #else
+        worldCenter = (framed.GetMin() + framed.GetMax()) / 2.0
+        #endif
+        worldSize = max(framed.GetSize().GetLength(), 0.01)
+        return
+      }
+
+      // fallback to whole scene bound, if nothing frameable was found.
       var bbox = bboxCache.ComputeWorldBound(stage.getPseudoRoot())
-      
+
       #if canImport(Gf)
       if bbox.GetRange().pointee.IsEmpty() || isInfiniteBBox(bbox)
       {
@@ -453,13 +490,59 @@ public enum Hydra
       #endif
 
       let world = bbox.ComputeAlignedRange()
-      
+
       #if canImport(Gf)
       worldCenter = (world.GetMin().pointee + world.GetMax().pointee) / 2.0
       #else
       worldCenter = (world.GetMin() + world.GetMax()) / 2.0
       #endif
       worldSize = world.GetSize().GetLength()
+    }
+
+    /// The bound to frame from per-prim `ranges`, dropping any outliers
+    /// whose removal collapses the union (a backdrop/skydome that could
+    /// otherwise dwarf the actual subject). Returns `nil` when there isnt
+    /// something to frame.
+    private func framingRange(from ranges: [Pixar.GfRange3d]) -> Pixar.GfRange3d?
+    {
+      guard !ranges.isEmpty else { return nil }
+
+      var kept = ranges.sorted { diagonal(of: $0) > diagonal(of: $1) }
+      while kept.count > 1
+      {
+        let full = diagonal(of: unionRange(kept))
+        let without = diagonal(of: unionRange(Array(kept.dropFirst())))
+        // a backdrop makes the union an order of magnitude larger than the rest.
+        if without > 0.0, full > 20.0 * without { kept.removeFirst() } else { break }
+      }
+      return unionRange(kept)
+    }
+
+    private func diagonal(of range: Pixar.GfRange3d) -> Double
+    {
+      range.GetSize().GetLength()
+    }
+
+    private func unionRange(_ ranges: [Pixar.GfRange3d]) -> Pixar.GfRange3d
+    {
+      var lo: Pixar.GfVec3d?
+      var hi: Pixar.GfVec3d?
+      for range in ranges
+      {
+        #if canImport(Gf)
+        let rmin = range.GetMin().pointee, rmax = range.GetMax().pointee
+        #else
+        let rmin = range.GetMin(), rmax = range.GetMax()
+        #endif
+        if let l = lo, let h = hi
+        {
+          lo = Pixar.GfVec3d(Swift.min(l[0], rmin[0]), Swift.min(l[1], rmin[1]), Swift.min(l[2], rmin[2]))
+          hi = Pixar.GfVec3d(Swift.max(h[0], rmax[0]), Swift.max(h[1], rmax[1]), Swift.max(h[2], rmax[2]))
+        }
+        else { lo = rmin; hi = rmax }
+      }
+      return Pixar.GfRange3d(lo ?? Pixar.GfVec3d(0.0, 0.0, 0.0),
+                             hi ?? Pixar.GfVec3d(0.0, 0.0, 0.0))
     }
 
     func isInfiniteBBox(_ bbox: Pixar.GfBBox3d) -> Bool
@@ -473,11 +556,16 @@ public enum Hydra
       #endif
     }
 
-    func computeBBoxCache() -> Pixar.UsdGeomBBoxCache
+    /// A bbox cache over the interactive geometry (default + proxy). Framing a single prim also passes
+    /// `includeRender: true`, so a render-purpose prim gets a real bound, whole-scene framing
+    /// leaves render out, since some scenes can have a huge render-only skydome/backdrop sphere
+    /// that would otherwise blow the "frame all" bound way out past the actual subject.
+    func computeBBoxCache(includeRender: Bool = false) -> Pixar.UsdGeomBBoxCache
     {
       var purposes = Pixar.TfTokenVector()
       purposes.push_back(UsdGeom.Tokens.default_.token)
       purposes.push_back(UsdGeom.Tokens.proxy.token)
+      if includeRender { purposes.push_back(UsdGeom.Tokens.render.token) }
 
       let useExtentHints = true
       var timeCode = UsdTimeCode.Default()

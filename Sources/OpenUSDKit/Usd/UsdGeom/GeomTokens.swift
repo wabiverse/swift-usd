@@ -75,6 +75,7 @@ public extension UsdGeom
     case z
     case default_
     case proxy
+    case render
 
     public var token: Tf.Token
     {
@@ -113,6 +114,7 @@ public extension UsdGeom
         case .z: StaticData.shared.tokens.z
         case .default_: StaticData.shared.tokens.default_
         case .proxy: StaticData.shared.tokens.proxy
+        case .render: StaticData.shared.tokens.render
       }
     }
   }

@@ -171,6 +171,14 @@ extension Usd.Prim: Prim
   {
     IteratorSequence(GetChildren()).map { $0 }
   }
+
+  /// The prim's direct children as concrete `Usd.Prim`s. Unlike `children`,
+  /// which erases them to `any Prim`, these can be passed straight to APIs that
+  /// take a `Usd.Prim` (e.g. `UsdGeomBBoxCache.computeWorldBound`).
+  public var childPrims: [Usd.Prim]
+  {
+    IteratorSequence(GetChildren()).map { $0 }
+  }
   
   public var isActive: Bool
   {
