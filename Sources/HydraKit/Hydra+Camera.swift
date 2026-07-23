@@ -15,7 +15,7 @@ import OpenUSDKit
 
 #if !canImport(Gf)
 import OpenUSD
-public typealias GfVec3d = pxrInternal_v0_26_5__pxrReserved__.GfVec3d
+public typealias GfVec3d = pxrInternal_v0_26_8__pxrReserved__.GfVec3d
 #endif
 
 public extension Hydra
