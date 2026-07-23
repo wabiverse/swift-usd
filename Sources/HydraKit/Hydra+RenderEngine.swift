@@ -208,19 +208,11 @@ public enum Hydra
     /// viewport (color) AOV there, so the id AOVs would come back nil.
     public func aovTexture(_ aov: Hd.AovTokens) -> RenderTexture
     {
-      let renderBuffer = engine.aovRenderBuffer(aov)
-      
       #if canImport(UsdImagingGL)
-        return renderBuffer
+        return engine.aovRenderBuffer(aov)
       #else
-        var resource = renderBuffer.GetResource(/* multiSampled = */ true)
-        if !resource.IsHolding(T: Pixar.HgiTextureHandle.self) {
-          resource = renderBuffer.GetResource(/* multiSampled = */ false)
-        }
-        guard resource.IsHolding(T: Pixar.HgiTextureHandle.self)
-        else { return Pixar.HgiTextureHandle() }
-      
-        return resource.UncheckedGet()
+        // todo(furbytm): (no-op) expose GetAovRenderBuffer(_:) in apple/SwiftUsd.
+        return Pixar.HgiTextureHandle()
       #endif
     }
 

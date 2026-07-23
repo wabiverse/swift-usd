@@ -623,7 +623,6 @@ public extension Hydra
     }
   }
 }
-#endif // canImport(Metal)
 
 #if canImport(Usd)
 extension Pixar.HgiTexture
@@ -639,7 +638,7 @@ extension Pixar.HgiTexture
     return Unmanaged<AnyObject>.fromOpaque(ptr).takeUnretainedValue() as? any MTLTexture
   }
 }
-#else
+#else // !canImport(Usd)
 extension Pixar.HgiTextureHandle
 {
   public var asMetalTexture: MTLTexture?
@@ -648,4 +647,6 @@ extension Pixar.HgiTextureHandle
     return Overlay.HgiTextureHandleGetTextureId(self)
   }
 }
-#endif
+#endif // canImport(Usd)
+
+#endif // canImport(Metal)

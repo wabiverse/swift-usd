@@ -165,10 +165,11 @@ public extension UsdImagingGL.Engine
     """)
   }
   
-  mutating func aovRenderBuffer(_ aovName: Hd.AovTokens) -> Pixar.HdRenderBuffer
-  {
-    GetAovRenderBuffer(aovName.token)
-  }
+  // todo(furbytm): expose GetAovRenderBuffer(_:) in apple/SwiftUsd.
+  // mutating func aovRenderBuffer(_ aovName: Hd.AovTokens) -> Pixar.HdRenderBuffer
+  // {
+  //   GetAovRenderBuffer(aovName.token)
+  // }
   
   mutating func setSelectionColor(_ color: Pixar.GfVec4f)
   {
