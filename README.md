@@ -229,7 +229,7 @@ let package = Package(
 <table>
   <tr>
     <td>
-      <img width="90%" alt="Screenshot_2026-06-06_at_8 44 04_PM" src="https://github.com/user-attachments/assets/a42f5611-a841-470a-8eb0-d304cbfc65f6" />
+      <img width="1093" height="675" alt="Screenshot 2026-07-24 at 1 41 30 AM" src="https://github.com/user-attachments/assets/a202f592-ba29-4c31-a4d8-9091e93b9a64" />
       <br/>
       <img width="60%" alt="Simulator Screenshot - Apple Vision Pro - 2026-06-08 at 17 32 46" src="https://github.com/user-attachments/assets/6325d824-6eb4-47d2-ac0c-3e32b105d167" />
     </td>
