@@ -275,7 +275,8 @@ import OpenUSDKit
 
           // macbook friendly bindings on the regular
           // keys, no numpad needed.
-          switch event.charactersIgnoringModifiers ?? ""
+          let chars = event.charactersIgnoringModifiers ?? ""
+          switch chars
           {
             case "a", "A":                                                    // select all / deselect
               if event.modifierFlags.contains(.option) { hydra.clearSelection() }
@@ -286,7 +287,12 @@ import OpenUSDKit
             case "7":           hydra.setStandardView(ctrl ? .bottom : .top)  // top / bottom
             case "=", "+":      hydra.dolly(by: -0.1)                         // zoom in
             case "-", "_":      hydra.dolly(by: 0.1)                          // zoom out
-            default:            super.keyDown(with: event)
+            default:
+              // hand any key the viewport doesn't claim to the app
+              // (games can wire this to drive input). fall back to
+              // the responder chain if unset.
+              if let onKeyDown = hydra.onKeyDown { onKeyDown(chars) }
+              else { super.keyDown(with: event) }
           }
         }
       }

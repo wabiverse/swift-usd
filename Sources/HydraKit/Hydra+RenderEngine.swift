@@ -643,6 +643,12 @@ public enum Hydra
     /// Set it to react to picks, the viewport invokes it on the main thread.
     public var onPick: ((PickResult?) -> Void)?
 
+    /// Called for any key press the viewport itself does not claim (its own
+    /// camera / selection bindings take precedence). The argument is the
+    /// key's characters ignoring modifiers, (e.g. q). Games can wire this to
+    /// drive input, the viewport invokes it on the main thread.
+    public var onKeyDown: ((String) -> Void)?
+
     /// A click waiting for the renderer to read the id AOVs under it. The Metal
     /// readback needs the renderer's command queue, so `pick` records the
     /// request here and the renderer fulfils it on its next frame.
