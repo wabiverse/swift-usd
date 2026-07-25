@@ -133,19 +133,32 @@ HgiMetalGraphicsCmds::HgiMetalGraphicsCmds(
         metalColorAttachment.texture = colorTexture->GetTextureId();
         
         if (resolvingColor) {
-            HgiMetalTexture *resolveTexture =
-                static_cast<HgiMetalTexture*>(desc.colorResolveTextures[i].Get());
+            // integer textures (e.g. the primId/instanceId AOVs) cannot
+            // be MSAA resolve targets, because Metal rejects the render
+            // pass.
+            const HgiFormat resolveFormat = hgiColorAttachment.format;
+            const bool isIntFormat =
+                resolveFormat >= HgiFormatInt16 &&
+                resolveFormat <= HgiFormatInt32Vec4;
 
-            metalColorAttachment.resolveTexture =
-                resolveTexture->GetTextureId();
-
-            if (hgiColorAttachment.storeOp == HgiAttachmentStoreOpStore) {
-                metalColorAttachment.storeAction =
-                    MTLStoreActionStoreAndMultisampleResolve;
+            if (isIntFormat) {
+                metalColorAttachment.storeAction = MTLStoreActionStore;
             }
             else {
-                metalColorAttachment.storeAction =
-                    MTLStoreActionMultisampleResolve;
+                HgiMetalTexture *resolveTexture =
+                    static_cast<HgiMetalTexture*>(desc.colorResolveTextures[i].Get());
+
+                metalColorAttachment.resolveTexture =
+                    resolveTexture->GetTextureId();
+
+                if (hgiColorAttachment.storeOp == HgiAttachmentStoreOpStore) {
+                    metalColorAttachment.storeAction =
+                        MTLStoreActionStoreAndMultisampleResolve;
+                }
+                else {
+                    metalColorAttachment.storeAction =
+                        MTLStoreActionMultisampleResolve;
+                }
             }
         }
     }

@@ -1414,6 +1414,59 @@ public enum Pxr: String, CaseIterable
             """
           )
 
+        case "graphicsCmds.mm":
+          // integer textures (e.g. the primId/instanceId AOVs) cannot
+          // be MSAA resolve targets, because Metal rejects the render
+          // pass.
+          source = source.replacingOccurrences(
+            of: """
+                    if (resolvingColor) {
+                        HgiMetalTexture *resolveTexture =
+                            static_cast<HgiMetalTexture*>(desc.colorResolveTextures[i].Get());
+
+                        metalColorAttachment.resolveTexture =
+                            resolveTexture->GetTextureId();
+
+                        if (hgiColorAttachment.storeOp == HgiAttachmentStoreOpStore) {
+                            metalColorAttachment.storeAction =
+                                MTLStoreActionStoreAndMultisampleResolve;
+                        }
+                        else {
+                            metalColorAttachment.storeAction =
+                                MTLStoreActionMultisampleResolve;
+                        }
+                    }
+            """,
+            with: """
+                    if (resolvingColor) {
+                        const HgiFormat resolveFormat = hgiColorAttachment.format;
+                        const bool isIntFormat =
+                            resolveFormat >= HgiFormatInt16 &&
+                            resolveFormat <= HgiFormatInt32Vec4;
+
+                        if (isIntFormat) {
+                            metalColorAttachment.storeAction = MTLStoreActionStore;
+                        }
+                        else {
+                            HgiMetalTexture *resolveTexture =
+                                static_cast<HgiMetalTexture*>(desc.colorResolveTextures[i].Get());
+
+                            metalColorAttachment.resolveTexture =
+                                resolveTexture->GetTextureId();
+
+                            if (hgiColorAttachment.storeOp == HgiAttachmentStoreOpStore) {
+                                metalColorAttachment.storeAction =
+                                    MTLStoreActionStoreAndMultisampleResolve;
+                            }
+                            else {
+                                metalColorAttachment.storeAction =
+                                    MTLStoreActionMultisampleResolve;
+                            }
+                        }
+                    }
+            """
+          )
+
         default:
           return
       }
