@@ -187,6 +187,10 @@ public extension Bundle
   /**
    * Where ``UsdImagingGL`` application bundle resources are located. */
   static let usdImagingGL = pxrBundle("swift-usd_UsdImagingGL")
+  
+  /**
+   * Where ``UsdSkelImaging`` application bundle resources are located. */
+  static let usdSkelImaging = pxrBundle("swift-usd_UsdSkelImaging")
 
   /**
    * Where ``Tf`` python bundle resources are located. */

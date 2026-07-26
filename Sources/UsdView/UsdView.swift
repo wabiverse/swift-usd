@@ -35,6 +35,8 @@ struct UsdView: App
   let stage: UsdStage
   /// the hydra rendering engine.
   let engine: Hydra.RenderEngine
+  /// the hydra frame delegate.
+  let driver: UsdView.FrameDelegate
 
   public init()
   {
@@ -46,6 +48,10 @@ struct UsdView: App
 
     // setup hydra to render the usd stage.
     engine = Hydra.RenderEngine(stage: stage)
+    
+    // setup usdview's hydra frame delegate, for general
+    // animation playback across different stages.
+    driver = UsdView.FrameDelegate(stage: stage, hydra: engine)
 
     Msg.logger.log(level: .info, "UsdView launched | USD v\(Pixar.version).")
   }

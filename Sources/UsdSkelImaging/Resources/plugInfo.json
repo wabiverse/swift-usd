@@ -1,0 +1,58 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                    "UsdSkelImagingSkeletonAdapter": {
+                        "bases": [
+                            "UsdImagingInstanceablePrimAdapter"
+                        ],
+                        "isInternal": true,
+                        "primTypeName": "Skeleton"
+                    },
+                    "UsdSkelImagingSkelRootAdapter": {
+                        "bases": [
+                            "UsdImagingPrimAdapter"
+                        ],
+                        "isInternal": true,
+                        "includeDerivedPrimTypes": true,
+                        "primTypeName": "SkelRoot"
+                    },
+                    "UsdSkelImagingAnimationAdapter": {
+                        "bases": [
+                            "UsdImagingSceneIndexPrimAdapter"
+                        ],
+                        "isInternal": true,
+                        "primTypeName": "SkelAnimation"
+                    },
+                    "UsdSkelImagingBindingAPIAdapter": {
+                        "bases": [
+                            "UsdImagingAPISchemaAdapter"
+                        ],
+                        "isInternal": true,
+                        "apiSchemaName": "SkelBindingAPI"
+                    },
+                    "UsdSkelImagingBlendShapeAdapter": {
+                        "bases": [
+                            "UsdImagingSceneIndexPrimAdapter"
+                        ],
+                        "isInternal": true,
+                        "primTypeName": "BlendShape"
+                    },
+                    "UsdSkelImagingResolvingSceneIndexPlugin": {
+                        "bases": [
+                            "UsdImagingSceneIndexPlugin"
+                        ],
+                        "isInternal": true
+                    }
+                },
+                "ShaderResources": "shaders"
+            },
+            "LibraryPath": "",
+            "Name": "UsdSkelImaging",
+            "ResourcePath": ".",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}

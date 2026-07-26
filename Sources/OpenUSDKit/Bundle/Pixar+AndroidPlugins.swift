@@ -144,6 +144,7 @@
       ("swift-usd_HgiVulkan.resources", hgiVulkanPlugInfo),
       ("swift-usd_UsdImaging.resources", usdImagingPlugInfo),
       ("swift-usd_UsdImagingGL.resources", usdImagingGLPlugInfo),
+      ("swift-usd_UsdSkelImaging.resources", usdSkelImagingPlugInfo),
     ]
 
     // MARK: - Ar
@@ -1400,6 +1401,69 @@
           "Type": "library"
         }
       ]
+    }
+    """
+    
+    // MARK: - UsdSkelImaging
+
+    private static let usdSkelImagingPlugInfo = """
+    {
+        "Plugins": [
+            {
+                "Info": {
+                    "Types": {
+                        "UsdSkelImagingSkeletonAdapter": {
+                            "bases": [
+                                "UsdImagingInstanceablePrimAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "Skeleton"
+                        },
+                        "UsdSkelImagingSkelRootAdapter": {
+                            "bases": [
+                                "UsdImagingPrimAdapter"
+                            ],
+                            "isInternal": true,
+                            "includeDerivedPrimTypes": true,
+                            "primTypeName": "SkelRoot"
+                        },
+                        "UsdSkelImagingAnimationAdapter": {
+                            "bases": [
+                                "UsdImagingSceneIndexPrimAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "SkelAnimation"
+                        },
+                        "UsdSkelImagingBindingAPIAdapter": {
+                            "bases": [
+                                "UsdImagingAPISchemaAdapter"
+                            ],
+                            "isInternal": true,
+                            "apiSchemaName": "SkelBindingAPI"
+                        },
+                        "UsdSkelImagingBlendShapeAdapter": {
+                            "bases": [
+                                "UsdImagingSceneIndexPrimAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "BlendShape"
+                        },
+                        "UsdSkelImagingResolvingSceneIndexPlugin": {
+                            "bases": [
+                                "UsdImagingSceneIndexPlugin"
+                            ],
+                            "isInternal": true
+                        }
+                    },
+                    "ShaderResources": "shaders"
+                },
+                "LibraryPath": "",
+                "Name": "UsdSkelImaging",
+                "ResourcePath": ".",
+                "Root": ".",
+                "Type": "library"
+            }
+        ]
     }
     """
   }
