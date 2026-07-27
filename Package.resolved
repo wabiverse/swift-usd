@@ -1,5 +1,5 @@
 {
-  "originHash" : "ef2ffd022bfc5f4f7b732c6f7d27306ac1c329ac4a9a1f419d15abbb7dbcee57",
+  "originHash" : "19feaa6e169e2459febc85e1eb6505dfa85949d4ab9637fde2cc74e766137458",
   "pins" : [
     {
       "identity" : "jpeg",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/furbytm/MetaverseKit.git",
       "state" : {
-        "revision" : "5a49dfb50d9cd29da57776021675f4daf7992b79",
-        "version" : "2.0.6"
+        "revision" : "0f675ed477c37a30c60d2587eeb9343699b8fade",
+        "version" : "2.0.7"
       }
     },
     {
