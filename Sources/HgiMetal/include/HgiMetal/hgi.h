@@ -182,6 +182,9 @@ public:
     id<MTLArgumentEncoder> GetTextureArgumentEncoder() const;
     HGIMETAL_API
     id<MTLBuffer> GetArgBuffer();
+    
+    HGIMETAL_API
+    HgiTextureHandle CreateExternalTexture(HgiTextureDesc const &desc, uint64_t rawResource);
 
 protected:
     HGIMETAL_API

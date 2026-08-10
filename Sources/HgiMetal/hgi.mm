@@ -210,6 +210,12 @@ HgiMetal::CreateBlitCmds()
 }
 
 HgiTextureHandle
+HgiMetal::CreateExternalTexture(HgiTextureDesc const &desc, uint64_t rawResource)
+{
+    return HgiTextureHandle(new HgiMetalTexture(this, desc, rawResource), GetUniqueId());
+}
+
+HgiTextureHandle
 HgiMetal::_CreateTexture(HgiTextureDesc const & desc)
 {
     return HgiTextureHandle(new HgiMetalTexture(this, desc), GetUniqueId());

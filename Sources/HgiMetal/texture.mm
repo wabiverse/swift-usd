@@ -16,9 +16,9 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc)
+HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc, uint64_t rawResource)
     : HgiTexture(desc)
-    , _textureId(nil)
+    , _textureId(rawResource ? (__bridge id<MTLTexture>)(void *)(uintptr_t)rawResource : nil)
 {
     MTLResourceOptions resourceOptions = MTLResourceStorageModePrivate;
     MTLTextureUsage usage = MTLTextureUsageShaderRead;
@@ -88,7 +88,9 @@ HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc)
         texDesc.textureType = MTLTextureType2DMultisample;
     }
 
-    _textureId = [hgi->GetPrimaryDevice() newTextureWithDescriptor:texDesc];
+    if (!rawResource) {
+      _textureId = [hgi->GetPrimaryDevice() newTextureWithDescriptor:texDesc];
+    }
 
     if (desc.initialData && desc.pixelsByteSize > 0) {
         // Depth, stencil, depth-stencil, and multisample textures must be

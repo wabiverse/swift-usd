@@ -51,7 +51,8 @@ protected:
 
     HGIMETAL_API
     HgiMetalTexture(HgiMetal *hgi,
-                    HgiTextureDesc const & desc);
+                    HgiTextureDesc const & desc,
+                    uint64_t rawResource = 0);
     
     HGIMETAL_API
     HgiMetalTexture(HgiMetal *hgi,

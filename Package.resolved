@@ -1,6 +1,15 @@
 {
-  "originHash" : "19feaa6e169e2459febc85e1eb6505dfa85949d4ab9637fde2cc74e766137458",
+  "originHash" : "67dccc20e1f0c113fe19abd8cd351b636e2eef7b92e32012c82e79ebb28afb73",
   "pins" : [
+    {
+      "identity" : "imgui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/the-swift-collective/imgui",
+      "state" : {
+        "revision" : "a324b2cb33615ddb6d55ce5aa1dc0d7514b6bec1",
+        "version" : "1.91.9"
+      }
+    },
     {
       "identity" : "jpeg",
       "kind" : "remoteSourceControl",
@@ -31,19 +40,10 @@
     {
       "identity" : "metaversekit",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/furbytm/MetaverseKit.git",
+      "location" : "https://github.com/wabiverse/MetaverseKit.git",
       "state" : {
-        "revision" : "0f675ed477c37a30c60d2587eeb9343699b8fade",
-        "version" : "2.0.7"
-      }
-    },
-    {
-      "identity" : "metaversevulkanframework",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/wabiverse/MetaverseVulkanFramework",
-      "state" : {
-        "revision" : "13c7061599c61a4959c558d8ec1836e5b32b640b",
-        "version" : "1.26.2"
+        "revision" : "2e8f4bc94dc870d5011db31677a82def53f64bc7",
+        "version" : "2.0.8"
       }
     },
     {
