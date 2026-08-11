@@ -375,6 +375,123 @@ let package = Package(
 
 <br>
 
-<hr/>
+# License
+All files copyright (c) 2016 Pixar with modifications copyright (c) 2024 Wabi Foundation, and released under the same license as [OpenUSD](https://github.com/PixarAnimationStudios/OpenUSD): the [Tomorrow Open Source Technology 1.0 License](https://openusd.org/license). Certain files as noted are covered by their own respective licenses.
 
-###### SwiftUSD is licensed under the terms of the [Tomorrow Open Source Technology 1.0 License](https://openusd.org/license).
+### MetaverseKit distributed libraries
+
+**FreeType**
+https://freetype.org
+License: FreeType License (BSD-style)
+
+**oneTBB**
+https://github.com/oneapi-src/oneTBB
+License: Apache 2.0
+
+**Eigen**
+https://github.com/libigl/eigen
+License: BSD 3-Clause
+
+**Draco**
+https://github.com/google/draco
+License: Apache 2.0
+
+**ZStandard**
+https://github.com/facebook/zstd
+License: BSD 3-Clause
+
+**ZLib**
+https://www.zlib.net
+License: zlib
+
+**Yaml**
+https://github.com/yaml/libyaml
+License: MIT
+
+**WebP**
+https://github.com/webmproject/libwebp
+License: BSD 3-Clause
+
+**LZMA2**
+https://github.com/conor42/fast-lzma2
+License: BSD 3-Clause
+
+**MiniZip**
+https://github.com/zlib-ng/minizip-ng
+License: zlib
+
+**Blosc**
+https://github.com/Blosc/c-blosc
+License: BSD 3-Clause
+
+**OpenVDB**
+https://github.com/AcademySoftwareFoundation/openvdb
+License: Apache 2.0
+
+**OpenColorIO**
+https://github.com/AcademySoftwareFoundation/OpenColorIO
+License: BSD 3-Clause
+
+**OpenImageIO**
+https://github.com/AcademySoftwareFoundation/OpenImageIO
+License: BSD 3-Clause
+
+**MaterialX**
+https://github.com/materialx/MaterialX
+License: Apache 2.0
+
+**LibPNG**
+http://www.libpng.org/pub/png
+License: LibPNG
+
+**Boost**
+https://github.com/boostorg/boost
+License: Boost Software License
+
+**Python**
+https://python.org
+License: Python Software Foundation License
+
+**OpenSubdiv**
+https://github.com/PixarAnimationStudios/OpenSubdiv
+License: Apache 2.0
+
+**OSL (Open Shading Language)**
+https://github.com/AcademySoftwareFoundation/OpenShadingLanguage
+License: BSD 3-Clause
+
+**Ptex**
+https://github.com/wdas/ptex
+License: Apache 2.0
+
+**ImGUI**
+https://github.com/ocornut/imgui
+License: MIT
+
+**Embree**
+https://github.com/RenderKit/embree
+License: Apache 2.0
+
+**Alembic**
+https://github.com/alembic/alembic
+License: BSD 3-Clause
+
+**OpenEXR**
+https://github.com/AcademySoftwareFoundation/openexr
+License: BSD 3-Clause
+
+**Imath**
+https://github.com/AcademySoftwareFoundation/Imath
+License: BSD 3-Clause
+
+**HDF5**
+https://github.com/HDFGroup/hdf5
+License: HDF5 License
+
+**TurboJPEG**
+https://github.com/libjpeg-turbo/libjpeg-turbo
+License: MIT
+
+**TIFF**
+https://github.com/libsdl-org/libtiff
+License: Apache 2.0
