@@ -1,13 +1,13 @@
 {
-  "originHash" : "67dccc20e1f0c113fe19abd8cd351b636e2eef7b92e32012c82e79ebb28afb73",
+  "originHash" : "c4a738962f5d50e03e18ce9c03a323b2d7eaa56c1175313d104d87885026d066",
   "pins" : [
     {
       "identity" : "imgui",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/the-swift-collective/imgui",
       "state" : {
-        "revision" : "a324b2cb33615ddb6d55ce5aa1dc0d7514b6bec1",
-        "version" : "1.91.9"
+        "revision" : "5bd25cffd4ad22635563aa29c59ebee56943964e",
+        "version" : "1.92.0"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wabiverse/MetaverseKit.git",
       "state" : {
-        "revision" : "2e8f4bc94dc870d5011db31677a82def53f64bc7",
-        "version" : "2.0.8"
+        "revision" : "7464f1ae0b3be541558bbc633f782595e2cb915f",
+        "version" : "2.0.9"
       }
     },
     {
