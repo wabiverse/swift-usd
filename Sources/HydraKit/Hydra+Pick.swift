@@ -21,11 +21,11 @@ public extension Hydra.RenderEngine
   struct PickResult
   {
     /// The gprim selected by the pick.
-    public let primPath: Sdf.Path
+    public let primPath: SdfPath
     /// The point instancer of that gprim, or an empty path if it is not
     /// instanced. With an aggregating scene this is the prim instancer,
     /// and ``instanceIndex`` is the cell.
-    public let instancerPath: Sdf.Path
+    public let instancerPath: SdfPath
     /// The instance index within ``instancerPath``, or `-1` when not instanced.
     public let instanceIndex: Int
     /// The hit position in world space.
@@ -48,8 +48,8 @@ public extension Hydra.RenderEngine
     var selectionSelectAll: Bool = false
     var selectionModelLUT: [Int32] = []
     var selectionModelLUTVersion: Int = 0
-    var primIdPathCache: [(id: Int32, path: Sdf.Path)]?
-    var lastPickedPath: Sdf.Path?
+    var primIdPathCache: [(id: Int32, path: SdfPath)]?
+    var lastPickedPath: SdfPath?
   }
 
   /// Called after a click that resolved to geometry (or with `nil` on a miss).
@@ -127,7 +127,7 @@ public extension Hydra.RenderEngine
   /// The gprim of the most recent successful pick,
   /// so "frame selected" has a target. Cleared on
   /// a miss.
-  var lastPickedPath: Sdf.Path? { pickState.lastPickedPath }
+  var lastPickedPath: SdfPath? { pickState.lastPickedPath }
 
   /// Intersects the scene under `point` and returns what was hit, or `nil`.
   ///
@@ -173,8 +173,8 @@ public extension Hydra.RenderEngine
 
     var hitPoint = Gf.Vec3d()
     var hitNormal = Gf.Vec3d()
-    var primPath = Sdf.Path()
-    var instancerPath = Sdf.Path()
+    var primPath = SdfPath()
+    var instancerPath = SdfPath()
     var instanceIndex: Int32 = -1
 
     let hit = engine.TestIntersection(viewMatrix,
@@ -235,12 +235,12 @@ public extension Hydra.RenderEngine
   /// that is a model but not a group, (i.e. a component, matching usdview's model
   /// pick mode). Falls back to `path` when the prim is not inside a model, so the
   /// outline still covers at least the picked prim.
-  private func modelRoot(of path: Sdf.Path) -> Sdf.Path
+  private func modelRoot(of path: SdfPath) -> SdfPath
   {
     var prim = stage.GetPrimAtPath(path)
     guard prim.IsValid() else { return path }
 
-    var root: Sdf.Path?
+    var root: SdfPath?
     while prim.IsValid(), !prim.IsPseudoRoot()
     {
       if prim.IsModel(), !prim.IsGroup() { root = prim.GetPath() }
@@ -253,11 +253,11 @@ public extension Hydra.RenderEngine
   /// ids are assigned densely from 1, so this walks them decoding to paths
   /// and stops after a long run of gaps. Returns empty when the decode is
   /// unavailable.
-  private func ensurePrimIdPathCache() -> [(id: Int32, path: Sdf.Path)]
+  private func ensurePrimIdPathCache() -> [(id: Int32, path: SdfPath)]
   {
     if let cache = pickState.primIdPathCache { return cache }
 
-    var cache: [(id: Int32, path: Sdf.Path)] = []
+    var cache: [(id: Int32, path: SdfPath)] = []
     var misses = 0
     var id: Int32 = 1
     while misses < 1024, id < 1_000_000
@@ -276,7 +276,7 @@ public extension Hydra.RenderEngine
   /// Flags every rprim id under `root` for the outline. Leaves the selection
   /// single-prim (via `selectedPrimId`) when the model has no resolved ids.
   /// (e.g. the decode is unavailable, so this degrades rather than clears).
-  private func selectModel(root: Sdf.Path)
+  private func selectModel(root: SdfPath)
   {
     let cache = ensurePrimIdPathCache()
     guard let maxId = cache.map({ $0.id }).max() else { return }

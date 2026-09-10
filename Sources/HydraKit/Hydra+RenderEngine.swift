@@ -121,7 +121,7 @@ public enum Hydra
                          rendererPluginId: Tf.Token = Tf.Token(),
                          excludedPaths: Sdf.PathVector = Sdf.PathVector(),
                          invisedPaths: Sdf.PathVector = Sdf.PathVector(),
-                         sceneDelegateId: Sdf.Path = Sdf.Path.absoluteRootPath(),
+                         sceneDelegateId: SdfPath = SdfPath.absoluteRootPath(),
                          allowAsynchronousSceneProcessing: Bool = false,
                          enableUsdDrawModes: Bool = true,
                          displayUnloadedPrimsWithBounds: Bool = false,
@@ -608,9 +608,8 @@ public enum Hydra
     public func computeFrustum(cameraTransform: Gf.Matrix4d, viewSize: CGSize, camera: Hydra.Camera) -> Gf.Frustum
     {
       var gfCamera = camera.gfCamera
-      var frustum = gfCamera.frustum
-
       gfCamera.transform = cameraTransform
+      var frustum = gfCamera.frustum
 
       if gfCamera.projection.rawValue == 0
       {
