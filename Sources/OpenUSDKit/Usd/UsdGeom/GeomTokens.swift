@@ -122,5 +122,7 @@ public extension UsdGeom
 
 public extension Tf.Token
 {
+  nonisolated(unsafe) static let x = UsdGeom.Tokens.x.token
+  nonisolated(unsafe) static let y = UsdGeom.Tokens.y.token
   nonisolated(unsafe) static let z = UsdGeom.Tokens.z.token
 }

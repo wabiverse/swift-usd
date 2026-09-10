@@ -20,22 +20,36 @@ public typealias GfVec3d = pxrInternal_v0_26_8__pxrReserved__.GfVec3d
 
 public extension Hydra
 {
+  /// An orbit-style navigation camera.
   class Camera
   {
     private let isZUp: Bool
-    public var params = Params()
 
-    public struct Params
-    {
-      public var rotation = Pixar.GfVec3d(0.0)
-      public var focus = Pixar.GfVec3d(0.0)
-      public var distance = 50.0
-      public var focalLength = 0.0
-      public var projection = Pixar.GfCamera.Projection(0)
-      public var leftBottomNear = Pixar.GfVec3d()
-      public var rightTopFar = Pixar.GfVec3d()
-      public var scaleViewport = 1.0
-    }
+    /// The underlying camera this orbit controller drives.
+    public var gfCamera = Gf.Camera()
+
+    /// Orbit rotation around `focus`, in degrees (Z, then X, then Y).
+    public var rotation = Pixar.GfVec3d(0.0)
+    /// The point the camera orbits around and looks at.
+    public var focus = Pixar.GfVec3d(0.0)
+    /// Distance from `focus` to the camera position.
+    public var distance = 50.0
+
+    /// Explicit orthographic window (left/bottom/near, right/top/far),
+    /// used only when `gfCamera.projection` is orthographic, set from
+    /// an authored USD Camera's own computed frustum planes.
+    public var leftBottomNear = Pixar.GfVec3d()
+    public var rightTopFar = Pixar.GfVec3d()
+    public var scaleViewport = 1.0
+
+    /// Explicit near-clip override, in world units.
+    /// If `nil` (the default), fits the near plane
+    /// to the loaded stage bounds instead.
+    public var nearClipOverride: Double?
+    /// Explicit far-clip override, in world units.
+    /// If `nil` (the default), fits the far plane
+    /// to the loaded stage bounds instead.
+    public var farClipOverride: Double?
 
     public var position = Pixar.GfVec3d()
     public var standardFocalLength = Double()
@@ -44,10 +58,10 @@ public extension Hydra
     public init(isZUp: Bool)
     {
       self.isZUp = isZUp
-      params.rotation = Pixar.GfVec3d(0.0)
-      params.focus = Pixar.GfVec3d(0.0)
-      params.distance = 50.0
-      params.scaleViewport = 1.0
+      rotation = Pixar.GfVec3d(0.0)
+      focus = Pixar.GfVec3d(0.0)
+      distance = 50.0
+      scaleViewport = 1.0
     }
 
     public func getTransform() -> GfMatrix4d
@@ -60,9 +74,9 @@ public extension Hydra
       var gfMatrix3 = GfMatrix4d()
 
       cameraTransform =
-        gfMatrix1.SetTranslate(Pixar.GfVec3d(0.0, 0.0, params.distance)).pointee *
+        gfMatrix1.SetTranslate(Pixar.GfVec3d(0.0, 0.0, distance)).pointee *
         gfMatrix2.SetRotate(gfRotation).pointee *
-        gfMatrix3.SetTranslate(params.focus).pointee
+        gfMatrix3.SetTranslate(focus).pointee
 
       return cameraTransform
     }
@@ -70,33 +84,28 @@ public extension Hydra
     public func getRotation() -> Pixar.GfRotation
     {
       #if canImport(Gf)
-      var gfRotation = Pixar.GfRotation(Pixar.GfVec3d.ZAxis(), params.rotation[2])
-      gfRotation *= Pixar.GfRotation(Pixar.GfVec3d.XAxis(), params.rotation[0])
-      gfRotation *= Pixar.GfRotation(Pixar.GfVec3d.YAxis(), params.rotation[1])
+      var gfRotation = Pixar.GfRotation(Pixar.GfVec3d.ZAxis(), rotation[2])
+      gfRotation *= Pixar.GfRotation(Pixar.GfVec3d.XAxis(), rotation[0])
+      gfRotation *= Pixar.GfRotation(Pixar.GfVec3d.YAxis(), rotation[1])
 
       if isZUp
       {
         gfRotation *= Pixar.GfRotation(Pixar.GfVec3d.XAxis(), 90.0)
       }
-      
+
       return gfRotation
       #else
-      var gfRotation = pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.ZAxis(), params.rotation[2]))
-      gfRotation *= pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.XAxis(), params.rotation[0]))
-      gfRotation *= pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.YAxis(), params.rotation[1]))
-      
+      var gfRotation = pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.ZAxis(), rotation[2]))
+      gfRotation *= pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.XAxis(), rotation[0]))
+      gfRotation *= pxr.GfMatrix4d.MakeRotate(pxr.GfRotation(.YAxis(), rotation[1]))
+
       if isZUp
       {
         gfRotation *= pxr.GfMatrix4d.MakeRotate(Pixar.GfRotation(Pixar.GfVec3d.XAxis(), 90.0))
       }
-      
+
       return gfRotation.ExtractRotation()
       #endif
-    }
-
-    public func getShaderParams() -> Params
-    {
-      return params
     }
 
     /// The camera's right and up directions in world space, used to pan the focus point within the screen plane.
