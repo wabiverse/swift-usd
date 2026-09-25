@@ -1098,7 +1098,7 @@ let package = Package(
         .product(name: "MaterialX", package: "MetaverseKit"),
       ],
       resources: [
-        .copy("libraries"),
+        // .copy("libraries"), TODO: fix swift-bundler Metal compilation.
         .process("Resources")
       ],
       cxxSettings: [

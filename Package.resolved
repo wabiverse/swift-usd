@@ -1,5 +1,5 @@
 {
-  "originHash" : "c4a738962f5d50e03e18ce9c03a323b2d7eaa56c1175313d104d87885026d066",
+  "originHash" : "3d510ce4ff3c8c70c0fc8af902bd8f9d6b5b0eb6e8d242d4ad864d4b03f2d2fc",
   "pins" : [
     {
       "identity" : "imgui",
@@ -67,10 +67,10 @@
     {
       "identity" : "swift-cross-ui",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/furbytm/swift-cross-ui.git",
+      "location" : "https://github.com/moreSwift/swift-cross-ui.git",
       "state" : {
-        "revision" : "823cecd0949aa78a035deefe4204eefb2dd0a213",
-        "version" : "0.7.2"
+        "revision" : "f8bdf05729ae1cd1b7f3ec4e57177a6965052146",
+        "version" : "0.9.0"
       }
     },
     {
@@ -141,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/moreSwift/swift-winui",
       "state" : {
-        "revision" : "7cce3fcd0b55c48e6d8993fd2c7c392e8bc945c4",
-        "version" : "0.2.0"
+        "revision" : "c4f1cb75c02f4a4fdefcef2e5c5c4388c7cf9389",
+        "version" : "0.2.2"
       }
     },
     {
