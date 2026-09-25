@@ -1,5 +1,0 @@
-void mx_geompropvalue_vector(string geomprop, vector defaultVal, output vector out)
-{
-    if (getattribute(geomprop, out) == 0)
-        out = defaultVal;
-}

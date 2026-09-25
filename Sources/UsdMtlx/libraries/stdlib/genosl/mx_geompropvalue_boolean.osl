@@ -1,5 +1,0 @@
-void mx_geompropvalue_boolean(string geomprop, int defaultVal, output int out)
-{
-    if (getattribute(geomprop, out) == 0)
-        out = defaultVal;
-}
