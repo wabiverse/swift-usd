@@ -18,7 +18,7 @@ import MetalKit
 
 public extension Hydra
 {
-  class MTLRenderer: NSObject, MTKViewDelegate
+  class MTLRenderer: NSObject, MTKViewDelegate, @unchecked Sendable
   {
     private let device: MTLDevice
     private var hydra: Hydra.RenderEngine?
@@ -195,8 +195,10 @@ public extension Hydra
 
     public func draw(in view: MTKView)
     {
+      guard let hydra else { return }
+
       let semaphore = inFlightSemaphore
-      semaphore.wait()
+      guard semaphore.wait(timeout: .now()) == .success else { return }
 
       guard view.drawableSize.width > 0, view.drawableSize.height > 0
       else { semaphore.signal(); return }
@@ -204,14 +206,21 @@ public extension Hydra
       // drawFrame gets a fresh drawable after hgi commits,
       // at the engine's current timecode (the stage's start
       // frame by default, settable for scrubbing or playback).
-      drawFrame(in: view, timeCode: hydra?.currentTimeCode ?? 0.0)
+      let timeCode = hydra.currentTimeCode
+      let fps = max(view.preferredFramesPerSecond, 1)
+      let drawableSize = view.drawableSize
+
+      hydra.frameQueue.async { [weak self] in
+        guard let self else { semaphore.signal(); return }
+        self.drawFrame(in: view, timeCode: timeCode, fps: fps, drawableSize: drawableSize)
+      }
     }
 
-    /// draw the scene, and blit the result to the view.
-    @MainActor @discardableResult
-    func drawFrame(in view: MTKView, timeCode: Double) -> Bool
+    /// draw the scene, and blit the result to the view off the main thread.
+    @discardableResult
+    func drawFrame(in view: MTKView, timeCode: Double, fps: Int, drawableSize: CGSize) -> Bool
     {
-      let deltaTime = 1.0 / Double(view.preferredFramesPerSecond)
+      let deltaTime = 1.0 / Double(fps)
       hydra?.frameDelegate?.hydraWillPull(deltaTime: deltaTime)
       defer { hydra?.frameDelegate?.hydraDidPull() }
       
@@ -227,7 +236,7 @@ public extension Hydra
 
       hgi.StartFrame()
 
-      let viewSize = view.drawableSize
+      let viewSize = drawableSize
       guard
         let hgiTexture = hydra?.render(at: timeCode, viewSize: viewSize),
         let metalTexture = hgiTexture.asMetalTexture
@@ -258,15 +267,14 @@ public extension Hydra
         semaphore.signal()
       }
 
-      blitToView(view, drawable: drawable, commandBuffer: blitCommandBuffer, texture: metalTexture)
+      blitToView(drawable: drawable, commandBuffer: blitCommandBuffer, texture: metalTexture, fps: fps)
       blitCommandBuffer.commit()
 
       return true
     }
 
     /// copies the texture to the view with a shader.
-    @MainActor
-    public func blitToView(_ view: MTKView, drawable: CAMetalDrawable, commandBuffer: MTLCommandBuffer, texture: MTLTexture)
+    public func blitToView(drawable: CAMetalDrawable, commandBuffer: MTLCommandBuffer, texture: MTLTexture, fps: Int)
     {
       // build the jump-flood outline field first: compute and render work cannot
       // share an encoder, so this runs its own compute encoders on the same command
@@ -334,9 +342,9 @@ public extension Hydra
       renderEncoder.endEncoding()
 
       #if os(macOS)
-        commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(view.preferredFramesPerSecond))
+        commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(fps))
       #else // !os(macOS)
-        commandBuffer.present(drawable, atTime: 1.0 / Double(view.preferredFramesPerSecond))
+        commandBuffer.present(drawable, atTime: 1.0 / Double(fps))
       #endif // os(macOS)
     }
 

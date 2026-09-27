@@ -52,7 +52,7 @@ import OpenUSDKit
           mtkView.isPaused = true // warm up the stage before the first real frame
           mtkView.framebufferOnly = false // we're using the drawable in our own render pass
           mtkView.enableSetNeedsDisplay = false // don't wait for setNeedsDisplay
-          mtkView.presentsWithTransaction = true // sync presentation with our command buffer
+          mtkView.presentsWithTransaction = false // sync presentation with our command buffer
 
           if let mode = CGDisplayCopyDisplayMode(CGMainDisplayID())
           {
@@ -200,8 +200,9 @@ import OpenUSDKit
             // so the converted point is y-up too, which is what `pick`
             // expects.
             let viewPoint = convert(event.locationInWindow, from: nil)
-            let result = hydra.pick(at: viewPoint, viewSize: bounds.size)
-            hydra.onPick?(result)
+            hydra.pick(at: viewPoint, viewSize: bounds.size) { result in
+              hydra.onPick?(result)
+            }
             return
           }
 

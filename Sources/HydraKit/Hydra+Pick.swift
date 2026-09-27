@@ -38,7 +38,6 @@ public extension Hydra.RenderEngine
   /// All picking/selection state.
   struct PickState
   {
-    var onPick: ((PickResult?) -> Void)?
     var pendingSelection: (point: CGPoint, viewSize: CGSize)?
     var selectedPrimId: Int32 = -1
     var selectedInstanceId: Int32 = -1
@@ -50,14 +49,6 @@ public extension Hydra.RenderEngine
     var selectionModelLUTVersion: Int = 0
     var primIdPathCache: [(id: Int32, path: SdfPath)]?
     var lastPickedPath: SdfPath?
-  }
-
-  /// Called after a click that resolved to geometry (or with `nil` on a miss).
-  /// Set it to react to picks, the viewport invokes it on the main thread.
-  var onPick: ((PickResult?) -> Void)?
-  {
-    get { pickState.onPick }
-    set { pickState.onPick = newValue }
   }
 
   /// A click waiting for the renderer to read the id AOVs under it.
@@ -129,13 +120,25 @@ public extension Hydra.RenderEngine
   /// a miss.
   var lastPickedPath: SdfPath? { pickState.lastPickedPath }
 
+  /// Intersects the scene under `point` on the frame queue and hands the
+  /// result to `completion` on the main thread, the queue the viewport
+  /// invokes ``onPick`` on. Safe to call from any thread.
+  func pick(at point: CGPoint, viewSize: CGSize, completion: @escaping @Sendable (PickResult?) -> Void)
+  {
+    performOnFrameQueue
+    {
+      let result = self.pick(at: point, viewSize: viewSize)
+      DispatchQueue.main.async { completion(result) }
+    }
+  }
+
   /// Intersects the scene under `point` and returns what was hit, or `nil`.
   ///
   /// `point` is in the view's own coordinates: origin bottom-left, y up, to
   /// match AppKit. The current view camera is reused and narrowed to a few
   /// pixels around the point, so a click selects what is under the cursor
   /// rather than everything along the ray.
-  func pick(at point: CGPoint, viewSize: CGSize) -> PickResult?
+  private func pick(at point: CGPoint, viewSize: CGSize) -> PickResult?
   {
     guard viewSize.width > 0, viewSize.height > 0 else { return nil }
 
@@ -294,20 +297,27 @@ public extension Hydra.RenderEngine
 
   /// Discards the cached id -> path map, forcing a rebuild
   /// on the next model pick. Called after the stage's rprim
-  /// topology changes.
+  /// topology changes. Safe to call from any thread.
   func invalidateSelectionGroupCache()
   {
-    pickState.primIdPathCache = nil
-    pickState.selectionModelLUT = []
+    performOnFrameQueue
+    {
+      self.pickState.primIdPathCache = nil
+      self.pickState.selectionModelLUT = []
+    }
   }
 
   /// Selects every prim (`A`), outlining each object individually.
+  /// Safe to call from any thread.
   func selectAll()
   {
-    ensureModelLUT()
-    pickState.selectionSelectAll = true
-    pickState.selectionUsesGroup = false
-    pickState.selectionGroup = []
+    performOnFrameQueue
+    {
+      self.ensureModelLUT()
+      self.pickState.selectionSelectAll = true
+      self.pickState.selectionUsesGroup = false
+      self.pickState.selectionGroup = []
+    }
   }
 
   /// Builds the primId -> model-id table once: every rprim is mapped
@@ -337,15 +347,21 @@ public extension Hydra.RenderEngine
 
   /// Clears the current selection and its outline.
   /// The keyboard equivalent of clicking empty
-  /// space (`Alt+A` / deselect all).
+  /// space (`Alt+A` / deselect all). Safe to call
+  /// from any thread.
   func clearSelection()
   {
-    pickState.selectedPrimId = -1
-    pickState.selectedInstanceId = -1
-    pickState.selectionUsesGroup = false
-    pickState.selectionSelectAll = false
-    pickState.selectionGroup = []
-    pickState.lastPickedPath = nil
-    engine.ClearSelected()
+    performOnFrameQueue
+    {
+      self.pickState.selectedPrimId = -1
+      self.pickState.selectedInstanceId = -1
+      self.pickState.selectionUsesGroup = false
+      self.pickState.selectionSelectAll = false
+      self.pickState.selectionGroup = []
+      self.pickState.lastPickedPath = nil
+      self.engine.ClearSelected()
+    }
   }
 }
+
+extension Hydra.RenderEngine.PickResult: @unchecked Sendable {}

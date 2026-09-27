@@ -38,6 +38,11 @@ public enum Hydra
     /// input, the viewport invokes it on the main thread.
     public var onKeyDown: ((String) -> Void)?
     
+    /// Called after a click that resolved to geometry (or with `nil` on a
+    /// miss). Set it to react to picks, the viewport invokes it on the main
+    /// thread.
+    public var onPick: ((PickResult?) -> Void)?
+    
     /// The color management mode applied during rendering.
     ///
     /// Expected tokens include:
@@ -84,6 +89,17 @@ public enum Hydra
     /// Picking/selection state.
     var pickState = PickState()
     
+    /// The serial queue every frame of engine work runs on.
+    public let frameQueue = DispatchQueue(label: "hydra.frame", qos: .userInteractive)
+    private let frameQueueKey = DispatchSpecificKey<UInt8>()
+    
+    /// Guards the coast/animation state.
+    private let coastLock = NSLock()
+    /// Bumped whenever a new coast (flick or focus animation) is scheduled.
+    private var coastGeneration: UInt64 = 0
+    private var flickActive = false
+    private var focusActive = false
+    
     private var worldCenter: Pixar.GfVec3d = .init(0.0, 0.0, 0.0)
     private var worldSize: Double = 1.0
 
@@ -128,6 +144,10 @@ public enum Hydra
                          gpuEnabled: Bool = true)
     {
       self.stage = stage
+
+      // tag the frame queue before anything can post to it.
+      frameQueue.setSpecific(key: frameQueueKey, value: 1)
+
       self.colorCorrectionMode = colorCorrectionMode
       self.selectionOutlineColor = selectionColor
       self.selectionOutlineWidth = Int32(selectionOutlineWidth)
@@ -270,42 +290,65 @@ public enum Hydra
     }
 
     /// Orbits ("tumbles") the view camera around its focus point - the classic
-    /// click-and-drag navigation gesture.
+    /// click-and-drag navigation gesture. Safe to call from any thread.
     public func orbit(deltaYaw: Double, deltaPitch: Double)
     {
-      viewCamera.rotation[1] += deltaYaw
-      viewCamera.rotation[0] += deltaPitch
+      performOnFrameQueue
+      {
+        self.viewCamera.rotation[1] += deltaYaw
+        self.viewCamera.rotation[0] += deltaPitch
+      }
     }
 
     /// Dollies the view camera toward/away from its focus point by a relative
     /// `factor` (e.g. `-0.05` moves it 5% closer, `+0.05` moves it 5% further).
+    /// Safe to call from any thread.
     public func dolly(by factor: Double)
     {
-      viewCamera.distance = max(0.01, viewCamera.distance * (1.0 + factor))
+      performOnFrameQueue
+      {
+        self.viewCamera.distance = max(0.01, self.viewCamera.distance * (1.0 + factor))
+      }
     }
-
+    
+    /// Runs `body` on ``frameQueue``.
+    public func performOnFrameQueue(_ body: @escaping @Sendable () -> Void)
+    {
+      if DispatchQueue.getSpecific(key: frameQueueKey) != nil
+      {
+        body()
+      }
+      else
+      {
+        frameQueue.async(execute: body)
+      }
+    }
+    
     /// Pans ("tracks") the view, `Shift+MMB`. Slides the focus point in the camera's screen
     /// plane so the scene follows the pointer 1:1 at the focus depth. `deltaX`/`deltaY` are
     /// pointer motion in points (AppKit basis: +x right, +y down). `viewHeight` is the viewport
-    /// height in the same units.
+    /// height in the same units. Safe to call from any thread.
     public func pan(deltaX: Double, deltaY: Double, viewHeight: Double)
     {
       guard viewHeight > 0 else { return }
-
-      // tan(vFOV/2) = (verticalAperture/2) / focalLength,
-      // so the world height visible at the focus distance
-      // is verticalAperture * distance / focalLength.
-      let worldPerPixel = (Double(viewCamera.gfCamera.verticalAperture) * viewCamera.distance
-                           / max(Double(viewCamera.gfCamera.focalLength), 0.001)) / viewHeight
-
-      let (right, up) = viewCamera.screenAxes()
-
-      // moving the focus opposite the pointer's horizontal motion, and with its
-      // vertical motion (screen +y is down, world up is `up`), makes the scene
-      // track the cursor.
-      viewCamera.focus[0] += (up[0] * deltaY - right[0] * deltaX) * worldPerPixel
-      viewCamera.focus[1] += (up[1] * deltaY - right[1] * deltaX) * worldPerPixel
-      viewCamera.focus[2] += (up[2] * deltaY - right[2] * deltaX) * worldPerPixel
+      
+      performOnFrameQueue
+      {
+        // tan(vFOV/2) = (verticalAperture/2) / focalLength,
+        // so the world height visible at the focus distance is
+        // verticalAperture * distance / focalLength.
+        let worldPerPixel = (Double(self.viewCamera.gfCamera.verticalAperture) * self.viewCamera.distance
+                             / max(Double(self.viewCamera.gfCamera.focalLength), 0.001)) / viewHeight
+        
+        let (right, up) = self.viewCamera.screenAxes()
+        
+        // moving the focus opposite the pointer's horizontal motion, and with its
+        // vertical motion (screen +y is down, world up is `up`), makes the scene
+        // track the cursor.
+        self.viewCamera.focus[0] += (up[0] * deltaY - right[0] * deltaX) * worldPerPixel
+        self.viewCamera.focus[1] += (up[1] * deltaY - right[1] * deltaX) * worldPerPixel
+        self.viewCamera.focus[2] += (up[2] * deltaY - right[2] * deltaX) * worldPerPixel
+      }
     }
 
     /// "click-and-flick": releases the orbit drag with `deltaYaw`/`deltaPitch`
@@ -314,25 +357,46 @@ public enum Hydra
     /// calling this again (or `stopFlick()`) cancels any coast already in flight.
     public func flick(deltaYaw: Double, deltaPitch: Double)
     {
+      guard Thread.isMainThread
+      else
+      {
+        DispatchQueue.main.async { [weak self] in self?.flick(deltaYaw: deltaYaw, deltaPitch: deltaPitch) }
+        return
+      }
+      
       stopFlick()
 
       guard deltaYaw.magnitude > Self.flickThreshold || deltaPitch.magnitude > Self.flickThreshold
       else { return }
 
+      let generation = beginCoast(.flick)
       flickVelocity = (deltaYaw, deltaPitch)
 
       let timer = Foundation.Timer(timeInterval: Self.flickInterval as TimeInterval, repeats: true)
       { [weak self] timer in
         guard let self else { timer.invalidate(); return }
+        guard self.coastActive(.flick, generation: generation) else { timer.invalidate(); return }
 
-        orbit(deltaYaw: flickVelocity.yaw, deltaPitch: flickVelocity.pitch)
-
-        flickVelocity.yaw *= Self.flickDamping
-        flickVelocity.pitch *= Self.flickDamping
-
-        if flickVelocity.yaw.magnitude < Self.flickThreshold, flickVelocity.pitch.magnitude < Self.flickThreshold
+        let velocity = self.flickVelocity
+        self.performOnFrameQueue
         {
-          stopFlick()
+          guard self.coastActive(.flick, generation: generation) else { return }
+          self.viewCamera.rotation[1] += velocity.yaw
+          self.viewCamera.rotation[0] += velocity.pitch
+        }
+
+        self.flickVelocity.yaw *= Self.flickDamping
+        self.flickVelocity.pitch *= Self.flickDamping
+
+        if self.flickVelocity.yaw.magnitude < Self.flickThreshold,
+           self.flickVelocity.pitch.magnitude < Self.flickThreshold
+        {
+          self.coastLock.lock()
+          self.flickActive = false
+          self.coastLock.unlock()
+          timer.invalidate()
+          if self.flickTimer === timer { self.flickTimer = nil }
+          self.flickVelocity = (0.0, 0.0)
         }
       }
 
@@ -343,8 +407,66 @@ public enum Hydra
     }
 
     /// cancels any in-flight `flick` coast (e.g. when a fresh drag begins).
+    /// Safe to call from any thread.
     public func stopFlick()
     {
+      coastLock.lock()
+      flickActive = false
+      focusActive = false
+      let generation = coastGeneration
+      coastLock.unlock()
+      
+      if Thread.isMainThread
+      {
+        stopCoastTimers(generation: generation)
+      }
+      else
+      {
+        DispatchQueue.main.async { [weak self] in self?.stopCoastTimers(generation: generation) }
+      }
+    }
+    
+    private enum Coast
+    {
+      case flick
+      case focus
+    }
+    
+    /// Bumps the coast generation and enables `which`.
+    private func beginCoast(_ which: Coast) -> UInt64
+    {
+      coastLock.lock()
+      defer { coastLock.unlock() }
+      coastGeneration &+= 1
+      switch which
+      {
+        case .flick: flickActive = true
+        case .focus: focusActive = true
+      }
+      return coastGeneration
+    }
+    
+    /// Whether the coast scheduled at `generation` still owns the timers.
+    private func coastActive(_ which: Coast, generation: UInt64) -> Bool
+    {
+      coastLock.lock()
+      defer { coastLock.unlock() }
+      guard coastGeneration == generation else { return false }
+      switch which
+      {
+        case .flick: return flickActive
+        case .focus: return focusActive
+      }
+    }
+    
+    /// Main thread only: tears down the coast timers.
+    private func stopCoastTimers(generation: UInt64)
+    {
+      coastLock.lock()
+      let current = coastGeneration
+      coastLock.unlock()
+      guard current == generation else { return }
+      
       flickTimer?.invalidate()
       flickTimer = nil
       flickVelocity = (0.0, 0.0)
@@ -355,85 +477,116 @@ public enum Hydra
 
     /// Frames the whole scene, keeping the current orientation `Home`
     /// (View All). Unlike `setupCamera`, it does not reset the rotation.
+    /// Safe to call from any thread.
     public func frameAll()
     {
-      stopFlick()
-      calculateOriginAndSize()
-      viewCamera.focus = worldCenter
-      viewCamera.distance = max(worldSize, 0.01)
+      performOnFrameQueue
+      {
+        self.stopFlick()
+        self.calculateOriginAndSize()
+        self.viewCamera.focus = self.worldCenter
+        self.viewCamera.distance = max(self.worldSize, 0.01)
+      }
     }
-
+    
     /// Frames the last-picked prim, keeping the current orientation `Numpad-.`
     /// (View Selected). Falls back to framing everything on no pick.
+    /// Safe to call from any thread.
     public func frameSelected()
     {
-      stopFlick()
-      
-      // nothing picked -> frames everything.
-      guard let path = lastPickedPath else { frameAll(); return }
-
-      // include render purpose so a render-only prim frames
-      // rather than coming back empty.
-      var bboxCache = computeBBoxCache(includeRender: true)
-      let bbox = bboxCache.ComputeWorldBound(stage.GetPrimAtPath(path))
-
-      // something picked but no usable bound -> leaves the view where it is.
-      guard !isInfiniteBBox(bbox) else { return }
-      
-      let range = bbox.ComputeAlignedRange()
-      guard !range.IsEmpty() else { return }
-
-      #if canImport(Gf)
-      let targetFocus = (range.GetMin().pointee + range.GetMax().pointee) / 2.0
-      #else
-      let targetFocus = (range.GetMin() + range.GetMax()) / 2.0
-      #endif
-      let targetDistance = max(range.GetSize().GetLength(), 0.01)
-      
-      animateCamera(toFocus: targetFocus, distance: targetDistance)
+      performOnFrameQueue
+      {
+        self.stopFlick()
+        
+        // nothing picked -> frames everything.
+        guard let path = self.lastPickedPath else { self.frameAll(); return }
+        
+        // include render purpose so a render-only prim frames
+        // rather than coming back empty.
+        var bboxCache = self.computeBBoxCache(includeRender: true)
+        let bbox = bboxCache.ComputeWorldBound(self.stage.GetPrimAtPath(path))
+        
+        // something picked but no usable bound -> leaves the view where it is.
+        guard !self.isInfiniteBBox(bbox) else { return }
+        
+        let range = bbox.ComputeAlignedRange()
+        guard !range.IsEmpty() else { return }
+        
+        #if canImport(Gf)
+        let targetFocus = (range.GetMin().pointee + range.GetMax().pointee) / 2.0
+        #else
+        let targetFocus = (range.GetMin() + range.GetMax()) / 2.0
+        #endif
+        let targetDistance = max(range.GetSize().GetLength(), 0.01)
+        
+        self.animateCamera(toFocus: targetFocus, distance: targetDistance)
+      }
     }
     
     private func animateCamera(toFocus targetFocus: Pixar.GfVec3d, distance targetDistance: Double)
     {
-      focusAnimationTimer?.invalidate()
-
-      let startFocus = viewCamera.focus
+      let generation = beginCoast(.focus)
+      let startFocus = SIMD3<Double>(viewCamera.focus[0], viewCamera.focus[1], viewCamera.focus[2])
+      let target = SIMD3<Double>(targetFocus[0], targetFocus[1], targetFocus[2])
       let startDistance = viewCamera.distance
       let startTime = Date()
+      
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        
+        self.focusAnimationTimer?.invalidate()
+        
+        let timer = Foundation.Timer(timeInterval: Self.flickInterval as TimeInterval, repeats: true)
+        { [weak self] timer in
+          guard let self else { timer.invalidate(); return }
+          guard self.coastActive(.focus, generation: generation) else { timer.invalidate(); return }
+          
+          let t = min(Date().timeIntervalSince(startTime) / Self.focusAnimationDuration, 1.0)
+          let eased = 1 - pow(1 - t, 3) // ease-out cubic: fast start, gentle settle.
+          
+          let focus = startFocus + (target - startFocus) * eased
+          let distance = startDistance + (targetDistance - startDistance) * eased
+          self.performOnFrameQueue
+          {
+            guard self.coastActive(.focus, generation: generation) else { return }
+            self.viewCamera.focus = Pixar.GfVec3d(focus[0], focus[1], focus[2])
+            self.viewCamera.distance = distance
+          }
+          
+          if t >= 1.0
+          {
+            self.coastLock.lock()
+            self.focusActive = false
+            self.coastLock.unlock()
+            timer.invalidate()
+            if self.focusAnimationTimer === timer { self.focusAnimationTimer = nil }
+          }
+        }
 
-      let timer = Foundation.Timer(timeInterval: Self.flickInterval as TimeInterval, repeats: true)
-      { [weak self] timer in
-        guard let self else { timer.invalidate(); return }
-
-        let t = min(Date().timeIntervalSince(startTime) / Self.focusAnimationDuration, 1.0)
-        let eased = 1 - pow(1 - t, 3) // ease-out cubic: fast start, gentle settle.
-
-        viewCamera.focus = startFocus + (targetFocus - startFocus) * eased
-        viewCamera.distance = startDistance + (targetDistance - startDistance) * eased
-
-        if t >= 1.0 { timer.invalidate() }
+        RunLoop.current.add(timer, forMode: .common)
+        self.focusAnimationTimer = timer
       }
-
-      RunLoop.current.add(timer, forMode: .common)
-      focusAnimationTimer = timer
     }
-
+    
     /// The six axis-aligned views, for numpad navigation.
-    public enum StandardView { case front, back, right, left, top, bottom }
-
+    public enum StandardView: Sendable { case front, back, right, left, top, bottom }
+    
     /// Snaps to an axis-aligned view, keeping the current focus and distance
-    /// (only the orientation changes).
+    /// (only the orientation changes). Safe to call from any thread.
     public func setStandardView(_ view: StandardView)
     {
-      stopFlick()
-      switch view
+      performOnFrameQueue
       {
-        case .front:  viewCamera.rotation = .init(0.0, 0.0, 0.0)
-        case .back:   viewCamera.rotation = .init(0.0, 180.0, 0.0)
-        case .right:  viewCamera.rotation = .init(0.0, -90.0, 0.0)
-        case .left:   viewCamera.rotation = .init(0.0, 90.0, 0.0)
-        case .top:    viewCamera.rotation = .init(-90.0, 0.0, 0.0)
-        case .bottom: viewCamera.rotation = .init(90.0, 0.0, 0.0)
+        self.stopFlick()
+        switch view
+        {
+          case .front:  self.viewCamera.rotation = .init(0.0, 0.0, 0.0)
+          case .back:   self.viewCamera.rotation = .init(0.0, 180.0, 0.0)
+          case .right:  self.viewCamera.rotation = .init(0.0, -90.0, 0.0)
+          case .left:   self.viewCamera.rotation = .init(0.0, 90.0, 0.0)
+          case .top:    self.viewCamera.rotation = .init(-90.0, 0.0, 0.0)
+          case .bottom: self.viewCamera.rotation = .init(90.0, 0.0, 0.0)
+        }
       }
     }
 
@@ -672,7 +825,13 @@ public enum Hydra
       if populateTask == nil
       {
         populateTask = Task.detached(priority: .userInitiated) { [self] in
-          _ = render(at: 0, viewSize: CGSize(width: 1, height: 1))
+          await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            frameQueue.async
+            {
+              _ = self.render(at: 0, viewSize: CGSize(width: 1, height: 1))
+              continuation.resume()
+            }
+          }
         }
       }
       await populateTask!.value
