@@ -200,7 +200,10 @@ public extension Hydra
       let semaphore = inFlightSemaphore
       guard semaphore.wait(timeout: .now()) == .success else { return }
 
-      guard view.drawableSize.width > 0, view.drawableSize.height > 0
+      guard
+        view.drawableSize.width > 0,
+        view.drawableSize.height > 0,
+        let layer = view.layer as? CAMetalLayer
       else { semaphore.signal(); return }
 
       // drawFrame gets a fresh drawable after hgi commits,
@@ -212,13 +215,13 @@ public extension Hydra
 
       hydra.frameQueue.async { [weak self] in
         guard let self else { semaphore.signal(); return }
-        self.drawFrame(in: view, timeCode: timeCode, fps: fps, drawableSize: drawableSize)
+        self.drawFrame(on: layer, timeCode: timeCode, fps: fps, drawableSize: drawableSize)
       }
     }
 
     /// draw the scene, and blit the result to the view off the main thread.
     @discardableResult
-    func drawFrame(in view: MTKView, timeCode: Double, fps: Int, drawableSize: CGSize) -> Bool
+    func drawFrame(on layer: CAMetalLayer, timeCode: Double, fps: Int, drawableSize: CGSize) -> Bool
     {
       let deltaTime = 1.0 / Double(fps)
       hydra?.frameDelegate?.hydraWillPull(deltaTime: deltaTime)
@@ -255,9 +258,10 @@ public extension Hydra
         hydra?.pendingSelection = nil
       }
 
-      // get a fresh drawable only after hgi is done
+      // get a fresh drawable only after hgi is done,
+      // `nextDrawable` is safe to call off the main thread.
       guard
-        let drawable = view.currentDrawable,
+        let drawable = layer.nextDrawable(),
         let blitCommandBuffer = commandQueue?.makeCommandBuffer()
       else { inFlightSemaphore.signal(); return false }
 
