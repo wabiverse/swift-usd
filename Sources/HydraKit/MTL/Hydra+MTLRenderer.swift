@@ -15,6 +15,11 @@ import OpenUSDKit
 #if canImport(Metal)
 import Metal
 import MetalKit
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 public extension Hydra
 {
@@ -56,7 +61,13 @@ public extension Hydra
     private var selectionModelBuffer: MTLBuffer?
     private var selectionModelBufferVersion = -1
 
-    private var inFlightSemaphore = DispatchSemaphore(value: 1)
+    /// Lets the next frame's CPU work overlap this one on the GPU.
+    private static let maxFramesInFlight = 3
+    private var inFlightSemaphore = DispatchSemaphore(value: maxFramesInFlight)
+
+    /// Set once drawing stops for good (on app exit), read on the main thread.
+    private var isStopped = false
+    private var terminateObserver: NSObjectProtocol?
 
     /// Matches `OutlineUniforms` in BlitShaders.metal:
     /// five `Int32`s, three `Int32`s of padding, then a
@@ -87,6 +98,41 @@ public extension Hydra
       super.init()
 
       setupPipeline()
+
+      #if canImport(AppKit)
+        let willTerminate = NSApplication.willTerminateNotification
+      #elseif canImport(UIKit)
+        let willTerminate = UIApplication.willTerminateNotification
+      #endif
+      terminateObserver = NotificationCenter.default.addObserver(forName: willTerminate,
+                                                                 object: nil,
+                                                                 queue: .main)
+      { [weak self] _ in
+        self?.stop()
+      }
+    }
+
+    deinit
+    {
+      if let terminateObserver
+      {
+        NotificationCenter.default.removeObserver(terminateObserver)
+      }
+    }
+
+    /// Stops drawing and waits out the frames in flight, so nothing touches
+    /// hydra once the process starts tearing down its resources. Call on the
+    /// main thread, where `draw(in:)` runs.
+    public func stop()
+    {
+      guard !isStopped else { return }
+      isStopped = true
+
+      hydra?.frameQueue.sync {}
+      for _ in 0 ..< Self.maxFramesInFlight
+      {
+        _ = inFlightSemaphore.wait(timeout: .now() + 1)
+      }
     }
 
     private func setupPipeline()
@@ -195,7 +241,7 @@ public extension Hydra
 
     public func draw(in view: MTKView)
     {
-      guard let hydra else { return }
+      guard !isStopped, let hydra else { return }
 
       let semaphore = inFlightSemaphore
       guard semaphore.wait(timeout: .now()) == .success else { return }
@@ -260,9 +306,11 @@ public extension Hydra
 
       // get a fresh drawable only after hgi is done,
       // `nextDrawable` is safe to call off the main thread.
+      // the blit goes on hgi's queue so it's ordered after
+      // the frame that wrote the AOV it reads.
       guard
         let drawable = layer.nextDrawable(),
-        let blitCommandBuffer = commandQueue?.makeCommandBuffer()
+        let blitCommandBuffer = hgi.GetQueue().makeCommandBuffer()
       else { inFlightSemaphore.signal(); return false }
 
       // signal via command buffer completion, not presented handler

@@ -3,9 +3,10 @@
 
 #include "pxr/pxrns.h"
 
+#include <OneTBB/tbb/concurrent_hash_map.h>
+
 #include <memory>
-#include <mutex>
-#include <unordered_map>
+#include <utility>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -22,45 +23,45 @@ template<class T> class Tf_SharedPtrRetainReleaseHelper {
  public:
   static T *Register(const std::shared_ptr<T> &ptr)
   {
-    std::lock_guard<std::mutex> lock(_GetMutex());
     T *raw = ptr.get();
-    _Entry &entry = _GetTable()[raw];
-    entry.first = ptr;
-    entry.second += 1;
+    typename _Table::accessor entry;
+    _GetTable().insert(entry, raw);
+    entry->second.first = ptr;
+    entry->second.second += 1;
     return raw;
   }
 
   static void Retain(T *raw)
   {
-    std::lock_guard<std::mutex> lock(_GetMutex());
-    auto it = _GetTable().find(raw);
-    if (it != _GetTable().end()) {
-      it->second.second += 1;
+    typename _Table::accessor entry;
+    if (_GetTable().find(entry, raw)) {
+      entry->second.second += 1;
     }
   }
 
   static void Release(T *raw)
   {
-    std::lock_guard<std::mutex> lock(_GetMutex());
-    auto it = _GetTable().find(raw);
-    if (it != _GetTable().end() && --it->second.second == 0) {
-      _GetTable().erase(it);
+    // destroyed once the entry's lock is dropped, in case T's
+    // destructor retains or releases something itself.
+    std::shared_ptr<T> last;
+    {
+      typename _Table::accessor entry;
+      if (!_GetTable().find(entry, raw) || --entry->second.second != 0) {
+        return;
+      }
+      last = std::move(entry->second.first);
+      _GetTable().erase(entry);
     }
   }
 
  private:
   using _Entry = std::pair<std::shared_ptr<T>, int>;
+  using _Table = tbb::concurrent_hash_map<T *, _Entry>;
 
-  static std::unordered_map<T *, _Entry> &_GetTable()
+  static _Table &_GetTable()
   {
-    static std::unordered_map<T *, _Entry> table;
+    static _Table table;
     return table;
-  }
-
-  static std::mutex &_GetMutex()
-  {
-    static std::mutex mutex;
-    return mutex;
   }
 };
 
