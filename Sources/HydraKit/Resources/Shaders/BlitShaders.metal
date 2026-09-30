@@ -21,6 +21,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <metal_stdlib>
 using namespace metal;
 
+// the id/depth AOVs are multisampled from storm, single sampled from most other delegates.
+constant bool kMultisampled [[function_constant(0)]];
+constant bool kSingleSampled = !kMultisampled;
+#define AOV_SAMPLES(tex) (kMultisampled ? tex##MS.get_num_samples() : 1u)
+#define AOV_READ(tex, coord, s) (kMultisampled ? tex##MS.read(coord, s) : tex##SS.read(coord))
+
 struct VertexOut
 {
   float4 position [[ position ]];
@@ -98,17 +104,20 @@ constant int kCloseRadius = 3;
 // discards noisy MSAA ids into a clean binary silhouette. grouping either a
 // single (primId, instanceId) pair (an instance / cell pick) or, for a model
 // pick, any primId flagged in `groupLUT`.
-kernel void jfaMask(texture2d_ms<int> primIdTex [[texture(0)]],
-                    texture2d_ms<int> instanceIdTex [[texture(1)]],
+kernel void jfaMask(texture2d_ms<int> primIdTexMS [[texture(0), function_constant(kMultisampled)]],
+                    texture2d<int> primIdTexSS [[texture(0), function_constant(kSingleSampled)]],
+                    texture2d_ms<int> instanceIdTexMS [[texture(1), function_constant(kMultisampled)]],
+                    texture2d<int> instanceIdTexSS [[texture(1), function_constant(kSingleSampled)]],
                     texture2d<float, access::write> maskOut [[texture(2)]],
-                    texture2d_ms<float> depthTex [[texture(3)]],
+                    texture2d_ms<float> depthTexMS [[texture(3), function_constant(kMultisampled)]],
+                    texture2d<float> depthTexSS [[texture(3), function_constant(kSingleSampled)]],
                     constant OutlineUniforms &u [[buffer(0)]],
                     device const int *groupLUT [[buffer(1)]],
                     uint2 gid [[thread_position_in_grid]])
 {
   if (gid.x >= maskOut.get_width() || gid.y >= maskOut.get_height()) { return; }
 
-  const uint samples = primIdTex.get_num_samples();
+  const uint samples = AOV_SAMPLES(primIdTex);
   uint hits = 0u;
   for (uint s = 0; s < samples; ++s) {
     // reject samples with no current-frame geometry,
@@ -116,16 +125,16 @@ kernel void jfaMask(texture2d_ms<int> primIdTex [[texture(0)]],
     // draws, so a cached pixel keeps a stale id, but
     // depth is always cleared to far (1.0), so this
     // drops any ghosting/artifacting outlines.
-    if (depthTex.read(gid, s).r >= 1.0) { continue; }
+    if (AOV_READ(depthTex, gid, s).r >= 1.0) { continue; }
 
-    const int pid = primIdTex.read(gid, s).r;
+    const int pid = AOV_READ(primIdTex, gid, s).r;
     bool match;
     if (u.selectAll != 0) {
       match = (pid >= 0);
     } else if (u.useGroup != 0) {
       match = (pid >= 0 && pid < u.groupCount && groupLUT[pid] != 0);
     } else {
-      const int iid = instanceIdTex.read(gid, s).r;
+      const int iid = AOV_READ(instanceIdTex, gid, s).r;
       match = (pid == u.selectedPrimId && iid == u.selectedInstanceId);
     }
     if (match) { ++hits; }
@@ -209,8 +218,10 @@ kernel void jfaSeed(texture2d<float, access::read> maskIn [[texture(0)]],
 
 // per-pixel model label: the depth-gated model id across the MSAA samples.
 // also emits the texture that the morphological close/fill runs on.
-kernel void jfaLabel(texture2d_ms<int> primIdTex [[texture(0)]],
-                     texture2d_ms<float> depthTex [[texture(1)]],
+kernel void jfaLabel(texture2d_ms<int> primIdTexMS [[texture(0), function_constant(kMultisampled)]],
+                     texture2d<int> primIdTexSS [[texture(0), function_constant(kSingleSampled)]],
+                     texture2d_ms<float> depthTexMS [[texture(1), function_constant(kMultisampled)]],
+                     texture2d<float> depthTexSS [[texture(1), function_constant(kSingleSampled)]],
                      texture2d<int, access::write> labelOut [[texture(2)]],
                      texture2d<float, access::write> presenceOut [[texture(3)]],
                      constant OutlineUniforms &u [[buffer(0)]],
@@ -219,12 +230,12 @@ kernel void jfaLabel(texture2d_ms<int> primIdTex [[texture(0)]],
 {
   if (gid.x >= labelOut.get_width() || gid.y >= labelOut.get_height()) { return; }
 
-  const uint samples = primIdTex.get_num_samples();
+  const uint samples = AOV_SAMPLES(primIdTex);
   int labels[16];
   uint n = 0u;
   for (uint s = 0; s < samples && n < 16u; ++s) {
-    if (depthTex.read(gid, s).r >= 1.0) { continue; } // no current geometry
-    const int pid = primIdTex.read(gid, s).r;
+    if (AOV_READ(depthTex, gid, s).r >= 1.0) { continue; } // no current geometry
+    const int pid = AOV_READ(primIdTex, gid, s).r;
     labels[n++] = (pid >= 0 && pid < u.modelCount) ? modelLUT[pid] : 0;
   }
 
@@ -351,12 +362,14 @@ fragment half4 fragSelectionOutline(VertexOut in [[stage_in]],
 // (primId, instanceId) out, a blit cannot copy a single sample
 // of a multisampled texture, so the selection readback has to
 // go through this instead.
-kernel void readSelectionId(texture2d_ms<int> primIdTex [[texture(0)]],
-                            texture2d_ms<int> instanceIdTex [[texture(1)]],
+kernel void readSelectionId(texture2d_ms<int> primIdTexMS [[texture(0), function_constant(kMultisampled)]],
+                            texture2d<int> primIdTexSS [[texture(0), function_constant(kSingleSampled)]],
+                            texture2d_ms<int> instanceIdTexMS [[texture(1), function_constant(kMultisampled)]],
+                            texture2d<int> instanceIdTexSS [[texture(1), function_constant(kSingleSampled)]],
                             device int2 *out [[buffer(0)]],
                             constant uint2 &coord [[buffer(1)]],
                             uint tid [[thread_position_in_grid]])
 {
   if (tid != 0) { return; }
-  out[0] = int2(primIdTex.read(coord, 0).r, instanceIdTex.read(coord, 0).r);
+  out[0] = int2(AOV_READ(primIdTex, coord, 0).r, AOV_READ(instanceIdTex, coord, 0).r);
 }

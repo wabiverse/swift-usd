@@ -30,13 +30,14 @@ public extension Hydra
 
     private var pipelineState: MTLRenderPipelineState?
     private var outlinePipelineState: MTLRenderPipelineState?
-    private var selectionReadPipelineState: MTLComputePipelineState?
-    private var jfaMaskPipelineState: MTLComputePipelineState?
+    /// Kernels that read the id/depth AOVs, keyed by whether those are multisampled.
+    private var selectionReadPipelineStates: [Bool: MTLComputePipelineState] = [:]
+    private var jfaMaskPipelineStates: [Bool: MTLComputePipelineState] = [:]
     private var jfaDilatePipelineState: MTLComputePipelineState?
     private var jfaErodePipelineState: MTLComputePipelineState?
     private var jfaSeedPipelineState: MTLComputePipelineState?
     private var jfaStepPipelineState: MTLComputePipelineState?
-    private var jfaLabelPipelineState: MTLComputePipelineState?
+    private var jfaLabelPipelineStates: [Bool: MTLComputePipelineState] = [:]
     private var jfaLabelFillPipelineState: MTLComputePipelineState?
     private var jfaLabelSeedPipelineState: MTLComputePipelineState?
     private var commandQueue: MTLCommandQueue?
@@ -135,6 +136,21 @@ public extension Hydra
       }
     }
 
+    /// Builds `name` for multisampled and single sampled id/depth AOVs.
+    private func makeAovPipelines(_ library: MTLLibrary, name: String) throws -> [Bool: MTLComputePipelineState]
+    {
+      var pipelines: [Bool: MTLComputePipelineState] = [:]
+      for multisampled in [true, false]
+      {
+        let constants = MTLFunctionConstantValues()
+        var value = multisampled
+        constants.setConstantValue(&value, type: .bool, index: 0)
+        let function = try library.makeFunction(name: name, constantValues: constants)
+        pipelines[multisampled] = try device.makeComputePipelineState(function: function)
+      }
+      return pipelines
+    }
+
     private func setupPipeline()
     {
       commandQueue = device.makeCommandQueue()
@@ -181,19 +197,13 @@ public extension Hydra
           outlinePipelineState = try device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
         }
 
-        // reads sample 0 of the MSAA id AOVs at the click texel for the outline.
-        if let readFunction = defaultLibrary.makeFunction(name: "readSelectionId")
-        {
-          selectionReadPipelineState = try device.makeComputePipelineState(function: readFunction)
-        }
+        // reads sample 0 of the id AOVs at the click texel for the outline.
+        selectionReadPipelineStates = try makeAovPipelines(defaultLibrary, name: "readSelectionId")
 
         // jump-flood passes that build the outline distance field: clean the id
         // AOVs into a solid mask (majority + morphological close), seed it, then
         // propagate nearest-silhouette coordinates.
-        if let maskFunction = defaultLibrary.makeFunction(name: "jfaMask")
-        {
-          jfaMaskPipelineState = try device.makeComputePipelineState(function: maskFunction)
-        }
+        jfaMaskPipelineStates = try makeAovPipelines(defaultLibrary, name: "jfaMask")
         if let dilateFunction = defaultLibrary.makeFunction(name: "jfaDilate")
         {
           jfaDilatePipelineState = try device.makeComputePipelineState(function: dilateFunction)
@@ -212,10 +222,7 @@ public extension Hydra
         }
 
         // select-all: per-object labeling, hole fill, and inter-object edge seed.
-        if let labelFunction = defaultLibrary.makeFunction(name: "jfaLabel")
-        {
-          jfaLabelPipelineState = try device.makeComputePipelineState(function: labelFunction)
-        }
+        jfaLabelPipelineStates = try makeAovPipelines(defaultLibrary, name: "jfaLabel")
         if let labelFillFunction = defaultLibrary.makeFunction(name: "jfaLabelFill")
         {
           jfaLabelFillPipelineState = try device.makeComputePipelineState(function: labelFillFunction)
@@ -509,7 +516,8 @@ public extension Hydra
                                      modelBuffer: MTLBuffer?,
                                      uniforms: inout OutlineUniforms) -> MTLTexture?
     {
-      guard let maskPipeline = jfaMaskPipelineState,
+      let multisampled = primTex.textureType == .type2DMultisample
+      guard let maskPipeline = jfaMaskPipelineStates[multisampled],
             let dilatePipeline = jfaDilatePipelineState,
             let erodePipeline = jfaErodePipelineState,
             let seedPipeline = jfaSeedPipelineState,
@@ -555,7 +563,7 @@ public extension Hydra
         // per-object path: label every pixel by its model,
         // then seed the borders between different objects
         // (and against the background).
-        guard let labelPipeline = jfaLabelPipelineState,
+        guard let labelPipeline = jfaLabelPipelineStates[multisampled],
               let fillPipeline = jfaLabelFillPipelineState,
               let labelSeedPipeline = jfaLabelSeedPipelineState,
               let modelBuffer
@@ -645,7 +653,7 @@ public extension Hydra
               let instHgi = hydra?.aovTexture(.instanceId),
               let primTex = primHgi.asMetalTexture,
               let instTex = instHgi.asMetalTexture,
-              let pipeline = selectionReadPipelineState,
+              let pipeline = selectionReadPipelineStates[primTex.textureType == .type2DMultisample],
               let queue = commandQueue
         else { print("[hydra] selection: id AOV textures unavailable"); return }
 
@@ -679,6 +687,7 @@ public extension Hydra
         let ids = out.contents().load(as: SIMD2<Int32>.self)
         hydra?.selectedPrimId = ids.x
         hydra?.selectedInstanceId = ids.y
+        hydra?.resolvePickFromAovs(primId: ids.x, instanceId: ids.y)
       #endif
     }
   }

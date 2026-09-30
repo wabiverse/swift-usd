@@ -234,6 +234,21 @@ public extension Hydra.RenderEngine
                       worldPoint: hitPoint)
   }
 
+  /// A click falls back to the selected prim ID. Runs
+  /// on the frame queue once the renderer has read them.
+  func resolvePickFromAovs(primId: Int32, instanceId: Int32)
+  {
+    guard
+      pickState.lastPickedPath == nil,
+      primId >= 0,
+      let path = engine.decodePrimPath(primId: primId, instanceId: instanceId)
+    else { return }
+
+    pickState.lastPickedPath = path
+    selectModel(root: modelRoot(of: path))
+    engine.AddSelected(path, -1)
+  }
+
   /// The enclosing model of `path` - the nearest ancestor (or the prim itself)
   /// that is a model but not a group, (i.e. a component, matching usdview's model
   /// pick mode). Falls back to `path` when the prim is not inside a model, so the
