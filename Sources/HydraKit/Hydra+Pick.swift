@@ -49,6 +49,9 @@ public extension Hydra.RenderEngine
     var selectionModelLUTVersion: Int = 0
     var primIdPathCache: [(id: Int32, path: SdfPath)]?
     var lastPickedPath: SdfPath?
+    /// The prim the outline covers, its bounds frame the outline region.
+    var selectionRoot: SdfPath?
+    var selectionBounds: (key: String, time: Double, min: SIMD3<Double>, max: SIMD3<Double>)?
   }
 
   /// A click waiting for the renderer to read the id AOVs under it.
@@ -206,6 +209,7 @@ public extension Hydra.RenderEngine
     {
       pickState.selectionGroup = []
       pickState.lastPickedPath = nil
+      pickState.selectionRoot = nil
       return nil
     }
 
@@ -218,6 +222,7 @@ public extension Hydra.RenderEngine
       // the cell the pick resolved to - kept individually
       // selectable via (primId, instanceId).
       engine.AddSelected(instancerPath, instanceIndex)
+      pickState.selectionRoot = instancerPath
     }
     else
     {
@@ -247,6 +252,72 @@ public extension Hydra.RenderEngine
     pickState.lastPickedPath = path
     selectModel(root: modelRoot(of: path))
     engine.AddSelected(path, -1)
+  }
+
+  /// Where the selection's outline can land in a `width` x `height` AOV
+  /// (row 0 at the bottom), as origin.xy, size.xy padded by `margin`. The
+  /// whole AOV when the selection's bounds are unknown, empty when it is
+  /// off screen. Runs on the frame queue.
+  func selectionRegion(width: Int, height: Int, margin: Int) -> SIMD4<Int32>
+  {
+    let full = SIMD4<Int32>(0, 0, Int32(width), Int32(height))
+    guard
+      !pickState.selectionSelectAll,
+      let root = pickState.selectionRoot,
+      let m = lastViewProjection,
+      let bounds = selectionBounds(root)
+    else { return full }
+
+    var lo = SIMD2<Double>(repeating: .infinity)
+    var hi = SIMD2<Double>(repeating: -.infinity)
+    for corner in 0 ..< 8
+    {
+      let p = SIMD3(corner & 1 != 0 ? bounds.max.x : bounds.min.x,
+                    corner & 2 != 0 ? bounds.max.y : bounds.min.y,
+                    corner & 4 != 0 ? bounds.max.z : bounds.min.z)
+
+      // row vector times the row major world to clip transform.
+      let clip = (0 ..< 4).map { p.x * m[$0] + p.y * m[4 + $0] + p.z * m[8 + $0] + m[12 + $0] }
+      // a corner behind the eye can project anywhere.
+      guard clip[3] > 1e-6 else { return full }
+
+      let ndc = SIMD2(clip[0], clip[1]) / clip[3]
+      lo = pointwiseMin(lo, ndc)
+      hi = pointwiseMax(hi, ndc)
+    }
+
+    let size = SIMD2(Double(width), Double(height))
+    let x0 = max(Int(((lo.x * 0.5 + 0.5) * size.x).rounded(.down)) - margin, 0)
+    let y0 = max(Int(((lo.y * 0.5 + 0.5) * size.y).rounded(.down)) - margin, 0)
+    let x1 = min(Int(((hi.x * 0.5 + 0.5) * size.x).rounded(.up)) + margin, width)
+    let y1 = min(Int(((hi.y * 0.5 + 0.5) * size.y).rounded(.up)) + margin, height)
+    guard x1 > x0, y1 > y0 else { return .zero }
+    return SIMD4(Int32(x0), Int32(y0), Int32(x1 - x0), Int32(y1 - y0))
+  }
+
+  /// The world bounds of `root` at the drawn time, cached until either changes.
+  private func selectionBounds(_ root: SdfPath) -> (min: SIMD3<Double>, max: SIMD3<Double>)?
+  {
+    let key = root.string
+    if let cached = pickState.selectionBounds, cached.key == key, cached.time == lastRenderTimeCode
+    {
+      return (cached.min, cached.max)
+    }
+
+    var bboxCache = computeBBoxCache(includeRender: true, at: lastRenderTimeCode)
+    let bbox = bboxCache.ComputeWorldBound(stage.GetPrimAtPath(root))
+    guard !isInfiniteBBox(bbox) else { return nil }
+    let range = bbox.ComputeAlignedRange()
+    guard !range.IsEmpty() else { return nil }
+
+    #if canImport(Gf)
+      let lo = range.GetMin().pointee, hi = range.GetMax().pointee
+    #else
+      let lo = range.GetMin(), hi = range.GetMax()
+    #endif
+    let bounds = (min: SIMD3(lo[0], lo[1], lo[2]), max: SIMD3(hi[0], hi[1], hi[2]))
+    pickState.selectionBounds = (key, lastRenderTimeCode, bounds.min, bounds.max)
+    return bounds
   }
 
   /// The enclosing model of `path` - the nearest ancestor (or the prim itself)
@@ -296,6 +367,7 @@ public extension Hydra.RenderEngine
   /// (e.g. the decode is unavailable, so this degrades rather than clears).
   private func selectModel(root: SdfPath)
   {
+    pickState.selectionRoot = root
     let cache = ensurePrimIdPathCache()
     guard let maxId = cache.map({ $0.id }).max() else { return }
 
@@ -374,6 +446,7 @@ public extension Hydra.RenderEngine
       self.pickState.selectionSelectAll = false
       self.pickState.selectionGroup = []
       self.pickState.lastPickedPath = nil
+      self.pickState.selectionRoot = nil
       self.engine.ClearSelected()
     }
   }

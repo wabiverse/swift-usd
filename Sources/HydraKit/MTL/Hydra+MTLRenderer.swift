@@ -37,6 +37,7 @@ public extension Hydra
     private var jfaErodePipelineState: MTLComputePipelineState?
     private var jfaSeedPipelineState: MTLComputePipelineState?
     private var jfaStepPipelineState: MTLComputePipelineState?
+    private var jfaArgsPipelineState: MTLComputePipelineState?
     private var jfaLabelPipelineStates: [Bool: MTLComputePipelineState] = [:]
     private var jfaLabelFillPipelineState: MTLComputePipelineState?
     private var jfaLabelSeedPipelineState: MTLComputePipelineState?
@@ -48,6 +49,15 @@ public extension Hydra
     /// Ping-pong single-channel masks for the majority-coverage silhouette and
     /// its morphological close, before it is seeded into the distance field.
     private var jfaMaskTextures: [MTLTexture] = []
+    /// The raw selection mask, kept across frames so a change can be detected.
+    private var jfaRawMask: MTLTexture?
+    /// Set by the mask pass when it changed, and the indirect dispatch it turns into.
+    private var jfaChanged: MTLBuffer?
+    private var jfaArgs: MTLBuffer?
+    /// What the last outline field was built for, a change rebuilds it.
+    private var jfaRegion = SIMD4<Int32>.zero
+    private var jfaWidth: Int32 = -1
+    private var jfaTexturesChanged = true
     /// Ping-pong per-pixel model-label targets used by the select-all path to tell
     /// objects apart (raw labels, then hole-filled).
     private var jfaLabelTextures: [MTLTexture] = []
@@ -71,7 +81,7 @@ public extension Hydra
     private var terminateObserver: NSObjectProtocol?
 
     /// Matches `OutlineUniforms` in BlitShaders.metal:
-    /// five `Int32`s, three `Int32`s of padding, then a
+    /// eight `Int32`s, the region as an int4, then a
     /// 16-byte-aligned float4.
     private struct OutlineUniforms
     {
@@ -83,6 +93,7 @@ public extension Hydra
       var selectAll: Int32 = 0
       var modelCount: Int32 = 0
       var pad2: Int32 = 0
+      var region = SIMD4<Int32>.zero
       var outlineColor: SIMD4<Float>
     }
 
@@ -220,6 +231,12 @@ public extension Hydra
         {
           jfaStepPipelineState = try device.makeComputePipelineState(function: stepFunction)
         }
+        if let argsFunction = defaultLibrary.makeFunction(name: "jfaArgs")
+        {
+          jfaArgsPipelineState = try device.makeComputePipelineState(function: argsFunction)
+        }
+        jfaChanged = device.makeBuffer(length: MemoryLayout<UInt32>.stride, options: .storageModeShared)
+        jfaArgs = device.makeBuffer(length: 3 * MemoryLayout<UInt32>.stride, options: .storageModePrivate)
 
         // select-all: per-object labeling, hole fill, and inter-object edge seed.
         jfaLabelPipelineStates = try makeAovPipelines(defaultLibrary, name: "jfaLabel")
@@ -352,6 +369,9 @@ public extension Hydra
          let depthTex = depthHgi.asMetalTexture
       {
         let c = hydra.selectionOutlineColor
+        // the stroke plus the morphological close's reach around the selection.
+        let region = hydra.selectionRegion(width: primTex.width, height: primTex.height,
+                                           margin: Int(hydra.selectionOutlineWidth) + 5)
         outlineUniforms = OutlineUniforms(selectedPrimId: hydra.selectedPrimId,
                                           selectedInstanceId: hydra.selectedInstanceId,
                                           outlineWidth: hydra.selectionOutlineWidth,
@@ -359,9 +379,10 @@ public extension Hydra
                                           groupCount: Int32(hydra.selectionGroup.count),
                                           selectAll: hydra.selectionSelectAll ? 1 : 0,
                                           modelCount: Int32(hydra.selectionModelLUT.count),
+                                          region: region,
                                           outlineColor: SIMD4<Float>(Float(c[0]), Float(c[1]),
                                                                      Float(c[2]), Float(c[3])))
-        outlineSeedTexture = computeOutlineField(commandBuffer: commandBuffer,
+        outlineSeedTexture = region.z == 0 ? nil : computeOutlineField(commandBuffer: commandBuffer,
                                                  primTex: primTex, instTex: instTex,
                                                  depthTex: depthTex,
                                                  groupBuffer: groupBuffer(for: hydra),
@@ -449,6 +470,8 @@ public extension Hydra
         jfaMaskTextures = [m0, m1]
         jfaLabelTextures = [l0, l1]
       }
+      jfaRawMask = device.makeTexture(descriptor: maskDesc)
+      jfaTexturesChanged = true
     }
 
     /// GPU copy of the model-pick id table, rebuilt only when the selection
@@ -522,40 +545,80 @@ public extension Hydra
             let erodePipeline = jfaErodePipelineState,
             let seedPipeline = jfaSeedPipelineState,
             let stepPipeline = jfaStepPipelineState,
+            let argsPipeline = jfaArgsPipelineState,
+            let changed = jfaChanged,
+            let args = jfaArgs,
             let groupBuffer
       else { return nil }
 
       let w = primTex.width, h = primTex.height
       ensureJFATextures(width: w, height: h)
-      guard jfaSeedTextures.count == 2, jfaMaskTextures.count == 2, jfaLabelTextures.count == 2
+      guard jfaSeedTextures.count == 2, jfaMaskTextures.count == 2, jfaLabelTextures.count == 2,
+            let rawMask = jfaRawMask
       else { return nil }
 
-      let threads = MTLSize(width: 16, height: 16, depth: 1)
-      let groups = MTLSize(width: (w + 15) / 16, height: (h + 15) / 16, depth: 1)
+      // the field is only rebuilt when the mask changed, unless what it was
+      // built for did, (select-all always rebuilds, it has no change check).
+      var force: UInt32 = (uniforms.selectAll != 0 || jfaTexturesChanged
+                           || uniforms.region != jfaRegion || uniforms.outlineWidth != jfaWidth) ? 1 : 0
+      jfaTexturesChanged = false
+      jfaRegion = uniforms.region
+      jfaWidth = uniforms.outlineWidth
 
-      func encode(_ pipeline: MTLComputePipelineState,
+      var region = SIMD4<UInt32>(truncatingIfNeeded: uniforms.region)
+      let threads = MTLSize(width: 16, height: 16, depth: 1)
+      let regionGroups = MTLSize(width: (Int(region.z) + 15) / 16, height: (Int(region.w) + 15) / 16, depth: 1)
+      let fullGroups = MTLSize(width: (w + 15) / 16, height: (h + 15) / 16, depth: 1)
+
+      func encode(_ pipeline: MTLComputePipelineState, groups: MTLSize?,
                   _ configure: (MTLComputeCommandEncoder) -> Void) -> Bool
       {
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else { return false }
         encoder.setComputePipelineState(pipeline)
+        encoder.setBytes(&region, length: MemoryLayout<SIMD4<UInt32>>.stride, index: 7)
         configure(encoder)
-        encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
+        if let groups
+        {
+          encoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
+        }
+        else
+        {
+          encoder.dispatchThreadgroups(indirectBuffer: args, indirectBufferOffset: 0,
+                                       threadsPerThreadgroup: threads)
+        }
         encoder.endEncoding()
         return true
       }
 
-      // close the presence mask (dilate then erode):
-      // mask[0] -> mask[1] -> mask[0].
-      func closePresence() -> Bool
+      // the GPU decides whether the rest runs: no threadgroups when unchanged.
+      func encodeArgs() -> Bool
       {
-        encode(dilatePipeline, { encoder in
-          encoder.setTexture(jfaMaskTextures[0], index: 0)
-          encoder.setTexture(jfaMaskTextures[1], index: 1)
-        }) &&
-        encode(erodePipeline, { encoder in
-          encoder.setTexture(jfaMaskTextures[1], index: 0)
-          encoder.setTexture(jfaMaskTextures[0], index: 1)
+        encode(argsPipeline, groups: MTLSize(width: 1, height: 1, depth: 1), { encoder in
+          encoder.setBuffer(changed, offset: 0, index: 0)
+          encoder.setBuffer(args, offset: 0, index: 1)
+          encoder.setBytes(&force, length: MemoryLayout<UInt32>.stride, index: 2)
         })
+      }
+
+      // close the presence mask (dilate then erode), one axis per pass:
+      // input -> mask[1] -> mask[0] -> mask[1] -> mask[0].
+      func closePresence(_ input: MTLTexture) -> Bool
+      {
+        let passes: [(MTLComputePipelineState, MTLTexture, MTLTexture, SIMD2<Int32>)] = [
+          (dilatePipeline, input, jfaMaskTextures[1], SIMD2(1, 0)),
+          (dilatePipeline, jfaMaskTextures[1], jfaMaskTextures[0], SIMD2(0, 1)),
+          (erodePipeline, jfaMaskTextures[0], jfaMaskTextures[1], SIMD2(1, 0)),
+          (erodePipeline, jfaMaskTextures[1], jfaMaskTextures[0], SIMD2(0, 1)),
+        ]
+        return passes.allSatisfy
+        { pipeline, source, destination, axis in
+          var axis = axis
+          return encode(pipeline, groups: nil, { encoder in
+            encoder.setTexture(source, index: 0)
+            encoder.setTexture(destination, index: 1)
+            encoder.setBytes(&axis, length: MemoryLayout<SIMD2<Int32>>.stride, index: 0)
+          })
+        }
       }
 
       if uniforms.selectAll != 0
@@ -571,18 +634,18 @@ public extension Hydra
 
         // label + presence:
         // id/depth/modelLUT -> label[0], presence in mask[0].
-        guard encode(labelPipeline, { encoder in
+        guard encode(labelPipeline, groups: fullGroups, { encoder in
           encoder.setTexture(primTex, index: 0)
           encoder.setTexture(depthTex, index: 1)
           encoder.setTexture(jfaLabelTextures[0], index: 2)
           encoder.setTexture(jfaMaskTextures[0], index: 3)
           encoder.setBytes(&uniforms, length: MemoryLayout<OutlineUniforms>.stride, index: 0)
           encoder.setBuffer(modelBuffer, offset: 0, index: 1)
-        }), closePresence() else { return nil }
+        }), encodeArgs(), closePresence(jfaMaskTextures[0]) else { return nil }
 
         // fill antialiased label holes inside the closed mask:
         // label[0] -> label[1].
-        guard encode(fillPipeline, { encoder in
+        guard encode(fillPipeline, groups: fullGroups, { encoder in
           encoder.setTexture(jfaLabelTextures[0], index: 0)
           encoder.setTexture(jfaMaskTextures[0], index: 1)
           encoder.setTexture(jfaLabelTextures[1], index: 2)
@@ -590,7 +653,7 @@ public extension Hydra
 
         // seed every object border:
         // label[1] + closed mask -> seed[0].
-        guard encode(labelSeedPipeline, { encoder in
+        guard encode(labelSeedPipeline, groups: fullGroups, { encoder in
           encoder.setTexture(jfaLabelTextures[1], index: 0)
           encoder.setTexture(jfaMaskTextures[0], index: 1)
           encoder.setTexture(jfaSeedTextures[0], index: 2)
@@ -598,20 +661,21 @@ public extension Hydra
       }
       else
       {
-        // single-selection path: id AOVs -> clean majority silhouette in mask[0].
+        // single-selection path: id AOVs -> clean majority silhouette in the raw mask.
         // The group table drives model-pick membership, dummy for id-pair picks.
-        guard encode(maskPipeline, { encoder in
+        guard encode(maskPipeline, groups: regionGroups, { encoder in
           encoder.setTexture(primTex, index: 0)
           encoder.setTexture(instTex, index: 1)
-          encoder.setTexture(jfaMaskTextures[0], index: 2)
+          encoder.setTexture(rawMask, index: 2)
           encoder.setTexture(depthTex, index: 3)
           encoder.setBytes(&uniforms, length: MemoryLayout<OutlineUniforms>.stride, index: 0)
           encoder.setBuffer(groupBuffer, offset: 0, index: 1)
-        }), closePresence() else { return nil }
+          encoder.setBuffer(changed, offset: 0, index: 2)
+        }), encodeArgs(), closePresence(rawMask) else { return nil }
 
         // seed the silhouette boundary of the closed mask:
         // mask[0] -> seed[0].
-        guard encode(seedPipeline, { encoder in
+        guard encode(seedPipeline, groups: nil, { encoder in
           encoder.setTexture(jfaMaskTextures[0], index: 0)
           encoder.setTexture(jfaSeedTextures[0], index: 1)
         }) else { return nil }
@@ -628,14 +692,12 @@ public extension Hydra
       while step >= 1
       {
         let dst = 1 - src
-        guard let stepEncoder = commandBuffer.makeComputeCommandEncoder() else { return nil }
-        stepEncoder.setComputePipelineState(stepPipeline)
-        stepEncoder.setTexture(jfaSeedTextures[src], index: 0)
-        stepEncoder.setTexture(jfaSeedTextures[dst], index: 1)
         var s = UInt32(step)
-        stepEncoder.setBytes(&s, length: MemoryLayout<UInt32>.stride, index: 0)
-        stepEncoder.dispatchThreadgroups(groups, threadsPerThreadgroup: threads)
-        stepEncoder.endEncoding()
+        guard encode(stepPipeline, groups: nil, { encoder in
+          encoder.setTexture(jfaSeedTextures[src], index: 0)
+          encoder.setTexture(jfaSeedTextures[dst], index: 1)
+          encoder.setBytes(&s, length: MemoryLayout<UInt32>.stride, index: 0)
+        }) else { return nil }
         src = dst
         step >>= 1
       }

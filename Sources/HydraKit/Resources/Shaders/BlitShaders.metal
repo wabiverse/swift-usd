@@ -74,8 +74,20 @@ struct OutlineUniforms
   int selectAll;    // every prim is selected (outline the whole scene)
   int modelCount;   // number of entries in modelLUT (select-all)
   int _pad2;
+  int4 region;      // origin.xy, size.xy of where the outline is built
   float4 outlineColor;
 };
+
+// the outline is only built over the selection's screen region, texels
+// outside it hold whatever an earlier frame left, so no read leaves it.
+struct OutlineRegion
+{
+  uint2 origin;
+  uint2 size;
+};
+
+inline bool regionContains(uint2 tid, constant OutlineRegion &r) { return all(tid < r.size); }
+inline int2 regionClamp(int2 q, constant OutlineRegion &r) { return clamp(q, int2(r.origin), int2(r.origin + r.size) - 1); }
 
 // ---- selection outline: jump-flood distance field --------------------------
 //
@@ -108,14 +120,17 @@ kernel void jfaMask(texture2d_ms<int> primIdTexMS [[texture(0), function_constan
                     texture2d<int> primIdTexSS [[texture(0), function_constant(kSingleSampled)]],
                     texture2d_ms<int> instanceIdTexMS [[texture(1), function_constant(kMultisampled)]],
                     texture2d<int> instanceIdTexSS [[texture(1), function_constant(kSingleSampled)]],
-                    texture2d<float, access::write> maskOut [[texture(2)]],
+                    texture2d<float, access::read_write> maskOut [[texture(2)]],
                     texture2d_ms<float> depthTexMS [[texture(3), function_constant(kMultisampled)]],
                     texture2d<float> depthTexSS [[texture(3), function_constant(kSingleSampled)]],
                     constant OutlineUniforms &u [[buffer(0)]],
                     device const int *groupLUT [[buffer(1)]],
-                    uint2 gid [[thread_position_in_grid]])
+                    device atomic_uint *changed [[buffer(2)]],
+                    constant OutlineRegion &region [[buffer(7)]],
+                    uint2 tid [[thread_position_in_grid]])
 {
-  if (gid.x >= maskOut.get_width() || gid.y >= maskOut.get_height()) { return; }
+  if (!regionContains(tid, region)) { return; }
+  const uint2 gid = tid + region.origin;
 
   const uint samples = AOV_SAMPLES(primIdTex);
   uint hits = 0u;
@@ -139,45 +154,62 @@ kernel void jfaMask(texture2d_ms<int> primIdTexMS [[texture(0), function_constan
     }
     if (match) { ++hits; }
   }
-  maskOut.write(float4(hits * 2u >= samples ? 1.0 : 0.0), gid);
+  // flags any change, so the rest of the outline is only rebuilt when it moved.
+  const float value = hits * 2u >= samples ? 1.0 : 0.0;
+  if (maskOut.read(gid).r != value) { atomic_store_explicit(changed, 1u, memory_order_relaxed); }
+  maskOut.write(float4(value), gid);
 }
 
-// morphological dilate (max) of the mask by kCloseRadius.
-// paired with the erode folded into `jfaSeed`, this fills
-// any interior holes.
+// turns the mask's change flag into the indirect dispatch the rest of the
+// outline runs with, no threadgroups while the mask holds still, so the
+// last frame's field is reused.
+kernel void jfaArgs(device atomic_uint *changed [[buffer(0)]],
+                    device uint *args [[buffer(1)]],
+                    constant uint &force [[buffer(2)]],
+                    constant OutlineRegion &region [[buffer(7)]],
+                    uint tid [[thread_position_in_grid]])
+{
+  if (tid != 0) { return; }
+  const bool rebuild = atomic_exchange_explicit(changed, 0u, memory_order_relaxed) != 0u || force != 0u;
+  const uint2 groups = rebuild ? (region.size + 15u) / 16u : uint2(0u);
+  args[0] = groups.x;
+  args[1] = groups.y;
+  args[2] = 1u;
+}
+
+// morphological dilate (max) of the mask by kCloseRadius,
+// one axis per pass, run horizontally then vertically.
 kernel void jfaDilate(texture2d<float, access::read> maskIn [[texture(0)]],
                       texture2d<float, access::write> maskOut [[texture(1)]],
-                      uint2 gid [[thread_position_in_grid]])
+                      constant int2 &axis [[buffer(0)]],
+                      constant OutlineRegion &region [[buffer(7)]],
+                      uint2 tid [[thread_position_in_grid]])
 {
-  const int2 size = int2(maskIn.get_width(), maskIn.get_height());
-  if (int(gid.x) >= size.x || int(gid.y) >= size.y) { return; }
+  if (!regionContains(tid, region)) { return; }
+  const uint2 gid = tid + region.origin;
 
   float v = 0.0;
-  for (int dy = -kCloseRadius; dy <= kCloseRadius; ++dy) {
-    for (int dx = -kCloseRadius; dx <= kCloseRadius; ++dx) {
-      const int2 q = clamp(int2(gid) + int2(dx, dy), int2(0), size - 1);
-      v = max(v, maskIn.read(uint2(q)).r);
-    }
+  for (int k = -kCloseRadius; k <= kCloseRadius; ++k) {
+    v = max(v, maskIn.read(uint2(regionClamp(int2(gid) + axis * k, region))).r);
   }
   maskOut.write(float4(v), gid);
 }
 
-// morphological erode (min) of the dilated mask.
-// completing the close/fill, to get a solid and
-// hole-free silhouette of the selection.
+// morphological erode (min) of the dilated mask, one axis per pass,
+// completing the close/fill, to get a solid and hole-free silhouette
+// of the selection.
 kernel void jfaErode(texture2d<float, access::read> maskIn [[texture(0)]],
                      texture2d<float, access::write> maskOut [[texture(1)]],
-                     uint2 gid [[thread_position_in_grid]])
+                     constant int2 &axis [[buffer(0)]],
+                     constant OutlineRegion &region [[buffer(7)]],
+                     uint2 tid [[thread_position_in_grid]])
 {
-  const int2 size = int2(maskIn.get_width(), maskIn.get_height());
-  if (int(gid.x) >= size.x || int(gid.y) >= size.y) { return; }
+  if (!regionContains(tid, region)) { return; }
+  const uint2 gid = tid + region.origin;
 
   float v = 1.0;
-  for (int dy = -kCloseRadius; dy <= kCloseRadius; ++dy) {
-    for (int dx = -kCloseRadius; dx <= kCloseRadius; ++dx) {
-      const int2 q = clamp(int2(gid) + int2(dx, dy), int2(0), size - 1);
-      v = min(v, maskIn.read(uint2(q)).r);
-    }
+  for (int k = -kCloseRadius; k <= kCloseRadius; ++k) {
+    v = min(v, maskIn.read(uint2(regionClamp(int2(gid) + axis * k, region))).r);
   }
   maskOut.write(float4(v), gid);
 }
@@ -189,16 +221,17 @@ kernel void jfaErode(texture2d<float, access::read> maskIn [[texture(0)]],
 // which lets the outline sit centered on the edge of the mask.
 kernel void jfaSeed(texture2d<float, access::read> maskIn [[texture(0)]],
                     texture2d<float, access::write> seedOut [[texture(1)]],
-                    uint2 gid [[thread_position_in_grid]])
+                    constant OutlineRegion &region [[buffer(7)]],
+                    uint2 tid [[thread_position_in_grid]])
 {
-  const int2 size = int2(maskIn.get_width(), maskIn.get_height());
-  if (int(gid.x) >= size.x || int(gid.y) >= size.y) { return; }
+  if (!regionContains(tid, region)) { return; }
+  const uint2 gid = tid + region.origin;
 
   bool boundary = false;
   if (maskIn.read(gid).r > 0.5) {
     const int2 offsets[4] = { int2(1, 0), int2(-1, 0), int2(0, 1), int2(0, -1) };
     for (int i = 0; i < 4; ++i) {
-      const int2 q = clamp(int2(gid) + offsets[i], int2(0), size - 1);
+      const int2 q = regionClamp(int2(gid) + offsets[i], region);
       if (maskIn.read(uint2(q)).r <= 0.5) { boundary = true; break; }
     }
   }
@@ -307,10 +340,12 @@ kernel void jfaLabelSeed(texture2d<int, access::read> labelIn [[texture(0)]],
 kernel void jfaStep(texture2d<float, access::read> seedIn [[texture(0)]],
                     texture2d<float, access::write> seedOut [[texture(1)]],
                     constant uint &step [[buffer(0)]],
-                    uint2 gid [[thread_position_in_grid]])
+                    constant OutlineRegion &region [[buffer(7)]],
+                    uint2 tid [[thread_position_in_grid]])
 {
-  const int2 size = int2(seedIn.get_width(), seedIn.get_height());
-  if (int(gid.x) >= size.x || int(gid.y) >= size.y) { return; }
+  if (!regionContains(tid, region)) { return; }
+  const uint2 gid = tid + region.origin;
+  const int2 lo = int2(region.origin), hi = int2(region.origin + region.size);
 
   float2 best = seedIn.read(gid).xy;
   float bestDist = best.x < 0.0 ? 1e20 : distance(float2(gid), best);
@@ -319,7 +354,7 @@ kernel void jfaStep(texture2d<float, access::read> seedIn [[texture(0)]],
     for (int dx = -1; dx <= 1; ++dx) {
       if (dx == 0 && dy == 0) { continue; }
       const int2 q = int2(gid) + int2(dx, dy) * int(step);
-      if (q.x < 0 || q.y < 0 || q.x >= size.x || q.y >= size.y) { continue; }
+      if (any(q < lo) || any(q >= hi)) { continue; }
       const float2 seed = seedIn.read(uint2(q)).xy;
       if (seed.x < 0.0) { continue; }
       const float d = distance(float2(gid), seed);
@@ -342,6 +377,7 @@ fragment half4 fragSelectionOutline(VertexOut in [[stage_in]],
 
   const int2 size = int2(int(seedTex.get_width()), int(seedTex.get_height()));
   const int2 p = clamp(int2(in.texcoord * float2(size)), int2(0), size - 1);
+  if (any(p < u.region.xy) || any(p >= u.region.xy + u.region.zw)) { return half4(color); }
 
   const float2 seed = seedTex.read(uint2(p)).xy;
   if (seed.x < 0.0) { return half4(color); }   // no silhouette within the band

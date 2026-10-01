@@ -109,6 +109,9 @@ public enum Hydra
     /// is behind what the user actually clicked.
     var lastRenderTimeCode: Double = 0.0
 
+    /// The last frame's world to clip transform, row major, for row vectors.
+    var lastViewProjection: [Double]?
+
     private var material = Pixar.GlfSimpleMaterial()
     private var sceneAmbient = Pixar.GfVec4f(0.01, 0.01, 0.01, 1.0)
 
@@ -220,6 +223,7 @@ public enum Hydra
       let viewMatrix = frustum.computeViewMatrix()
       let projMatrix = frustum.computeProjectionMatrix()
       engine.setCameraState(modelViewMatrix: viewMatrix, projectionMatrix: projMatrix)
+      lastViewProjection = Self.multiply(viewMatrix, projMatrix)
 
       // viewport setup.
       let viewport = Gf.Vec4d(0, 0, viewSize.width, viewSize.height)
@@ -740,7 +744,22 @@ public enum Hydra
     /// `includeRender: true`, so a render-purpose prim gets a real bound, whole-scene framing
     /// leaves render out, since some scenes can have a huge render-only skydome/backdrop sphere
     /// that would otherwise blow the "frame all" bound way out past the actual subject.
-    func computeBBoxCache(includeRender: Bool = false) -> Pixar.UsdGeomBBoxCache
+    /// `a * b` of two row major 4x4 matrices.
+    private static func multiply(_ a: Gf.Matrix4d, _ b: Gf.Matrix4d) -> [Double]
+    {
+      let pa = a.getArray(), pb = b.getArray()
+      var out = [Double](repeating: 0, count: 16)
+      for r in 0 ..< 4
+      {
+        for c in 0 ..< 4
+        {
+          out[r * 4 + c] = (0 ..< 4).reduce(0.0) { $0 + pa[r * 4 + $1] * pb[$1 * 4 + c] }
+        }
+      }
+      return out
+    }
+
+    func computeBBoxCache(includeRender: Bool = false, at time: Double? = nil) -> Pixar.UsdGeomBBoxCache
     {
       var purposes = Pixar.TfTokenVector()
       purposes.push_back(UsdGeom.Tokens.default_.token)
@@ -749,7 +768,11 @@ public enum Hydra
 
       let useExtentHints = true
       var timeCode = UsdTimeCode.Default()
-      if stage.HasAuthoredTimeCodeRange()
+      if let time
+      {
+        timeCode = UsdTimeCode(time)
+      }
+      else if stage.HasAuthoredTimeCodeRange()
       {
         timeCode = UsdTimeCode(stage.GetStartTimeCode())
       }
