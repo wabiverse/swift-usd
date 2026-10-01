@@ -64,6 +64,9 @@ public enum Hydra
     /// The width of the selection outline, in pixels. Settable at runtime.
     /// Defaults to a width value of `4` pixels.
     public var selectionOutlineWidth: Int32
+    /// Set to `false` when the renderer draws the selection outline itself,
+    /// picking and the selection state still work the same.
+    public var drawsSelectionOutline = true
     
     /// Weak: the app drives the frame, the engine doesn't own the driver.
     public weak var frameDelegate: Hydra.FrameDelegate?

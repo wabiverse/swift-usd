@@ -360,6 +360,7 @@ public extension Hydra
                                             outlineWidth: 0,
                                             outlineColor: SIMD4<Float>(repeating: 0))
       if let hydra,
+         hydra.drawsSelectionOutline,
          (hydra.selectedPrimId >= 0 || hydra.selectionUsesGroup || hydra.selectionSelectAll),
          let primHgi = hydra.aovTexture(.primId),
          let instHgi = hydra.aovTexture(.instanceId),
