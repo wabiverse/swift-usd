@@ -25,22 +25,22 @@ import Foundation
   /**
    * On Linux there is no ``Foundation.Bundle``, so we create one.
    */
-  public final class Bundle: Sendable
-  {
-    public static let main = Bundle()
-
-    public let resourcePath: String?
-
-    private init()
-    {
-      resourcePath = "/" + Arch.getExecutablePath().split(separator: "/").dropLast().joined(separator: "/")
-      Msg.logger.log(level: .info, "Bundle path: \(resourcePath ?? "")")
-    }
-
-    public init?(path: String)
-    {
-      guard FileManager.default.fileExists(atPath: path, isDirectory: nil) else { return nil }
-      resourcePath = path
-    }
-  }
+//  public final class Bundle: Sendable
+//  {
+//    public static let main = Bundle()
+//
+//    public let resourcePath: String?
+//
+//    private init()
+//    {
+//      resourcePath = "/" + Arch.getExecutablePath().split(separator: "/").dropLast().joined(separator: "/")
+//      Msg.logger.log(level: .info, "Bundle path: \(resourcePath ?? "")")
+//    }
+//
+//    public init?(path: String)
+//    {
+//      guard FileManager.default.fileExists(atPath: path, isDirectory: nil) else { return nil }
+//      resourcePath = path
+//    }
+//  }
 #endif /* os(Linux) */
