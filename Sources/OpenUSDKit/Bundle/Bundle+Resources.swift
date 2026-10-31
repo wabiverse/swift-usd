@@ -193,6 +193,10 @@ public extension Bundle
   static let usdSkelImaging = pxrBundle("swift-usd_UsdSkelImaging")
 
   /**
+   * Where ``UsdVolImaging`` application bundle resources are located. */
+  static let usdVolImaging = pxrBundle("swift-usd_UsdVolImaging")
+
+  /**
    * Where ``Tf`` python bundle resources are located. */
   static let pyTf = pxrBundle("swift-usd_PyTf")
 

@@ -406,20 +406,29 @@ let package = Package(
     //   type: .static,
     //   targets: ["rust-usd"]
     // ),
-    // ------- Monolithic USD -----
-    .library(
-      name: "OpenUSDKit",
-      targets: ["OpenUSDKit"]
-    ),
+    // ------- Monolithic USD (single dynamic umbrella) -----
     .library(
       name: "HydraKit",
+      type: .dynamic,
       targets: ["HydraKit"]
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/SwiftUsd.git", from: "8.0.0"),
-    .package(url: "https://github.com/moreSwift/swift-cross-ui.git", from: "0.9.0"),
-    .package(url: "https://github.com/wabiverse/MetaverseKit.git", from: "2.0.9"),
+    .package(url: "https://github.com/apple/SwiftUsd.git", from: "8.1.0"),
+    .package(url: "https://github.com/moreSwift/swift-cross-ui.git", from: "0.10.0"),
+    .package(url: "https://github.com/wabiverse/MetaTBB.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaAlembic.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaDraco.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaMaterialX.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOpenSubdiv.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOpenImageIO.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOpenVDB.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaPtex.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOpenColorIO.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOpenEXR.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaImath.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaOneTBB.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaHDF5.git", from: "1.0.0"),
     .package(url: "https://github.com/swiftlang/swift-syntax", "601.0.0"..<"604.0.0"),
     .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.3"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
@@ -475,7 +484,8 @@ let package = Package(
       name: "Tf",
       dependencies: [
         .target(name: "Arch"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Tf"),
@@ -536,7 +546,8 @@ let package = Package(
         .target(name: "Arch"),
         .target(name: "Tf"),
         .target(name: "Js"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         /* --------- Fix missing TBB allocator funcs. --------- */
@@ -560,7 +571,8 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Gf"),
         .target(name: "Trace"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Vt"),
@@ -580,7 +592,8 @@ let package = Package(
         .target(name: "Arch"),
         .target(name: "Tf"),
         .target(name: "Trace"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Work"),
@@ -620,7 +633,8 @@ let package = Package(
         .target(name: "Js"),
         .target(name: "Trace"),
         .target(name: "Work"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Plug"),
@@ -664,7 +678,8 @@ let package = Package(
         .target(name: "Js"),
         .target(name: "Plug"),
         .target(name: "Vt"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources"),
@@ -713,7 +728,8 @@ let package = Package(
         .target(name: "Vt"),
         .target(name: "Ar"),
         .target(name: "Pegtl"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -743,7 +759,8 @@ let package = Package(
         .target(name: "Vt"),
         .target(name: "Ar"),
         .target(name: "Sdf"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Pcp"),
@@ -772,7 +789,8 @@ let package = Package(
         .target(name: "Ar"),
         .target(name: "Sdf"),
         .target(name: "Pcp"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .copy("codegenTemplates"),
@@ -826,7 +844,8 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Pcp"),
         .target(name: "Usd"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -853,7 +872,8 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "Sdr"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -1009,7 +1029,9 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
-        .product(name: "Alembic", package: "MetaverseKit"),
+        .product(name: "Alembic", package: "MetaAlembic"),
+        .product(name: "Imath", package: "MetaImath"),
+        .product(name: "HDF5", package: "MetaHDF5"),
       ],
       resources: [
         .process("Resources")
@@ -1037,7 +1059,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
-        .product(name: "Draco", package: "MetaverseKit"),
+        .product(name: "Draco", package: "MetaDraco"),
       ],
       resources: [
         .process("Resources")
@@ -1095,7 +1117,7 @@ let package = Package(
         .target(name: "UsdShade"),
         .target(name: "UsdUI"),
         .target(name: "UsdUtils"),
-        .product(name: "MaterialX", package: "MetaverseKit"),
+        .product(name: "MaterialX", package: "MetaMaterialX"),
       ],
       resources: [
         // .copy("libraries"), TODO: fix swift-bundler Metal compilation.
@@ -1126,7 +1148,8 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "UsdShade"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -1231,7 +1254,8 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -1288,7 +1312,8 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
         .target(name: "UsdShade"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "UsdUtils"),
@@ -1399,7 +1424,7 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Gf"),
         .target(name: "Vt"),
-        .product(name: "OpenSubdiv", package: "MetaverseKit"),
+        .product(name: "OpenSubdiv", package: "MetaOpenSubdiv"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "PxOsd"),
@@ -1427,7 +1452,8 @@ let package = Package(
         .target(name: "Hf"),
         .target(name: "PxOsd"),
         .target(name: "HgiInterop"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources"),
@@ -1691,7 +1717,7 @@ let package = Package(
         .target(name: "Gf"),
         .target(name: "Ar"),
         .target(name: "Hio"),
-        .product(name: "OpenImageIO", package: "MetaverseKit"),
+        .product(name: "OpenImageIO", package: "MetaOpenImageIO"),
       ],
       resources: [
         .process("Resources")
@@ -1716,6 +1742,7 @@ let package = Package(
         .target(name: "Ar"),
         .target(name: "Gf"),
         .target(name: "Hio"),
+        .product(name: "OpenEXR", package: "MetaOpenEXR"),
       ],
       sources: [
         "openexr-c.c",
@@ -1746,7 +1773,7 @@ let package = Package(
         .target(name: "Ar"),
         .target(name: "Hf"),
         .target(name: "Hio"),
-        .product(name: "OpenVDB", package: "MetaverseKit"),
+        .product(name: "OpenVDB", package: "MetaOpenVDB"),
       ],
       resources: [
         .process("Resources")
@@ -1836,7 +1863,8 @@ let package = Package(
         .target(name: "PxOsd"),
         .target(name: "UsdShade"),
         .target(name: "UsdVol"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -1865,7 +1893,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Sdr"),
         .target(name: "UsdMtlx"),
-        .product(name: "MaterialX", package: "MetaverseKit"),
+        .product(name: "MaterialX", package: "MetaMaterialX"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "HdMtlx"),
@@ -1894,10 +1922,11 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Trace"),
         .target(name: "HdMtlx"),
-        .product(name: "Ptex", package: "MetaverseKit"),
-        .product(name: "MaterialX", package: "MetaverseKit"),
-        .product(name: "OpenSubdiv", package: "MetaverseKit"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "Ptex", package: "MetaPtex"),
+        .product(name: "MaterialX", package: "MetaMaterialX"),
+        .product(name: "OpenSubdiv", package: "MetaOpenSubdiv"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .copy("shaders"),
@@ -1967,7 +1996,7 @@ let package = Package(
         .target(name: "Hgi"),
         .target(name: "HgiInterop"),
         .target(name: "CameraUtil"),
-        .product(name: "OpenColorIO", package: "MetaverseKit"),
+        .product(name: "OpenColorIO", package: "MetaOpenColorIO"),
       ],
       resources: [
         .copy("shaders"),
@@ -1992,7 +2021,8 @@ let package = Package(
       dependencies: [
         .target(name: "Hd"),
         .target(name: "Hf"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -2054,7 +2084,8 @@ let package = Package(
         .target(name: "UsdShade"),
         .target(name: "UsdSkel"),
         .target(name: "UsdVol"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       resources: [
         .process("Resources")
@@ -2123,7 +2154,8 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Vt"),
         .target(name: "Work"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .headerSearchPath("include/Vdf"),
@@ -2168,7 +2200,8 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Usd"),
         .target(name: "Work"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Ef"),
@@ -2190,7 +2223,8 @@ let package = Package(
         .target(name: "Tf"),
         .target(name: "Sdf"),
         .target(name: "Usd"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "EsfUsd"),
@@ -2216,7 +2250,8 @@ let package = Package(
         .target(name: "Usd"),
         .target(name: "Vdf"),
         .target(name: "Vt"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "Exec"),
@@ -2240,7 +2275,8 @@ let package = Package(
         .target(name: "Trace"),
         .target(name: "Sdf"),
         .target(name: "Usd"),
-        .product(name: "MetaTBB", package: "MetaverseKit"),
+        .product(name: "MetaTBB", package: "MetaTBB"),
+        .product(name: "OneTBB", package: "MetaOneTBB"),
       ],
       cxxSettings: [
         .define("MFB_PACKAGE_NAME", to: "ExecUsd"),
@@ -2592,6 +2628,34 @@ let package = Package(
     ),
     
     .target(
+      name: "UsdVolImaging",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Vt"),
+        .target(name: "Sdf"),
+        .target(name: "Usd"),
+        .target(name: "UsdGeom"),
+        .target(name: "UsdVol"),
+        .target(name: "UsdImaging"),
+        .target(name: "Hd"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "UsdVolImaging"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "UsdVolImaging"),
+        .define("MFB_PACKAGE_MODULE", to: "UsdVolImaging"),
+        .define("USDVOLIMAGING_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+
+    .target(
       name: "HydraKit",
       dependencies: [
         .target(name: "OpenUSDKit"),
@@ -2730,7 +2794,7 @@ let package = Package(
     // .target(
     //   name: "rust-usd",
     //   dependencies: [
-    //     .product(name: "Ptex", package: "MetaverseKit"),
+    //     .product(name: "Ptex", package: "MetaPtex"),
     //     .target(name: "pxr"),
     //   ],
     //   swiftSettings: [
@@ -2982,6 +3046,7 @@ enum Arch
           .target(name: "UsdIRImaging"),
           .target(name: "UsdExecImaging"),
           .target(name: "UsdSkelImaging"),
+          .target(name: "UsdVolImaging"),
           // ----------- exec. ------
           .target(name: "Vdf"),
           .target(name: "Esf"),

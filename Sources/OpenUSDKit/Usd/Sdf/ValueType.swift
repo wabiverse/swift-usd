@@ -33,6 +33,147 @@ public extension Sdf
   }
 }
 
+#if canImport(Sdf)
+extension Sdf.ValueTypeName: Equatable
+{
+  public static func == (lhs: Self, rhs: Self) -> Bool
+  {
+    Overlay.SdfValueTypeNameEqual(lhs, rhs)
+  }
+}
+#endif
+
+public extension Sdf.ValueTypeName
+{
+  static var bool: Self { Sdf.getValueType(for: .bool) }
+  static var uChar: Self { Sdf.getValueType(for: .uChar) }
+  static var int: Self { Sdf.getValueType(for: .int) }
+  static var uInt: Self { Sdf.getValueType(for: .uInt) }
+  static var int64: Self { Sdf.getValueType(for: .int64) }
+  static var uInt64: Self { Sdf.getValueType(for: .uInt64) }
+
+  static var half: Self { Sdf.getValueType(for: .half) }
+  static var float: Self { Sdf.getValueType(for: .float) }
+  static var double: Self { Sdf.getValueType(for: .double) }
+  static var timeCode: Self { Sdf.getValueType(for: .timeCode) }
+
+  static var string: Self { Sdf.getValueType(for: .string) }
+  static var token: Self { Sdf.getValueType(for: .token) }
+  static var asset: Self { Sdf.getValueType(for: .asset) }
+
+  static var int2: Self { Sdf.getValueType(for: .int2) }
+  static var int3: Self { Sdf.getValueType(for: .int3) }
+  static var int4: Self { Sdf.getValueType(for: .int4) }
+  static var half2: Self { Sdf.getValueType(for: .half2) }
+  static var half3: Self { Sdf.getValueType(for: .half3) }
+  static var half4: Self { Sdf.getValueType(for: .half4) }
+  static var float2: Self { Sdf.getValueType(for: .float2) }
+  static var float3: Self { Sdf.getValueType(for: .float3) }
+  static var float4: Self { Sdf.getValueType(for: .float4) }
+  static var double2: Self { Sdf.getValueType(for: .double2) }
+  static var double3: Self { Sdf.getValueType(for: .double3) }
+  static var double4: Self { Sdf.getValueType(for: .double4) }
+
+  static var point3h: Self { Sdf.getValueType(for: .point3h) }
+  static var point3f: Self { Sdf.getValueType(for: .point3f) }
+  static var point3d: Self { Sdf.getValueType(for: .point3d) }
+  static var vector3h: Self { Sdf.getValueType(for: .vector3h) }
+  static var vector3f: Self { Sdf.getValueType(for: .vector3f) }
+  static var vector3d: Self { Sdf.getValueType(for: .vector3d) }
+  static var normal3h: Self { Sdf.getValueType(for: .normal3h) }
+  static var normal3f: Self { Sdf.getValueType(for: .normal3f) }
+  static var normal3d: Self { Sdf.getValueType(for: .normal3d) }
+  static var color3h: Self { Sdf.getValueType(for: .color3h) }
+  static var color3f: Self { Sdf.getValueType(for: .color3f) }
+  static var color3d: Self { Sdf.getValueType(for: .color3d) }
+  static var color4h: Self { Sdf.getValueType(for: .color4h) }
+  static var color4f: Self { Sdf.getValueType(for: .color4f) }
+  static var color4d: Self { Sdf.getValueType(for: .color4d) }
+
+  static var quath: Self { Sdf.getValueType(for: .quath) }
+  static var quatf: Self { Sdf.getValueType(for: .quatf) }
+  static var quatd: Self { Sdf.getValueType(for: .quatd) }
+
+  static var matrix2d: Self { Sdf.getValueType(for: .matrix2d) }
+  static var matrix3d: Self { Sdf.getValueType(for: .matrix3d) }
+  static var matrix4d: Self { Sdf.getValueType(for: .matrix4d) }
+  static var frame4d: Self { Sdf.getValueType(for: .frame4d) }
+
+  static var texCoord2h: Self { Sdf.getValueType(for: .texCoord2h) }
+  static var texCoord2f: Self { Sdf.getValueType(for: .texCoord2f) }
+  static var texCoord2d: Self { Sdf.getValueType(for: .texCoord2d) }
+  static var texCoord3h: Self { Sdf.getValueType(for: .texCoord3h) }
+  static var texCoord3f: Self { Sdf.getValueType(for: .texCoord3f) }
+  static var texCoord3d: Self { Sdf.getValueType(for: .texCoord3d) }
+
+  static var opaque: Self { Sdf.getValueType(for: .opaque) }
+  static var group: Self { Sdf.getValueType(for: .group) }
+  static var pathExpression: Self { Sdf.getValueType(for: .pathExpression) }
+
+  static var boolArray: Self { Sdf.getValueType(for: .boolArray) }
+  static var uCharArray: Self { Sdf.getValueType(for: .uCharArray) }
+  static var intArray: Self { Sdf.getValueType(for: .intArray) }
+  static var uIntArray: Self { Sdf.getValueType(for: .uIntArray) }
+  static var int64Array: Self { Sdf.getValueType(for: .int64Array) }
+  static var uInt64Array: Self { Sdf.getValueType(for: .uInt64Array) }
+
+  static var halfArray: Self { Sdf.getValueType(for: .halfArray) }
+  static var floatArray: Self { Sdf.getValueType(for: .floatArray) }
+  static var doubleArray: Self { Sdf.getValueType(for: .doubleArray) }
+  static var timeCodeArray: Self { Sdf.getValueType(for: .timeCodeArray) }
+
+  static var stringArray: Self { Sdf.getValueType(for: .stringArray) }
+  static var tokenArray: Self { Sdf.getValueType(for: .tokenArray) }
+  static var assetArray: Self { Sdf.getValueType(for: .assetArray) }
+
+  static var int2Array: Self { Sdf.getValueType(for: .int2Array) }
+  static var int3Array: Self { Sdf.getValueType(for: .int3Array) }
+  static var int4Array: Self { Sdf.getValueType(for: .int4Array) }
+  static var half2Array: Self { Sdf.getValueType(for: .half2Array) }
+  static var half3Array: Self { Sdf.getValueType(for: .half3Array) }
+  static var half4Array: Self { Sdf.getValueType(for: .half4Array) }
+  static var float2Array: Self { Sdf.getValueType(for: .float2Array) }
+  static var float3Array: Self { Sdf.getValueType(for: .float3Array) }
+  static var float4Array: Self { Sdf.getValueType(for: .float4Array) }
+  static var double2Array: Self { Sdf.getValueType(for: .double2Array) }
+  static var double3Array: Self { Sdf.getValueType(for: .double3Array) }
+  static var double4Array: Self { Sdf.getValueType(for: .double4Array) }
+
+  static var point3hArray: Self { Sdf.getValueType(for: .point3hArray) }
+  static var point3fArray: Self { Sdf.getValueType(for: .point3fArray) }
+  static var point3dArray: Self { Sdf.getValueType(for: .point3dArray) }
+  static var vector3hArray: Self { Sdf.getValueType(for: .vector3hArray) }
+  static var vector3fArray: Self { Sdf.getValueType(for: .vector3fArray) }
+  static var vector3dArray: Self { Sdf.getValueType(for: .vector3dArray) }
+  static var normal3hArray: Self { Sdf.getValueType(for: .normal3hArray) }
+  static var normal3fArray: Self { Sdf.getValueType(for: .normal3fArray) }
+  static var normal3dArray: Self { Sdf.getValueType(for: .normal3dArray) }
+  static var color3hArray: Self { Sdf.getValueType(for: .color3hArray) }
+  static var color3fArray: Self { Sdf.getValueType(for: .color3fArray) }
+  static var color3dArray: Self { Sdf.getValueType(for: .color3dArray) }
+  static var color4hArray: Self { Sdf.getValueType(for: .color4hArray) }
+  static var color4fArray: Self { Sdf.getValueType(for: .color4fArray) }
+  static var color4dArray: Self { Sdf.getValueType(for: .color4dArray) }
+
+  static var quathArray: Self { Sdf.getValueType(for: .quathArray) }
+  static var quatfArray: Self { Sdf.getValueType(for: .quatfArray) }
+  static var quatdArray: Self { Sdf.getValueType(for: .quatdArray) }
+
+  static var matrix2dArray: Self { Sdf.getValueType(for: .matrix2dArray) }
+  static var matrix3dArray: Self { Sdf.getValueType(for: .matrix3dArray) }
+  static var matrix4dArray: Self { Sdf.getValueType(for: .matrix4dArray) }
+  static var frame4dArray: Self { Sdf.getValueType(for: .frame4dArray) }
+
+  static var texCoord2hArray: Self { Sdf.getValueType(for: .texCoord2hArray) }
+  static var texCoord2fArray: Self { Sdf.getValueType(for: .texCoord2fArray) }
+  static var texCoord2dArray: Self { Sdf.getValueType(for: .texCoord2dArray) }
+  static var texCoord3hArray: Self { Sdf.getValueType(for: .texCoord3hArray) }
+  static var texCoord3fArray: Self { Sdf.getValueType(for: .texCoord3fArray) }
+  static var texCoord3dArray: Self { Sdf.getValueType(for: .texCoord3dArray) }
+
+  static var pathExpressionArray: Self { Sdf.getValueType(for: .pathExpressionArray) }
+}
+
 #if !canImport(Sdf)
 public extension Pixar
 {

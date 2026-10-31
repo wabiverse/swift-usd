@@ -11,8 +11,8 @@
  * ---------------------------------------------------------------- */
 
 import Foundation
-import OpenUSDKit
-import SwiftCrossUI
+@_exported import OpenUSDKit
+@_exported import SwiftCrossUI
 
 #if canImport(Metal)
   import Metal

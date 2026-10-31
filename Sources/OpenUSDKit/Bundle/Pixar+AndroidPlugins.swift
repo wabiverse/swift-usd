@@ -145,6 +145,7 @@
       ("swift-usd_UsdImaging.resources", usdImagingPlugInfo),
       ("swift-usd_UsdImagingGL.resources", usdImagingGLPlugInfo),
       ("swift-usd_UsdSkelImaging.resources", usdSkelImagingPlugInfo),
+      ("swift-usd_UsdVolImaging.resources", usdVolImagingPlugInfo),
     ]
 
     // MARK: - Ar
@@ -1404,6 +1405,47 @@
     }
     """
     
+    // MARK: - UsdVolImaging
+
+    private static let usdVolImagingPlugInfo = """
+    {
+        "Plugins": [
+            {
+                "Info": {
+                    "Types": {
+                        "UsdImagingField3DAssetAdapter": {
+                            "bases": [
+                                "UsdImagingFieldAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "Field3DAsset"
+                        },
+                        "UsdImagingOpenVDBAssetAdapter": {
+                            "bases": [
+                                "UsdImagingFieldAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "OpenVDBAsset"
+                        },
+                        "UsdImagingParticleFieldAdapter": {
+                            "bases": [
+                                "UsdImagingGprimAdapter"
+                            ],
+                            "isInternal": true,
+                            "primTypeName": "ParticleField"
+                        }
+                    }
+                },
+                "LibraryPath": "",
+                "Name": "UsdVolImaging",
+                "ResourcePath": ".",
+                "Root": ".",
+                "Type": "library"
+            }
+        ]
+    }
+    """
+
     // MARK: - UsdSkelImaging
 
     private static let usdSkelImagingPlugInfo = """

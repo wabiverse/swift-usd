@@ -79,6 +79,11 @@ namespace Overlay
   bool StageSetMetadata(const Pixar::UsdStage &stage, const Pixar::TfToken &key, float value);
   bool StageSetMetadata(const Pixar::UsdStage &stage, const Pixar::TfToken &key, Pixar::TfToken value);
   Pixar::SdfValueTypeName SdfGetValueTypeNameValue(Pixar::SdfValueTypeNameType type);
+  inline bool SdfValueTypeNameEqual(const Pixar::SdfValueTypeName& lhs, const Pixar::SdfValueTypeName& rhs)
+  {
+    return lhs == rhs;
+  }
+
 
   /// The reverse direction (`std::string` -> Swift `String`) is just as broken
   /// as the forward direction: `String.init(_ cxxString: std.string)` triggers

@@ -55,6 +55,7 @@ public enum BundleFramework: CaseIterable
   case usdImaging
   case usdImagingGL
   case usdSkelImaging
+  case usdVolImaging
 
   public var resourcePath: String?
   {
@@ -101,6 +102,7 @@ public enum BundleFramework: CaseIterable
       case .usdImaging: Bundle.usdImaging?.resourcePath
       case .usdImagingGL: Bundle.usdImagingGL?.resourcePath
       case .usdSkelImaging: Bundle.usdSkelImaging?.resourcePath
+      case .usdVolImaging: Bundle.usdVolImaging?.resourcePath
     }
   }
 }

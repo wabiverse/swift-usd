@@ -1,5 +1,5 @@
 {
-  "originHash" : "3d510ce4ff3c8c70c0fc8af902bd8f9d6b5b0eb6e8d242d4ad864d4b03f2d2fc",
+  "originHash" : "e235da73e9bb66e14dfbdf45bb353d041d355d0bb5d51efd54bbc1fa14178d09",
   "pins" : [
     {
       "identity" : "imgui",
@@ -38,21 +38,12 @@
       }
     },
     {
-      "identity" : "metaversekit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/wabiverse/MetaverseKit.git",
-      "state" : {
-        "revision" : "7464f1ae0b3be541558bbc633f782595e2cb915f",
-        "version" : "2.0.9"
-      }
-    },
-    {
       "identity" : "rainbow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Rainbow.git",
       "state" : {
-        "revision" : "cdf146ae671b2624917648b61c908d1244b98ca1",
-        "version" : "4.2.1"
+        "revision" : "711ca908ca19d16e577d575c8d0a48151a16bb1b",
+        "version" : "4.2.2"
       }
     },
     {
@@ -60,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser",
       "state" : {
-        "revision" : "ca37474853a4b5f59a22c74bfdd449b1f6bc4cc2",
-        "version" : "1.8.1"
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
       }
     },
     {
@@ -69,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/moreSwift/swift-cross-ui.git",
       "state" : {
-        "revision" : "f8bdf05729ae1cd1b7f3ec4e57177a6965052146",
-        "version" : "0.9.0"
+        "revision" : "0f3ec3958b79cdc39a1a3e604516b71ab33a9043",
+        "version" : "0.10.0"
       }
     },
     {
@@ -101,12 +92,21 @@
       }
     },
     {
+      "identity" : "swift-issue-reporting",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-issue-reporting",
+      "state" : {
+        "revision" : "75b000cea2ca6d7527a57e1b9cc0bdf21a9abe9f",
+        "version" : "2.1.1"
+      }
+    },
+    {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "a012e0ad8a8a72de92b0e008c81a9b793f70e73a",
-        "version" : "1.12.1"
+        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
+        "version" : "1.15.1"
       }
     },
     {
@@ -125,6 +125,15 @@
       "state" : {
         "revision" : "1770152df756b54c28ef1787df1e957d93cc62d5",
         "version" : "0.0.6"
+      }
+    },
+    {
+      "identity" : "swift-observation-polyfill",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/moreSwift/swift-observation-polyfill",
+      "state" : {
+        "revision" : "d8843fa6dbf970aab42faaf101c9ce1cfd16fb94",
+        "version" : "0.1.1"
       }
     },
     {
@@ -150,8 +159,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/SwiftUsd.git",
       "state" : {
-        "revision" : "4ae578eaf937b4625eef00aac4af05a8f5da2910",
-        "version" : "8.0.0"
+        "revision" : "203b5eb270db1616c3c129c8fe2a07ef3ad7f83a",
+        "version" : "8.1.0"
       }
     },
     {
@@ -161,6 +170,15 @@
       "state" : {
         "revision" : "3043fcd2a50375db76d89ff206a612471833d1c2",
         "version" : "2.2.1"
+      }
+    },
+    {
+      "identity" : "xctest-dynamic-overlay",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
+      "state" : {
+        "revision" : "d9308ad679143c26a30dec52daefe82f54af2b82",
+        "version" : "1.13.1"
       }
     },
     {
