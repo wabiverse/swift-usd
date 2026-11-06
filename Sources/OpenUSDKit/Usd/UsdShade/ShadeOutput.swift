@@ -25,6 +25,13 @@ public extension UsdShade
 
 public extension UsdShade.Output
 {
+  /// Connects to another shader's output, ex. a material's surface to its shader's `out`.
+  @discardableResult
+  func connectTo(source: UsdShade.Output) -> Bool
+  {
+    ConnectToSource(source)
+  }
+
   @discardableResult
   func connectTo(source: UsdShade.ConnectableAPI,
                  at name: Tf.Token,
@@ -34,6 +41,7 @@ public extension UsdShade.Output
     ConnectToSource(source, name, sourceType, type)
   }
 
+  @_disfavoredOverload
   @discardableResult
   func connectTo(source: UsdShade.ConnectableAPI,
                  at name: UsdShade.Tokens,

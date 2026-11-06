@@ -76,6 +76,12 @@ public extension UsdShade.Shader
     CreateInput(name, Sdf.getValueType(for: type))
   }
 
+  @discardableResult
+  mutating func createOutput(for name: Tf.Token, type: SdfValueTypeNameType) -> UsdShade.Output
+  {
+    CreateOutput(name, Sdf.getValueType(for: type))
+  }
+
   /**
    * Common shader inputs, for convenience.
    */
@@ -96,7 +102,21 @@ public extension UsdShade.Shader
     case displacement
     case occlusion
 
-    /* ---------- usd uv texture. ----- */
+    /* ----- pxr surface. ----- */
+
+    case diffuseGain
+    case specularFaceColor
+    case specularEdgeColor
+    case specularRoughness
+    case specularIor
+    case clearcoatFaceColor
+    case clearcoatEdgeColor
+    case glowGain
+    case glowColor
+    case bumpNormal
+    case presence
+
+    /* ----- usd uv texture. ----- */
 
     case file
     case st
@@ -117,6 +137,40 @@ public extension UsdShade.Shader
   mutating func createInput(for name: InputName, type: SdfValueTypeNameType) -> UsdShade.Input
   {
     CreateInput(name.getToken(), Sdf.getValueType(for: type))
+  }
+
+  /**
+   * Common shader outputs, for convenience, the preview surface's
+   * `surface`, `displacement` and `volume` are `Tf.Token`s already.
+   */
+  enum OutputName: String, CaseIterable
+  {
+    /* ----- usd uv texture. ----- */
+
+    case rgb
+    case r
+    case g
+    case b
+    case a
+
+    /* ----- usd primvar reader. ----- */
+
+    case result
+
+    /* ----- pxr nodes, ex. pxr surface. ----- */
+
+    case out
+
+    public func getToken() -> Tf.Token
+    {
+      Tf.Token(rawValue)
+    }
+  }
+
+  @discardableResult
+  mutating func createOutput(for name: OutputName, type: SdfValueTypeNameType) -> UsdShade.Output
+  {
+    CreateOutput(name.getToken(), Sdf.getValueType(for: type))
   }
 
   @discardableResult

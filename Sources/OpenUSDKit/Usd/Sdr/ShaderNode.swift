@@ -28,10 +28,6 @@ public extension SdrShaderNode
   /// The names of the node's inputs, in the order its definition gives them.
   var shaderInputNames: [Tf.Token]
   {
-    #if canImport(Sdr)
-      Array(__GetShaderInputNamesUnsafe().pointee)
-    #else
-      Array(GetShaderInputNames())
-    #endif
+    Array(__GetShaderInputNamesUnsafe().pointee)
   }
 }

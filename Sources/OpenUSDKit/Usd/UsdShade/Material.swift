@@ -43,6 +43,7 @@ public extension UsdShade.Material
     CreateSurfaceOutput(renderContext)
   }
 
+  @_disfavoredOverload
   @discardableResult
   func createSurfaceOutput(renderContext: UsdShade.Tokens = .universalRenderContext) -> UsdShade.Output
   {

@@ -28,51 +28,31 @@ public extension SdrShaderProperty
   /// The name a UI shows the property by.
   var label: Tf.Token
   {
-    #if canImport(Sdr)
-      __GetLabelUnsafe().pointee
-    #else
-      GetLabel()
-    #endif
+    __GetLabelUnsafe().pointee
   }
 
   /// The page it sits on, nested pages joined by a colon.
   var page: Tf.Token
   {
-    #if canImport(Sdr)
-      __GetPageUnsafe().pointee
-    #else
-      GetPage()
-    #endif
+    __GetPageUnsafe().pointee
   }
 
   /// The widget a UI shows it with, such as `checkBox` or `mapper`.
   var widget: Tf.Token
   {
-    #if canImport(Sdr)
-      __GetWidgetUnsafe().pointee
-    #else
-      GetWidget()
-    #endif
+    __GetWidgetUnsafe().pointee
   }
 
   /// The choices it offers, each a label and the value it stands for.
   var options: [(label: Tf.Token, value: Tf.Token)]
   {
-    #if canImport(Sdr)
-      __GetOptionsUnsafe().pointee.map { ($0.first, $0.second) }
-    #else
-      GetOptions().map { ($0.first, $0.second) }
-    #endif
+    __GetOptionsUnsafe().pointee.map { ($0.first, $0.second) }
   }
 
   /// Its default value, held as the Sdf type the property authors.
   var defaultValueAsSdfType: Pixar.VtValue
   {
-    #if canImport(Sdr)
-      __GetDefaultValueAsSdfTypeUnsafe().pointee
-    #else
-      GetDefaultValueAsSdfType()
-    #endif
+    __GetDefaultValueAsSdfTypeUnsafe().pointee
   }
 
   /// The Sdf type the property authors.
