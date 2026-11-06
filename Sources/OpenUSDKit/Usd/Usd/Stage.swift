@@ -280,6 +280,43 @@ public extension Usd.Stage
       "\(filePath).\(ext.rawValue)".withCString { Overlay.OpenStage($0, load.rawValue) }
     )
   }
+  
+ /**
+  * Open a stage rooted at \p rootLayer.
+  *
+  * Attempt to find a stage that matches the passed arguments in a
+  * UsdStageCache if UsdStageCacheContext objects exist on the calling
+  * stack.  If a matching stage is found, return that stage.  Otherwise,
+  * create a new stage rooted at \p rootLayer.
+  *
+  * Invoking an overload that does not take a \p sessionLayer argument will
+  * create a stage with an anonymous in-memory session layer.  To create a
+  * stage without a session layer, pass TfNullPtr (or None in python) as the
+  * \p sessionLayer argument.
+  *
+  * The initial set of prims to load on the stage can be specified
+  * using the \p load parameter. \sa UsdStage::InitialLoadSet.
+  *
+  * If \p pathResolverContext is provided it will be bound when whenever
+  * asset path resolution is done for this stage, regardless of what other
+  * context may be bound at that time. Otherwise Usd will create a context
+  * for all future asset path resolution for the stage by calling
+  * ArResolver::CreateDefaultContextForAsset with the layer's repository
+  * path if the layer has one, otherwise its resolved path.
+  *
+  * When searching for a matching stage in bound UsdStageCache s, only the
+  * provided arguments matter for cache lookup.  For example, if only a root
+  * layer (or a root layer file path) is provided, the first stage found in
+  * any cache that has that root layer is returned.  So, for example if you
+  * require that the stage have no session layer, you must explicitly
+  * specify TfNullPtr (or None in python) for the sessionLayer argument. */
+  @discardableResult
+  static func open(_ rootLayer: Sdf.LayerHandle, load: InitialLoadingSet = .all) -> UsdStage
+  {
+    Overlay.Dereference(
+      Overlay.OpenStage(rootLayer, load.rawValue)
+    )
+  }
 
   /**
    * Attempt to ensure a ``Usd.Prim`` at path is defined (according to ``Usd.Prim.isDefined()``) on this stage.
@@ -594,6 +631,11 @@ extension Overlay
     Pixar.UsdStage.Open(std.string(filepath), load)
   }
   
+  public static func OpenStage(_ rootLayer: Pixar.SdfLayerHandle, _ load: Pixar.UsdStage.InitialLoadSet) -> Pixar.UsdStageRefPtr
+  {
+    Pixar.UsdStage.Open(rootLayer, load)
+  }
+  
   public static func StageSetMetadata(_ stage: Pixar.UsdStage, _ key: Pixar.TfToken, _ value: Double) -> Bool
   {
     stage.SetMetadata(key, Pixar.VtValue(value))
@@ -622,3 +664,20 @@ extension Overlay
   }
 }
 #endif
+
+public extension Usd.Stage
+{
+  /// The edit target authoring on this stage goes to.
+  var editTarget: Pixar.UsdEditTarget
+  {
+    get
+    {
+      #if canImport(Usd)
+        __GetEditTargetUnsafe().pointee
+      #else
+        GetEditTarget()
+      #endif
+    }
+    set { SetEditTarget(newValue) }
+  }
+}

@@ -383,11 +383,7 @@ void HgiMetalBlitCmds::CopyBufferCpuToGpu(
              respondsToSelector:@selector(didModifyRange:)]) {
         NSRange range = NSMakeRange(dstOffset, copyOp.byteSize);
         id<MTLBuffer> resource = metalBuffer->GetBufferId();
-        
-        ARCH_PRAGMA_PUSH
-        ARCH_PRAGMA_INSTANCE_METHOD_NOT_FOUND
         [resource didModifyRange:range];
-        ARCH_PRAGMA_POP
     }
 #endif // defined(ARCH_OS_OSX)
 }

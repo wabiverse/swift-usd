@@ -74,6 +74,7 @@
 #include <Hd/materialInterfaceParameterSchema.h>
 #include <Hd/materialNetworkInterface.h>
 #include <Hd/legacyTaskSchema.h>
+#include <Hd/particleFieldSchema.h>
 #include <Hd/basisCurves.h>
 #include <Hd/basisCurvesTopologySchema.h>
 #include <Hd/extComputationCpuCallback.h>
@@ -123,6 +124,7 @@
 #include <Hd/rprim.h>
 #include <Hd/sceneIndexPlugin.h>
 #include <Hd/materialOverrideSchema.h>
+#include <Hd/primIdSchema.h>
 #include <Hd/schemaTypeDefs.h>
 #include <Hd/retainedDataSource.h>
 #include <Hd/pluginRendererUniqueHandle.h>
@@ -131,6 +133,7 @@
 #include <Hd/vertexAdjacency.h>
 #include <Hd/primvarsSchema.h>
 #include <Hd/extComputation.h>
+#include <Hd/renderSettingDescriptorSchema.h>
 #include <Hd/materialNodeParameterSchema.h>
 #include <Hd/filteringSceneIndex.h>
 #include <Hd/xformSchema.h>
@@ -157,6 +160,7 @@
 #include <Hd/containerDataSourceEditor.h>
 #include <Hd/dataSource.h>
 #include <Hd/rendererCreateArgsSchema.h>
+#include <Hd/implicitSurface.h>
 #include <Hd/categoriesSchema.h>
 #include <Hd/basisCurvesTopology.h>
 #include <Hd/collectionExpressionEvaluator.h>
@@ -171,6 +175,7 @@
 #include <Hd/command.h>
 #include <Hd/points.h>
 #include <Hd/volume.h>
+#include <Hd/instancingAwareCollectionExpressionEvaluator.h>
 #include <Hd/meshUtil.h>
 #include <Hd/collectionsSchema.h>
 #include <Hd/materialInterfaceSchema.h>
@@ -205,6 +210,7 @@
 #include <Hd/legacyDisplayStyleSchema.h>
 #include <Hd/extComputationUtils.h>
 #include <Hd/integratorSchema.h>
+#include <Hd/cachingSampledDataSource.h>
 #include <Hd/basisCurvesSchema.h>
 #include <Hd/sceneDelegate.h>
 #include <Hd/selectionsSchema.h>

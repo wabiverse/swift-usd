@@ -82,6 +82,9 @@ struct UpdateCommand: AsyncCommand
 
       // 4. wait for all usd source to be updated.
       let _ = try await [bse, img, usd, uim, exc, val]
+
+      // 5. stamp the checkout's version into pxr/pxrns.h.
+      try Pxr.stampVersion(packagePath: pkgDir)
     }
 
     // output elapsed time
@@ -93,12 +96,38 @@ public struct SourceExclusions: Sendable
 {
   let pythonOnly: Set<String>
   let testOnly: Set<String>
+  let testLibraries: Set<String>
 
   public init(checkoutRoot: String)
   {
     pythonOnly = collectPythonOnlyBasenames(checkoutRoot: checkoutRoot)
     testOnly = collectTestingFiles(checkoutRoot: checkoutRoot)
+    testLibraries = collectTestLibraries(checkoutRoot: checkoutRoot)
   }
+
+  func isTestLibrary(_ source: URL) -> Bool
+  {
+    testLibraries.contains { source.path.contains("/pxr/\($0)/") || source.path.hasSuffix("/pxr/\($0)") }
+  }
+}
+
+/// Directories whose CMakeLists.txt declares a pxr_build_test_library.
+private func collectTestLibraries(checkoutRoot: String) -> Set<String>
+{
+  var directories: Set<String> = []
+  guard let enumerator = FileManager.default.enumerator(atPath: "\(checkoutRoot)/pxr")
+  else { return directories }
+
+  for entry in enumerator
+  {
+    guard let relPath = entry as? String, relPath.hasSuffix("CMakeLists.txt"),
+          let contents = try? String(contentsOfFile: "\(checkoutRoot)/pxr/\(relPath)", encoding: .utf8),
+          contents.contains("pxr_build_test_library(")
+    else { continue }
+    directories.insert((relPath as NSString).deletingLastPathComponent)
+  }
+
+  return directories
 }
 
 private func collectTestingFiles(checkoutRoot: String) -> Set<String>
@@ -225,6 +254,7 @@ public enum Pxr: String, CaseIterable
         source.path.lowercased().contains("codegentemplates") ||
         source.path.lowercased().contains("unittest") ||
         exclusions.testOnly.contains(source.deletingPathExtension().lastPathComponent) ||
+        exclusions.isTestLibrary(source) ||
         platformExcludes ||
         isUnbuiltPlugin
       { return nil }
@@ -576,10 +606,15 @@ public enum Pxr: String, CaseIterable
           if libRelative == "plugInfo.json"
           {
             Patch.pluginfoName(to: &resourceSrc, target: target)
+            Patch.pluginfoShaderResources(to: &resourceSrc, target: target)
           }
           if libRelative == "schema.usda" || libRelative == "generatedSchema.usda"
           {
             Patch.schemaUsda(to: &resourceSrc, target: target)
+          }
+          if target == "UsdShaders" && libRelative == "shaders/shaderDefs.usda"
+          {
+            try Patch.pxrSurfaceShaderDef(to: &resourceSrc, shaders: dest.deletingLastPathComponent())
           }
 
           if priorResource != resourceSrc {
@@ -610,6 +645,46 @@ public enum Pxr: String, CaseIterable
     try restoreResourceOnlyFiles(packagePath: packagePath)
 
     return updatedFiles
+  }
+
+  // Sets pxr/pxrns.h's version macros.
+  static func stampVersion(packagePath: String) throws
+  {
+    let cmake = try String(contentsOfFile: "\(packagePath)/.build/OpenUSD/cmake/defaults/Version.cmake", encoding: .utf8)
+    func component(_ name: String) -> Int?
+    {
+      guard let line = cmake.split(separator: "\n").first(where: { $0.hasPrefix("set(\(name) ") }),
+            let quoted = line.split(separator: "\"").dropFirst().first
+      else { return nil }
+      return Int(quoted)
+    }
+    guard let major = component("PXR_MAJOR_VERSION"),
+          let minor = component("PXR_MINOR_VERSION"),
+          let patch = component("PXR_PATCH_VERSION")
+    else { return }
+
+    let path = "\(packagePath)/Sources/pxr/include/pxr/pxrns.h"
+    var header = try String(contentsOfFile: path, encoding: .utf8)
+    let version = major * 10000 + minor * 100 + patch
+    if !header.contains("#define PXR_VERSION \(version)\n")
+    {
+      // a new openusd release starts swift-usd's own evolution over.
+      header = header.replacingOccurrences(of: "#  define SWIFTUSD_EVOLUTION [0-9]+", with: "#  define SWIFTUSD_EVOLUTION 0",
+                                           options: .regularExpression)
+      let kit = "\(packagePath)/Sources/OpenUSDKit/Pixar.swift"
+      let swift = try String(contentsOfFile: kit, encoding: .utf8)
+        .replacingOccurrences(of: "let SWIFTUSD_EVOLUTION: Int32 = [0-9]+", with: "let SWIFTUSD_EVOLUTION: Int32 = 0",
+                              options: .regularExpression)
+      try swift.write(toFile: kit, atomically: true, encoding: .utf8)
+    }
+    for (name, value) in [("PXR_MAJOR_VERSION", major), ("PXR_MINOR_VERSION", minor), ("PXR_PATCH_VERSION", patch),
+                          ("PXR_VERSION", version)]
+    {
+      header = header.replacingOccurrences(of: "#define \(name) [0-9]+", with: "#define \(name) \(value)",
+                                           options: .regularExpression)
+    }
+    try header.write(toFile: path, atomically: true, encoding: .utf8)
+    log.info("pxr version: \(major).\(minor).\(patch)")
   }
 
   private func targets(packagePath: String) -> [String]
@@ -710,8 +785,10 @@ public enum Pxr: String, CaseIterable
   // Copies Resources/<Target>/ files with no upstream counterpart into Sources/<Target>/ (e.g. swiftInterop.h).
   private func restoreResourceOnlyFiles(packagePath: String) throws
   {
-    guard let resourceRoot = Bundle.module.resourceURL
+    guard let bundleResources = Bundle.module.resourceURL
     else { return }
+    let copied = bundleResources.appendingPathComponent("Resources")
+    let resourceRoot = FileManager.default.fileExists(atPath: copied.path) ? copied : bundleResources
 
     for target in targets(packagePath: packagePath)
     {
@@ -736,7 +813,9 @@ public enum Pxr: String, CaseIterable
         try FileManager.default.copyItem(at: resourceDir.appendingPathComponent(file), to: dest)
         log.info("restoring resource-only file: \(dest.path)")
 
-        if isHeader
+        // an underscored placeholder (ex. _HioOpenEXR.h)
+        // to mark an umbrella the target must not have.
+        if isHeader, !file.hasPrefix("_")
         {
           let umbrellaPath = "\(packagePath)/Sources/\(target)/include/\(target)/\(target).h"
           generateUmbrellaHeader(fileURL: URL(fileURLWithPath: umbrellaPath), for: target, appending: file)
@@ -884,14 +963,17 @@ public enum Pxr: String, CaseIterable
       Patch.usdImagingGL(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
       Patch.execUsd(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
       Patch.plugRegistry(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
+      Patch.sdrRegistry(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       
       // cleans up openusd c++ enums for clean swifty apis.
       Patch.sdfTypes(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
       Patch.usdCommon(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       Patch.xformOp(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
+      Patch.swiftConsumingGetters(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
       Patch.xformCommonAPI(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       
       Patch.predicateExpressionParserHeader(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
+      Patch.selfContainedHeaders(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
       Patch.platformGuardedSource(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       Patch.archDarwinHeaders(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       Patch.archAndroid(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
@@ -1067,8 +1149,10 @@ public enum Pxr: String, CaseIterable
     "usdlod": "UsdLod",
     "usdlux": "UsdLux",
     "usdmedia": "UsdMedia",
+    "usdmediavalidators": "UsdMediaValidators",
     "usdmtlx": "UsdMtlx",
     "usdphysics": "UsdPhysics",
+    "usdpmc": "UsdPmc",
     "usdproc": "UsdProc",
     "usdprocimaging": "UsdProcImaging",
     "usdprofiles": "UsdProfiles",
@@ -1132,12 +1216,23 @@ public enum Pxr: String, CaseIterable
     {
       // upstream's name is the cmake library name, whose casing doesn't always
       // reverse from the target (ex. "hdsi", not "hdSi", for target "HdSi").
-      let pattern = #"("Name":\s*")\#(target)(")"#
+      // only the library name ignores case, so a lowercase "name" is left alone.
+      let pattern = #"("Name":\s*")(?i:\#(target))(")"#
       source = source.replacingOccurrences(
         of: pattern,
         with: "$1\(target)$2",
-        options: [.regularExpression, .caseInsensitive]
+        options: [.regularExpression]
       )
+    }
+
+    /** Points Hio at the shaders swift-usd bundles for targets whose upstream plugInfo.json has no ShaderResources. */
+    public static func pluginfoShaderResources(to source: inout String, target: String)
+    {
+      guard ["UsdSkelImaging"].contains(target), !source.contains("\"ShaderResources\"") else { return }
+      if let info = source.range(of: #""Info":\s*\{"#, options: .regularExpression)
+      {
+        source.replaceSubrange(info, with: "\"Info\": {\n                \"ShaderResources\": \"shaders\",")
+      }
     }
 
     /** Patches schema.usda: fixes libraryName/libraryPath, pxr/ includes, and subLayer paths to SwiftUSD conventions. */
@@ -1344,6 +1439,21 @@ public enum Pxr: String, CaseIterable
             of: "class HgiMetalTexture final : public HgiTexture {",
             with: "class SWIFT_UNSAFE_REFERENCE HgiMetalTexture final : public HgiTexture {"
           )
+          // a render engine's own MTLTexture can be adopted in place of one Hgi allocates.
+          source = source.replacingOccurrences(
+            of: "    HgiMetalTexture(HgiMetal *hgi,\n                    HgiTextureDesc const & desc);",
+            with: "    HgiMetalTexture(HgiMetal *hgi,\n                    HgiTextureDesc const & desc,\n                    uint64_t rawResource = 0);"
+          )
+
+        case "texture.mm":
+          source = source.replacingOccurrences(
+            of: "HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc)\n    : HgiTexture(desc)\n    , _textureId(nil)",
+            with: "HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc, uint64_t rawResource)\n    : HgiTexture(desc)\n    , _textureId(rawResource ? (__bridge id<MTLTexture>)(void *)(uintptr_t)rawResource : nil)"
+          )
+          source = source.replacingOccurrences(
+            of: "    _textureId = [hgi->GetPrimaryDevice() newTextureWithDescriptor:texDesc];",
+            with: "    if (!rawResource) {\n      _textureId = [hgi->GetPrimaryDevice() newTextureWithDescriptor:texDesc];\n    }"
+          )
 
         case "hgi.h":
           source = source.replacingOccurrences(
@@ -1359,6 +1469,10 @@ public enum Pxr: String, CaseIterable
                 HGIMETAL_API SWIFT_RETURNS_RETAINED
                 static HgiMetal* _Nonnull Create();
             """
+          )
+          source = source.replacingOccurrences(
+            of: "    HGIMETAL_API\n    id<MTLBuffer> GetArgBuffer();\n",
+            with: "    HGIMETAL_API\n    id<MTLBuffer> GetArgBuffer();\n    \n    HGIMETAL_API\n    HgiTextureHandle CreateExternalTexture(HgiTextureDesc const &desc, uint64_t rawResource);\n"
           )
           source = source.replacingOccurrences(
             of: "PXR_NAMESPACE_CLOSE_SCOPE\n\n#endif",
@@ -1380,6 +1494,19 @@ public enum Pxr: String, CaseIterable
           )
 
         case "hgi.mm":
+          source = source.replacingOccurrences(
+            of: "HgiTextureHandle\nHgiMetal::_CreateTexture(HgiTextureDesc const & desc)",
+            with: """
+            HgiTextureHandle
+            HgiMetal::CreateExternalTexture(HgiTextureDesc const &desc, uint64_t rawResource)
+            {
+                return HgiTextureHandle(new HgiMetalTexture(this, desc, rawResource), GetUniqueId());
+            }
+
+            HgiTextureHandle
+            HgiMetal::_CreateTexture(HgiTextureDesc const & desc)
+            """
+          )
           source = source.replacingOccurrences(
             of: "PXR_NAMESPACE_CLOSE_SCOPE",
             with: """
@@ -1683,11 +1810,8 @@ public enum Pxr: String, CaseIterable
             """
           )
           source = source.replacingOccurrences(
-            of: "    bool _enableUsdDrawModes = true;\n};\n\nPXR_NAMESPACE_CLOSE_SCOPE",
+            of: "PXR_NAMESPACE_CLOSE_SCOPE\n\n#endif // PXR_USD_IMAGING_USD_IMAGING_GL_ENGINE_H",
             with: """
-                bool _enableUsdDrawModes = true;
-            };
-
             PXR_NAMESPACE_CLOSE_SCOPE
 
             inline void UsdImagingGLEngineRetain(Pixar::UsdImagingGLEngine* _Nonnull x) {
@@ -1696,7 +1820,14 @@ public enum Pxr: String, CaseIterable
             inline void UsdImagingGLEngineRelease(Pixar::UsdImagingGLEngine* _Nonnull x) {
                 Pixar::Tf_SharedPtrRetainReleaseHelper<Pixar::UsdImagingGLEngine>::Release(x);
             }
+
+            #endif // PXR_USD_IMAGING_USD_IMAGING_GL_ENGINE_H
             """
+          )
+          // the AOV texture overlay uses HdRenderBuffer.
+          source = source.replacingOccurrences(
+            of: "#include \"pxr/imaging/hd/pluginRendererUniqueHandle.h\"\n",
+            with: "#include \"pxr/imaging/hd/pluginRendererUniqueHandle.h\"\n#include \"pxr/imaging/hd/renderBuffer.h\"\n"
           )
           // HydraKit's selection outline needs to choose the shown AOV: SetRendererAovs
           // disables the viewport output when given more than one AOV, so forward the
@@ -2278,6 +2409,52 @@ public enum Pxr: String, CaseIterable
       )
     }
 
+    /**
+     * Gives value types getters returning references to members a `const &&` overload returning a copy,
+     * which Swift imports as `<Name>Consuming()` returning the value, where the `const &` one only comes
+     * through as a pointer. */
+    public static func swiftConsumingGetters(to source: inout String, fileBaseName: String, target: String)
+    {
+      let rewrites: [String: [String: [(String, String)]]] = [
+        "Usd": [
+          "editTarget.h": [("    SdfLayerHandle GetLayer() && { return std::move(_layer); }",
+                            "    SdfLayerHandle GetLayer() const && { return _layer; }")],
+        ],
+        "UsdShade": [
+          "input.h": [("""
+              TfToken const &GetFullName() const {\u{20}
+                  return _attr.GetName();\u{20}
+              }
+          """, """
+              TfToken const &GetFullName() const & {\u{20}
+                  return _attr.GetName();\u{20}
+              }
+              TfToken GetFullName() const && {\u{20}
+                  return _attr.GetName();\u{20}
+              }
+          """), ("    const UsdAttribute &GetAttr() const { return _attr; }",
+                 "    const UsdAttribute &GetAttr() const & { return _attr; }\n    UsdAttribute GetAttr() const && { return _attr; }")],
+        ],
+        "UsdGeom": [
+          "primvar.h": [("    UsdAttribute const &GetAttr() const { return _attr; }",
+                         "    UsdAttribute const &GetAttr() const & { return _attr; }\n    UsdAttribute GetAttr() const && { return _attr; }")],
+          "xformOp.h": [("    TfToken const &GetName() const {  return GetAttr().GetName(); }",
+                         "    TfToken const &GetName() const & {  return GetAttr().GetName(); }\n    TfToken GetName() const && {  return GetAttr().GetName(); }")],
+        ],
+        "Gf": [
+          "range3d.h": [("    const GfVec3d &GetMin() const { return _min; }",
+                         "    const GfVec3d &GetMin() const & { return _min; }\n    GfVec3d GetMin() const && { return _min; }"),
+                        ("    const GfVec3d &GetMax() const { return _max; }",
+                         "    const GfVec3d &GetMax() const & { return _max; }\n    GfVec3d GetMax() const && { return _max; }")],
+        ],
+      ]
+      guard let pairs = rewrites[target]?[fileBaseName] else { return }
+      for (upstream, patched) in pairs where !source.contains(patched)
+      {
+        source = source.replacingOccurrences(of: upstream, with: patched)
+      }
+    }
+
     public static func xformCommonAPI(to source: inout String, fileBaseName: String)
     {
       guard fileBaseName == "xformCommonAPI.cpp" else { return }
@@ -2333,6 +2510,42 @@ public enum Pxr: String, CaseIterable
       )
     }
 
+    /**
+     * Appends PxrSurface's Sdr definition to UsdShader's shaderDefs.usda, so its inputs,
+     * types and pages are known without RenderMan. */
+    public static func pxrSurfaceShaderDef(to source: inout String, shaders: URL) throws
+    {
+      let resources = (Bundle.module.resourceURL?.path ?? ".") + "/Resources/UsdShaders"
+      guard
+        !source.contains("def Shader \"PxrSurface\""),
+        let definition = FileManager.default.contents(atPath: resources + "/PxrSurface.usda")
+      else { return }
+
+      source += String(decoding: definition, as: UTF8.self)
+      let args = shaders.appendingPathComponent("empty.args")
+      if !FileManager.default.fileExists(atPath: args.path)
+      {
+        try FileManager.default.copyItem(atPath: resources + "/empty.args", toPath: args.path)
+      }
+    }
+
+    public static func sdrRegistry(to source: inout String, fileBaseName: String)
+    {
+      // the registry is a tfsingleton that owns every node and property it parses,
+      // and none of the three can be copied, so swift takes them by reference.
+      let classes = ["registry.h": "SdrRegistry : public TfWeakBase", "shaderNode.h": "SdrShaderNode",
+                     "shaderProperty.h": "SdrShaderProperty"]
+      guard let declaration = classes[fileBaseName], source.contains("class \(declaration)\n{") else { return }
+      source = source.replacingOccurrences(
+        of: "#include \"pxr/usd/sdr/api.h\"",
+        with: "#include \"Sdr/api.h\"\n#include \"Arch/swiftInterop.h\""
+      )
+      source = source.replacingOccurrences(
+        of: "class \(declaration)\n{",
+        with: "class SWIFT_IMMORTAL_REFERENCE \(declaration)\n{"
+      )
+    }
+
     public static func tfRefBaseHeader(to source: inout String, fileBaseName: String)
     {
       guard fileBaseName == "refBase.h" else { return }
@@ -2370,8 +2583,28 @@ public enum Pxr: String, CaseIterable
       // Replace: fwd-decl inside namespace -> include parserHelpers.h before namespace
       source = source.replacingOccurrences(
         of: "#include <memory>\n\nPXR_NAMESPACE_OPEN_SCOPE\n\n// fwd decl, from parserHelpers.cpp.\nstd::string\nSdf_EvalQuotedString(const char* x, size_t n,\n                     size_t trimBothSides, unsigned int* numLines=NULL);",
-        with: "#include <memory>\n\n#include \"Sdf/parserHelpers.h\"\n\nPXR_NAMESPACE_OPEN_SCOPE"
+        with: "#include <memory>\n\n#include \"Sdf/parserHelpers.h\"\n#include \"Sdf/predicateExpression.h\"\n\nPXR_NAMESPACE_OPEN_SCOPE"
       )
+    }
+
+    /** Adds some missing includes for when compiling under clang modules. */
+    public static func selfContainedHeaders(to source: inout String, fileBaseName: String, target: String)
+    {
+      switch (target, fileBaseName)
+      {
+        case ("Sdf", "pathPatternParser.h"):
+          source = source.replacingOccurrences(
+            of: "#include \"pxr/usd/sdf/predicateExpressionParser.h\"\n",
+            with: "#include \"pxr/usd/sdf/predicateExpressionParser.h\"\n#include \"pxr/usd/sdf/pathPattern.h\"\n"
+          )
+        case ("UsdPmc", "usdPmcConstantPrivate.h"):
+          source = source.replacingOccurrences(
+            of: "#define USD_PMC_CONSTANT_PRIVATE_H\n\n#include <string>",
+            with: "#define USD_PMC_CONSTANT_PRIVATE_H\n\n#include <pxr/pxrns.h>\n#include <string>"
+          )
+        default:
+          return
+      }
     }
 
     /** Appends missing token declarations for in-dev targets (e.g. ExecIr tokens needed by UsdExecImaging). */
@@ -2514,6 +2747,11 @@ public enum Pxr: String, CaseIterable
           // openexr source.
           "OpenEXRCore/attributes.c": "../",
           "OpenEXRCore/base.c": "../",
+          "OpenEXRCore/bytes.c": "../",
+          "OpenEXRCore/internal_b44_table_init.c": "../",
+          "OpenEXRCore/internal_dwa_table.c": "../",
+          "OpenEXRCore/internal_dwa_table_init.c": "../",
+          "OpenEXRCore/internal_ht.c": "../",
           "OpenEXRCore/channel_list.c": "../",
           "OpenEXRCore/chunk.c": "../",
           "OpenEXRCore/coding.c": "../",
@@ -2581,6 +2819,7 @@ public enum Pxr: String, CaseIterable
           "internal_util.h": "OpenEXR/OpenEXRCore/",
           "internal_xdr.h": "OpenEXR/OpenEXRCore/",
           "internal_cpuid.h": "OpenEXR/OpenEXRCore/",
+          "internal_thread.h": "OpenEXR/OpenEXRCore/",
           
           // platform specific.
           "internal_win32_file_impl.h": "OpenEXR/OpenEXRCore/",
@@ -2598,6 +2837,21 @@ public enum Pxr: String, CaseIterable
           "x86/matchfinder_impl.h": "OpenEXR/deflate/lib/",
         ]
         
+        // since OpenEXR 3.4.14 compression.c includes the internal
+        // libdeflate itself, indented under OPENEXR_USE_INTERNAL_DEFLATE.
+        source = source.replacingOccurrences(
+          of: "#    include \"../deflate/lib/lib_common.h\"",
+          with: "#    include <OpenEXR/deflate/lib/lib_common.h>"
+        )
+        for c in ["utils.c", "arm/cpu_features.c", "x86/cpu_features.c", "deflate_compress.c",
+                  "deflate_decompress.c", "adler32.c", "zlib_compress.c", "zlib_decompress.c"]
+        {
+          source = source.replacingOccurrences(
+            of: "#    include \"../deflate/lib/\(c)\"",
+            with: "#    include \"../OpenEXR/deflate/lib/\(c)\""
+          )
+        }
+
         for (h, prefix) in hioOpenExrPrivateHeaders {
           source = source.replacingOccurrences(
             of: "#include \"\(h)\"",

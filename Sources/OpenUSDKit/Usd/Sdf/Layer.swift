@@ -89,3 +89,26 @@ extension Overlay
   }
 }
 #endif
+
+public extension SdfLayerHandle
+{
+  /// The layer's identifier, what ``SdfLayer`` finds and opens it by.
+  var identifier: String
+  {
+    #if canImport(Sdf)
+      String(pointee.__GetIdentifierUnsafe().pointee)
+    #else
+      String(Overlay.Dereference(self).GetIdentifier())
+    #endif
+  }
+
+  /// The resolved path of the file the layer reads from and saves to, empty for an anonymous layer.
+  var realPath: String
+  {
+    #if canImport(Sdf)
+      String(pointee.__GetRealPathUnsafe().pointee)
+    #else
+      String(Overlay.Dereference(self).GetRealPath())
+    #endif
+  }
+}

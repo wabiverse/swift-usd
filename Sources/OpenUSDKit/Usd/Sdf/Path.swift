@@ -58,6 +58,16 @@ public extension Sdf.Path
     #endif
   }
 
+  func makeRelativePath(to anchor: Sdf.Path) -> Sdf.Path
+  {
+    MakeRelativePath(anchor)
+  }
+  
+  func makeAbsolutePath(to anchor: Sdf.Path) -> Sdf.Path
+  {
+    MakeAbsolutePath(anchor)
+  }
+  
   func getAsString() -> String
   {
     String(cString: Overlay.GetPathText(self))

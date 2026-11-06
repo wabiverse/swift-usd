@@ -609,7 +609,7 @@ Exec_Program::_ChangedTimeConnections(const VdfNode &targetNode)
     // cached subset of time varying outputs.
     const Exec_AttributeInputNode *const inputNode = 
         dynamic_cast<const Exec_AttributeInputNode *const>(&targetNode);
-    if (!inputNode || inputNode->IsTimeDependent()) {
+    if (!inputNode || inputNode->MightBeTimeDependent()) {
         _InvalidateTimeDependentOutputs();
     }
 }

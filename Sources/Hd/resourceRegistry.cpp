@@ -59,6 +59,12 @@ HdResourceRegistry::GetResourceAllocation() const
     return VtDictionary();
 }
 
+VtDictionary
+HdResourceRegistry::GetDetailedResourceAllocation() const
+{
+    return GetResourceAllocation();
+}
+
 void
 HdResourceRegistry::_Commit()
 {

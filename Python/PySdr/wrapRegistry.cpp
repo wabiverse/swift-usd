@@ -109,6 +109,11 @@ void wrapRegistry()
             (args("identifier"),
              args("nodeType")),
             return_internal_reference<>())
+        .def("GetShaderNodeByIdentifierAndSystem",
+            &This::GetShaderNodeByIdentifierAndSystem,
+            (args("identifier"),
+             args("shadingSystem")),
+            return_internal_reference<>())
 
         .def("GetShaderNodeFromAsset", &This::GetShaderNodeFromAsset,
              (arg("shaderAsset"),
@@ -129,6 +134,11 @@ void wrapRegistry()
         .def("GetShaderNodeByNameAndType", &This::GetShaderNodeByNameAndType,
             (args("name"),
              args("nodeType"),
+             args("filter") = SdrVersionFilterDefaultOnly),
+            return_internal_reference<>())
+        .def("GetShaderNodeByNameAndSystem", &This::GetShaderNodeByNameAndSystem,
+            (args("name"),
+             args("shadingSystem"),
              args("filter") = SdrVersionFilterDefaultOnly),
             return_internal_reference<>())
         .def("GetShaderNodesByIdentifier", &This::GetShaderNodesByIdentifier,

@@ -75,6 +75,7 @@ HdSt_PipelineDrawBatch::HdSt_PipelineDrawBatch(
     , _bufferArraysHash(0)
     , _barElementOffsetsHash(0)
     , _numVisibleItems(0)
+    , _numVisibleItemsPostCull(0)
     , _numTotalVertices(0)
     , _numTotalElements(0)
     /* The following two values are set before draw by
@@ -131,8 +132,10 @@ HdSt_PipelineDrawBatch::_Init(HdStDrawItemInstance * drawItemInstance)
         _useGpuCulling && IsEnabledGPUInstanceFrustumCulling();
 
     if (_useGpuCulling) {
-        _cullingProgram.Initialize(
-            _useDrawIndexed, _useInstanceCulling, _bufferArraysHash);
+        if (_cullingProgram.Initialize(
+                _useDrawIndexed, _useInstanceCulling, _bufferArraysHash)) {
+            _dirtyCullingProgram = true;
+        }
     }
 
     TF_DEBUG(HDST_DRAW_BATCH).Msg(
@@ -634,6 +637,7 @@ HdSt_PipelineDrawBatch::_CompileBatch(
     // Count the number of visible items. We may actually draw fewer
     // items than this when GPU frustum culling is active.
     _numVisibleItems = 0;
+    _numVisibleItemsPostCull = 0;
     _numTotalElements = 0;
     _numTotalVertices = 0;
 
@@ -946,7 +950,8 @@ bool
 HdSt_PipelineDrawBatch::_HasNothingToDraw() const
 {
     return ( _useDrawIndexed && _numTotalElements == 0) ||
-           (!_useDrawIndexed && _numTotalVertices == 0);
+           (!_useDrawIndexed && _numTotalVertices == 0) ||
+           (_numVisibleItems == 0);
 }
 
 void
@@ -982,6 +987,8 @@ HdSt_PipelineDrawBatch::PrepareDraw(
         // may still require multiple command buffer submissions.
         _ExecuteFrustumCull(updateBufferData,
                             renderPassState, resourceRegistry);
+    } else {
+        _numVisibleItemsPostCull = _numVisibleItems;
     }
 }
 
@@ -1439,7 +1446,7 @@ HdSt_PipelineDrawBatch::ExecuteDraw(
     }
 
     HD_PERF_COUNTER_INCR(HdPerfTokens->drawCalls);
-    HD_PERF_COUNTER_ADD(HdTokens->itemsDrawn, _numVisibleItems);
+    HD_PERF_COUNTER_ADD(HdTokens->itemsDrawn, _numVisibleItemsPostCull);
 }
 
 void
@@ -1769,7 +1776,10 @@ HdSt_PipelineDrawBatch::_ExecuteFrustumCull(
     computeCmds->PopDebugGroup();
 
     if (IsEnabledGPUCountVisibleInstances()) {
-        _EndGPUCountVisibleInstances(resourceRegistry, &_numVisibleItems);
+        _EndGPUCountVisibleInstances(resourceRegistry,
+            &_numVisibleItemsPostCull);
+    } else {
+        _numVisibleItemsPostCull = _numVisibleItems;
     }
 
     hgi->DestroyResourceBindings(&resourceBindings);
@@ -1982,28 +1992,29 @@ HdSt_PipelineDrawBatch::_CreateCullingProgram(
         _cullingProgram.SetGeometricShader(cullShader);
 
         _cullingProgram.CompileShader(_drawItemInstances.front()->GetDrawItem(),
-                                      resourceRegistry);
+                                      resourceRegistry,
+                                      _LogShaderCacheLookup());
 
         _dirtyCullingProgram = false;
     }
 }
 
-void
+bool
 HdSt_PipelineDrawBatch::_CullingProgram::Initialize(
     bool useDrawIndexed,
     bool useInstanceCulling,
     size_t bufferArrayHash)
 {
-    if (useDrawIndexed     != _useDrawIndexed     ||
-        useInstanceCulling != _useInstanceCulling ||
-        bufferArrayHash    != _bufferArrayHash) {
-        // reset shader
-        Reset();
+    if (useDrawIndexed     == _useDrawIndexed     &&
+        useInstanceCulling == _useInstanceCulling &&
+        bufferArrayHash    == _bufferArrayHash) {
+        return false;
     }
 
     _useDrawIndexed = useDrawIndexed;
     _useInstanceCulling = useInstanceCulling;
     _bufferArrayHash = bufferArrayHash;
+    return true;
 }
 
 /* virtual */

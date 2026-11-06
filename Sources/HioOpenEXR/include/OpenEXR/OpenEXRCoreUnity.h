@@ -8,22 +8,17 @@
 
 #include <OpenEXR/OpenEXRCore/openexr_config.h>
 
-#include <OpenEXR/deflate/lib/lib_common.h>
-#include <OpenEXR/deflate/common_defs.h>
-#include "../OpenEXR/deflate/lib/utils.c"
-#include "../OpenEXR/deflate/lib/arm/cpu_features.c"
-#include "../OpenEXR/deflate/lib/x86/cpu_features.c"
-#include "../OpenEXR/deflate/lib/deflate_compress.c"
-#undef BITBUF_NBITS
-#include "../OpenEXR/deflate/lib/deflate_decompress.c"
-#include "../OpenEXR/deflate/lib/adler32.c"
-#include "../OpenEXR/deflate/lib/zlib_compress.c"
-#include "../OpenEXR/deflate/lib/zlib_decompress.c"
+// The internal libdeflate sources are included by OpenEXRCore/compression.c
+// itself (guarded by OPENEXR_USE_INTERNAL_DEFLATE) as of OpenEXR 3.4.14, so
+// they must not be included here as well -- doing so compiles those
+// translation units twice and redefines symbols such as feature_sysctls and
+// query_arm_cpu_features in this unity build.
 
 #include <OpenEXR/openexr-c.h>
 
 #include "../attributes.c"
 #include "../base.c"
+#include "../bytes.c"
 #include "../channel_list.c"
 #include "../chunk.c"
 #include "../coding.c"
@@ -34,8 +29,12 @@
 #include "../encoding.c"
 #include "../float_vector.c"
 #include "../internal_b44_table.c"
+#include "../internal_b44_table_init.c"
 #include "../internal_b44.c"
 #include "../internal_dwa.c"
+#include "../internal_dwa_table.c"
+#include "../internal_dwa_table_init.c"
+#include "../internal_ht.c"
 #include "../internal_huf.c"
 #include "../internal_piz.c"
 #include "../internal_pxr24.c"

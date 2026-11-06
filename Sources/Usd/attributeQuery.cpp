@@ -322,6 +322,12 @@ UsdAttributeQuery::ValueMightBeTimeVarying() const
         _ValueMightBeTimeVaryingFromResolveInfo(_resolveInfo, _attr);
 }
 
+bool
+UsdAttributeQuery::ValueSourceMightBeTimeVarying() const
+{
+    return _resolveInfo.ValueSourceMightBeTimeVarying();
+}
+
 ARCH_PRAGMA_PUSH
 ARCH_PRAGMA_INSTANTIATION_AFTER_SPECIALIZATION
 

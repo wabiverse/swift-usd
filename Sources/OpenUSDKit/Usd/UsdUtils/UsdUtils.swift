@@ -18,3 +18,9 @@
 
 public enum UsdUtils
 {}
+
+public extension Tf.Token
+{
+  /// The primvar USD's tools read a mesh's main uv set from, `st`.
+  nonisolated(unsafe) static let primaryUVSet = Pixar.UsdUtilsGetPrimaryUVSetName().pointee
+}

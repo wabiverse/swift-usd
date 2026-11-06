@@ -93,10 +93,8 @@ EXEC_REGISTER_COMPUTATIONS_FOR_SCHEMA(ExecIrXformable)
     builder.InputAttribute<double>(ExecIrTokens->avarsRy);
     builder.InputAttribute<double>(ExecIrTokens->avarsRz);
     builder.InputAttribute<double>(ExecIrTokens->avarsRspin);
-    builder.InputAttribute<TfToken>(
-        ExecIrTokens->avarsRotationOrder);
-    builder.InputAttribute<GfMatrix4d>(
-        ExecIrTokens->avarsDefaultSpace);
+    builder.InputAttribute<TfToken>(ExecIrTokens->avarsRotationOrder);
+    builder.InputAttribute<GfMatrix4d>(ExecIrTokens->avarsDefaultSpace);
 
     // avars:defaultSpace has an expression that simply returns the value of
     // default:space.
@@ -139,15 +137,13 @@ EXEC_REGISTER_COMPUTATIONS_FOR_SCHEMA(ExecIrXformable)
         .Inputs(
             Prim().Computation<GfMatrix4d>(_tokens->defaultTransRotOffsetXf),
             Prim().Computation<GfMatrix4d>(_tokens->localRestXf),
-            Prim().AttributeValue<GfMatrix4d>(
-                ExecIrTokens->parentDefaultSpace))
+            Prim().AttributeValue<GfMatrix4d>(ExecIrTokens->parentDefaultSpace))
         .Callback(+[](const VdfContext &ctx) -> GfMatrix4d {
             return ExecIr_ComputeDefaultSpace(
                 ctx.GetInputValue<GfMatrix4d>(_tokens->defaultTransRotOffsetXf),
                 GfMatrix4d(1), // defaultScaleXf
                 ctx.GetInputValue<GfMatrix4d>(_tokens->localRestXf),
-                ctx.GetInputValue<GfMatrix4d>(
-                    ExecIrTokens->parentDefaultSpace));
+                ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->parentDefaultSpace));
         });
 
     // The defaultTransRotOffsetXf computation represents the local authored
@@ -237,12 +233,10 @@ EXEC_REGISTER_COMPUTATIONS_FOR_SCHEMA(ExecIrXformable)
         ExecIrTokens->restSpace);
 
     builder.OutputAttribute<GfMatrix4d>(ExecIrTokens->posedSpace);
-    builder.OutputAttribute<GfMatrix4d>(
-        ExecIrTokens->posedDefaultSpace);
+    builder.OutputAttribute<GfMatrix4d>(ExecIrTokens->posedDefaultSpace);
     
     builder.InputAttribute<GfMatrix4d>(ExecIrTokens->parentSpace);
-    builder.InputAttribute<GfMatrix4d>(
-        ExecIrTokens->parentDefaultSpace);
+    builder.InputAttribute<GfMatrix4d>(ExecIrTokens->parentDefaultSpace);
 
     self.AttributeExpression(ExecIrTokens->parentDefaultSpace)
         .Inputs(Prim().Computation<GfMatrix4d>(_tokens->parentDefaultSpace))

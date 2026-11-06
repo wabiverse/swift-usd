@@ -43,10 +43,7 @@
                             "RenderPass.CameraFS",
                             "RenderPass.NoSelection",
                             "RenderPass.ApplyColorOverrides",
-                            "RenderPass.RenderColor",
-                            "RenderPass.RenderIdNoOp",
-                            "RenderPass.RenderNeyeNoOp",
-                            "RenderPass.RenderOutput"]
+                            "RenderPass.RenderColor" ]
             }
         }
     }

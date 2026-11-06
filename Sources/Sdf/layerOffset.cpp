@@ -9,7 +9,6 @@
 
 #include "pxr/pxrns.h"
 #include "Sdf/layerOffset.h"
-#include "Sdf/timeCode.h"
 #include "Gf/math.h"
 
 #include "Tf/hash.h"
@@ -66,7 +65,14 @@ SdfLayerOffset::operator*(double rhs) const
 GfTimeCode
 SdfLayerOffset::operator*(const GfTimeCode &rhs) const
 {
-    return GfTimeCode( (*this) * double(rhs) );
+    return ( rhs * _scale + _offset );
+}
+
+GfDuration
+SdfLayerOffset::operator*(const GfDuration &rhs) const
+{
+    // Only _scale is applied to duration values, not _offset.
+    return ( rhs * _scale );
 }
 
 bool

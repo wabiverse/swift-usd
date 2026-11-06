@@ -8,6 +8,8 @@
 #include "HdSt/renderDelegate.h"
 
 #include "HdSt/basisCurves.h"
+#include "HdSt/capsule.h"
+#include "HdSt/conicalFrustum.h"
 #include "HdSt/drawItemsCache.h"
 #include "HdSt/drawTarget.h"
 #include "HdSt/extComputation.h"
@@ -41,7 +43,6 @@
 #include "Hgi/hgiImpl.h"
 #include "Hgi/tokens.h"
 
-#include "Glf/diagnostic.h"
 #include "Hio/glslfx.h"
 
 #include "Tf/envSetting.h"
@@ -61,9 +62,10 @@ TF_DEFINE_ENV_SETTING(HDST_DOME_LIGHT_CUBEMAP_TARGET_MEMORY_MB, 0,
                       "Maximum memory target in MB for the cubemap computed "
                       "from the latlong texture for the dome light.");
 
-TF_DEFINE_ENV_SETTING(HDST_ENABLE_NATIVE_SPHERES, false,
-    "Enable native rendering of sphere primitives in Storm instead of "
-    "converting them to meshes via the implicit surface scene index.");
+TF_DEFINE_ENV_SETTING(HDST_ENABLE_NATIVE_IMPLICITS, false,
+    "Enable native rendering of all implicit surface primitives supported "
+    "by Storm (e.g., spheres, cones) instead of converting them to meshes "
+    "via the implicit surface scene index.");
 
 namespace {
 const TfTokenVector _SupportedRprimTypes()
@@ -75,8 +77,11 @@ const TfTokenVector _SupportedRprimTypes()
         HdPrimTypeTokens->volume
     };
 
-    if (TfGetEnvSetting(HDST_ENABLE_NATIVE_SPHERES)) {
+    if (HdStRenderDelegate::IsEnabledNativeImplicitsRenderingSupport()) {
         supportedTypes.emplace_back(HdPrimTypeTokens->sphere);
+        supportedTypes.emplace_back(HdPrimTypeTokens->cone);
+        supportedTypes.emplace_back(HdPrimTypeTokens->cylinder);
+        supportedTypes.emplace_back(HdPrimTypeTokens->capsule);
     }
 
     return supportedTypes;
@@ -204,8 +209,19 @@ HdStRenderDelegate::HdStRenderDelegate(HdRenderSettingsMap const& settingsMap)
     , _renderParam(std::make_unique<HdStRenderParam>())
     , _drawItemsCache(std::make_unique<HdSt_DrawItemsCache>())
 {
-    // Initialize the settings and settings descriptors.
-    _settingDescriptors = {
+    // Initialize the settings.
+    _PopulateDefaultSettings(
+        GetRenderSettingDescriptorsForPlugin());
+}
+
+const HdRenderSettingDescriptorList &
+HdStRenderDelegate::GetRenderSettingDescriptorsForPlugin()
+{
+    static const HdRenderSettingDescriptorList descriptors{
+        HdRenderSettingDescriptor{
+            "Default transparency mode for displayOpacity",
+            HdStRenderSettingsTokens->defaultTransparencyMode,
+            VtValue(HdStDefaultTransparencyModeTokens->screenDoor) },
         HdRenderSettingDescriptor{
             "Enable Tiny Prim Culling",
             HdStRenderSettingsTokens->enableTinyPrimCulling,
@@ -242,14 +258,13 @@ HdStRenderDelegate::HdStRenderDelegate(HdRenderSettingsMap const& settingsMap)
             HdRenderSettingsTokens->enableExposureCompensation,
             VtValue(true) }
     };
-
-    _PopulateDefaultSettings(_settingDescriptors);
+    return descriptors;
 }
 
 HdRenderSettingDescriptorList
 HdStRenderDelegate::GetRenderSettingDescriptors() const
 {
-    return _settingDescriptors;
+    return GetRenderSettingDescriptorsForPlugin();
 }
 
 VtDictionary 
@@ -425,6 +440,12 @@ HdStRenderDelegate::CreateRprim(TfToken const& typeId,
         return new HdStVolume(rprimId);
     } else  if (typeId == HdPrimTypeTokens->sphere) {
         return new HdStSphere(rprimId);
+    } else  if (typeId == HdPrimTypeTokens->cone) {
+        return new HdStConicalFrustum</*IsCone=*/true>(rprimId);
+    } else  if (typeId == HdPrimTypeTokens->cylinder) {
+        return new HdStConicalFrustum</*IsCone=*/false>(rprimId);
+    } else  if (typeId == HdPrimTypeTokens->capsule) {
+        return new HdStCapsule(rprimId);
     } else {
         TF_CODING_ERROR("Unknown Rprim Type %s", typeId.GetText());
     }
@@ -556,8 +577,7 @@ void
 HdStRenderDelegate::CommitResources(HdChangeTracker *tracker)
 {
     TF_UNUSED(tracker);
-    GLF_GROUP_FUNCTION();
-    
+
     _ApplyTextureSettings();
 
     // --------------------------------------------------------------------- //
@@ -721,9 +741,9 @@ HdStRenderDelegate::GetRenderDelegateInfo()
 }
 
 bool
-HdStRenderDelegate::IsEnabledNativeSphereRenderingSupport()
+HdStRenderDelegate::IsEnabledNativeImplicitsRenderingSupport()
 {
-    return TfGetEnvSetting(HDST_ENABLE_NATIVE_SPHERES);
+    return TfGetEnvSetting(HDST_ENABLE_NATIVE_IMPLICITS);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

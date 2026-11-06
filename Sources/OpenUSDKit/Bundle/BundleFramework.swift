@@ -30,6 +30,7 @@ public enum BundleFramework: CaseIterable
   case usdMedia
   case usdMtlx
   case usdPhysics
+  case usdPmc
   case usdProc
   case usdRender
   case usdRi
@@ -77,6 +78,7 @@ public enum BundleFramework: CaseIterable
       case .usdMedia: Bundle.usdMedia?.resourcePath
       case .usdMtlx: Bundle.usdMtlx?.resourcePath
       case .usdPhysics: Bundle.usdPhysics?.resourcePath
+      case .usdPmc: Bundle.usdPmc?.resourcePath
       case .usdProc: Bundle.usdProc?.resourcePath
       case .usdRender: Bundle.usdRender?.resourcePath
       case .usdRi: Bundle.usdRi?.resourcePath

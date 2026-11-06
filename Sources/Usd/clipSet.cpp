@@ -404,6 +404,7 @@ Usd_ClipSet::Usd_ClipSet(
             clipDef.indexOfLayerWhereAssetPathsFound])
     , clipPrimPath(SdfPath(*clipDef.clipPrimPath))
     , interpolateMissingClipValues(false)
+    , toStageOffset(clipDef.toStageOffset)
 {
     // NOTE: Assumes definition has already been validated
 
@@ -456,11 +457,37 @@ Usd_ClipSet::Usd_ClipSet(
             }
         }
 
+        // Clean up the times array. The input from the USD file could contain
+        // multiple entries with the same external time creating multiple, contiguous
+        // jump discontinuities.
+        //    [..., (10, 10), (10, 20), (10, 30), ...]
+        // The above would be converted to:
+        //    [...,
+        //     (9.999..., 10, isJumpDiscontinuity=true),
+        //     (9.999..., 20, isJumpDiscontinuity=true),
+        //     (10,       30, isJumpDiscontinuity=false),
+        //     ...]
+        // The middle entry needs to be removed.
+        //
+        // Similarly, the first entry cannot be a jump discontinuity and must
+        // also be removed if it is.
+        {
+            bool prevJump = true;
+            auto iter = times->begin();
+            while (iter != times->end()) {
+                if (prevJump && iter->isJumpDiscontinuity) {
+                    iter = times->erase(iter);
+                } else {
+                    prevJump = iter->isJumpDiscontinuity;
+                    ++iter;
+                }
+            }
+        }
+
         // Add sentinel values to the beginning and end for convenience.
         times->insert(times->begin(), times->front());
         times->insert(times->end(), times->back());
     }
-
 
     // Build up the final vector of clips.
     const _TimeToClipMap::const_iterator itBegin = startTimeToClip.begin();
@@ -593,6 +620,48 @@ bool Usd_ClipSet::ContainsSplineForAttribute(const SdfPath& path) const
 }
 
 bool
+Usd_ClipSet::_ClipContainsAuthoredValueForAttribute(
+    const Usd_ClipRefPtr& clip, const SdfPath& path) const
+{
+    const bool hasTimeSamples = manifestClip->HasAuthoredTimeSamples(path);
+    const bool hasSpline = manifestClip->HasAuthoredSpline(path);
+    const double activeTime = clip->authoredStartTime;
+
+    if (_TimeSamplesWins(hasTimeSamples, hasSpline))
+    {
+        SdfAbstractDataTypedValue<SdfValueBlock> blockValue(nullptr);
+        if (manifestClip->GetLayer()->QueryTimeSample(
+                manifestClip->TranslatePathToClip(path), activeTime,
+                (SdfAbstractDataValue*)&blockValue)
+            && blockValue.isValueBlock)
+        {
+            // Return false if the manifest has an authored time sample
+            // with a value block at the clip's active time
+            return false;
+        }
+
+        return clip->HasAuthoredTimeSamples(path);
+    }
+    else if (_SplineWins(hasTimeSamples, hasSpline))
+    {
+        TsSpline spline;
+        manifestClip->GetSplineForClip(path, &spline);
+        const TsKnotMap knots = spline.GetKnots();
+        const auto& knotIt = knots.find(activeTime);
+        if (knotIt != knots.end()
+            && knotIt->GetNextInterpolation() == TsInterpValueBlock)
+        {
+            // Return false if the manifest has an authored knot with
+            // an interpolation of value block at the clip's active time
+            return false;
+        }
+
+        return clip->HasAuthoredSpline(path);
+    }
+    return false;
+}
+
+bool
 Usd_ClipSet::_ClipContributesTimeSamples(
     const Usd_ClipRefPtr& clip, const SdfPath& path) const
 {
@@ -605,14 +674,7 @@ Usd_ClipSet::_ClipContributesTimeSamples(
     }
 
     // Use the clip if it has authored time samples for the attribute.
-    // If this attribute is blocked at the clip's start time in the 
-    // manifest it means the user has declared there are no samples
-    // in that clip for this attribute. This allows us to skip
-    // opening the layer to check if it has authored time samples.
-    const bool hasAuthoredSamples = 
-        !manifestClip->IsBlocked(path, clip->authoredStartTime) &&
-        clip->HasAuthoredTimeSamples(path);
-    if (hasAuthoredSamples) {
+    if (_ClipContainsAuthoredValueForAttribute(clip, path)) {
         return true;
     }
 
@@ -849,8 +911,7 @@ Usd_ClipSet::GetTimeSamplesInInterval(
 const std::type_info &
 Usd_ClipSet::QueryTimeSampleTypeid(const SdfPath &path, UsdTimeCode time) const
 {
-    const Usd_ClipRefPtr& clip = 
-        GetActiveClip(time, false /*timeHasJumpDiscontinuity*/);
+    const Usd_ClipRefPtr& clip = GetActiveClip(time);
 
     // First query the clip for time sample typeid at the specified time.
     const std::type_info &type = clip->QueryTimeSampleTypeid(path, time);
@@ -871,16 +932,8 @@ bool Usd_ClipSet::QuerySpline(const SdfPath& path, UsdTimeCode time,
 {
     // If a spline is defined in the clip for the desired stage time, eval
     // and return the value.
-    Usd_ClipRefPtr activeClip = 
-        GetActiveClip(time, false /*timeHasJumpDiscontinuity*/);
-    if (time.IsPreTime() &&
-        activeClip->startTime == time.GetValue())
-    {
-        activeClip = GetPreviousClip(activeClip);
-    }
-
-    if (!manifestClip->IsBlocked(path, activeClip->authoredStartTime)
-        && activeClip->HasAuthoredSpline(path))
+    const Usd_ClipRefPtr& activeClip = GetActiveClip(time);
+    if (_ClipContainsAuthoredValueForAttribute(activeClip, path))
     {
         return activeClip->QuerySpline(path, time, result);
     }
@@ -911,9 +964,7 @@ bool Usd_ClipSet::QuerySpline(const SdfPath& path, UsdTimeCode time,
     bool foundNextBlock = false;
     for (size_t i = activeIdx + 1; i < valueClips.size(); ++i) {
         const Usd_ClipRefPtr& clip = valueClips[i];
-        if (!manifestClip->IsBlocked(path, clip->authoredStartTime)
-            && clip->HasAuthoredSpline(path))
-        {
+        if (_ClipContainsAuthoredValueForAttribute(clip, path)) {
             foundNext = true;
             foundNextBlock = !clip->QuerySpline(
                 path, clip->startTime, &samples.back().value);
@@ -928,9 +979,7 @@ bool Usd_ClipSet::QuerySpline(const SdfPath& path, UsdTimeCode time,
     while (i != 0) {
         i--;
         const Usd_ClipRefPtr& clip = valueClips[i];
-        if (!manifestClip->IsBlocked(path, clip->authoredStartTime)
-            && clip->HasAuthoredSpline(path))
-        {
+        if (_ClipContainsAuthoredValueForAttribute(clip, path)) {
             // The last contributed value of a clip's spline is at the
             // preTime of clip->endTime, since every clip interval is
             // [startTime, endTime).
@@ -1009,7 +1058,7 @@ Usd_ClipSet::BuildSpline(const SdfPath& path, TsSpline* result) const
     bool holdPreExtrap = false;
     for (const Usd_ClipRefPtr& clip : valueClips) {
         TsSpline spline;
-        if (!manifestClip->IsBlocked(path, clip->startTime)
+        if (_ClipContainsAuthoredValueForAttribute(clip, path)
             && clip->BuildSpline(path, &spline))
         {
             if (hasPendingKnot) {

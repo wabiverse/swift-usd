@@ -133,9 +133,6 @@ HgiMetalGraphicsCmds::HgiMetalGraphicsCmds(
         metalColorAttachment.texture = colorTexture->GetTextureId();
         
         if (resolvingColor) {
-            // integer textures (e.g. the primId/instanceId AOVs) cannot
-            // be MSAA resolve targets, because Metal rejects the render
-            // pass.
             const HgiFormat resolveFormat = hgiColorAttachment.format;
             const bool isIntFormat =
                 resolveFormat >= HgiFormatInt16 &&

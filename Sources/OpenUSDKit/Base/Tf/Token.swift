@@ -101,3 +101,6 @@ extension Overlay
   }
 }
 #endif
+
+/// Tokens are immutable handles into a thread safe registry, so they're free to cross threads.
+extension TfToken: @unchecked Sendable {}

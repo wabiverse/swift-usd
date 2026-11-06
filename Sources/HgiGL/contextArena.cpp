@@ -14,6 +14,7 @@
 
 #include "Tf/diagnostic.h"
 #include "Tf/weakPtr.h"
+#include "Tf/hash.h"
 #include "Tf/envSetting.h"
 #include "Trace/traceImpl.h"
 
@@ -23,6 +24,12 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 TF_DEFINE_ENV_SETTING(HGIGL_CONTEXT_ARENA_REPORT_ERRORS, true,
     "Report errors when FBOs managed by the cache aren't deleted successfully");
+
+class FramebufferCacheItem
+{
+public:
+    virtual ~FramebufferCacheItem() = default;
+};
 
 namespace {
 
@@ -55,6 +62,16 @@ struct _FramebufferDesc
     HgiFormat depthFormat;
     HgiTextureHandleVector colorTextures;
     HgiTextureHandle depthTexture;
+
+    // TfHash support.
+    template <class HashState>
+    friend void TfHashAppend(HashState &h, _FramebufferDesc const &desc)
+    {
+        h.Append((uint32_t)desc.depthFormat, desc.depthTexture.GetId());
+        for (const auto& tex : desc.colorTextures) {
+            h.Append(tex.GetId());
+        }
+    }
 };
 
 bool operator==(
@@ -92,18 +109,25 @@ std::ostream& operator<<(
 
 // Simple struct that tracks a framebuffer object and its texture attachments
 // for a descriptor.
-struct _DescriptorCacheItem
+class _FramebufferCacheItem : public FramebufferCacheItem
 {
-    _FramebufferDesc descriptor;
+public:
+    virtual ~_FramebufferCacheItem() = default;
+    _FramebufferDesc desc;
     uint32_t framebuffer = 0;
     HgiGLTextureConstPtrVector attachments;
 };
+
+using _FramebufferCacheItemPtr = std::shared_ptr<_FramebufferCacheItem>;
+using _FramebufferCacheItemWeakPtr = std::weak_ptr<_FramebufferCacheItem>;
 
 void
 _CreateFramebuffer(
     const _FramebufferDesc &desc,
     uint32_t * const framebuffer,
-    HgiGLTextureConstPtrVector * const attachments)
+    HgiGLTextureConstPtrVector * const attachments,
+    const _FramebufferCacheItemPtr& cacheItem,
+    HgiGLContextArena* arena)
 {
     // Create framebuffer
     glCreateFramebuffers(1, framebuffer);
@@ -123,6 +147,7 @@ _CreateFramebuffer(
             continue;
         }
 
+        glTexture->AddFramebuffer(cacheItem, arena);
         attachments->emplace_back(glTexture);
 
         const uint32_t textureName = glTexture->GetTextureId();
@@ -153,6 +178,7 @@ _CreateFramebuffer(
 
         const uint32_t textureName = glTexture->GetTextureId();
 
+        glTexture->AddFramebuffer(cacheItem, arena);
         attachments->emplace_back(glTexture);
 
         if (TF_VERIFY(glIsTexture(textureName), "Attachment not a texture")) {
@@ -179,58 +205,49 @@ _CreateFramebuffer(
 }
     
 
-_DescriptorCacheItem*
-_CreateDescriptorCacheItem(const _FramebufferDesc& desc)
+_FramebufferCacheItemPtr
+_CreateFramebufferCacheItem(
+    const _FramebufferDesc& desc,
+    HgiGLContextArena* arena)
 {
     TRACE_FUNCTION();
 
-    _DescriptorCacheItem* const dci = new _DescriptorCacheItem();
-    dci->descriptor = desc;
-    _CreateFramebuffer(desc, &dci->framebuffer, &dci->attachments);
+    _FramebufferCacheItemPtr const cacheItem =
+        std::make_shared<_FramebufferCacheItem>();
+    cacheItem->desc = desc;
+    _CreateFramebuffer(desc, &cacheItem->framebuffer, &cacheItem->attachments,
+        cacheItem, arena);
 
-    return dci;
+    return cacheItem;
 }
 
 // Deletes the cache item and returns whether the associated framebuffer object
 // was deleted successfully.
 bool
-_DestroyDescriptorCacheItem(_DescriptorCacheItem* dci, void* cache)
+_DestroyFramebufferCacheItem(_FramebufferCacheItem* cacheItem, void* cache)
 {
     TRACE_FUNCTION();
 
     bool fboDeleted = false;
-    if (dci->framebuffer) {
-        if (glIsFramebuffer(dci->framebuffer)) {
+    if (cacheItem->framebuffer) {
+        if (glIsFramebuffer(cacheItem->framebuffer)) {
             TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
                 "Deleting FBO %u from cache cache %p\n",
-                dci->framebuffer, cache);
+                cacheItem->framebuffer, cache);
 
-            glDeleteFramebuffers(1, &dci->framebuffer);
-            dci->framebuffer = 0;
+            glDeleteFramebuffers(1, &cacheItem->framebuffer);
+            cacheItem->framebuffer = 0;
             fboDeleted = true;
 
         } else if (_IsErrorReportingEnabled()) {
-            TF_CODING_ERROR("_DestroyDescriptorCacheItem: Found invalid "
-                            "framebuffer %d in cache.\n", dci->framebuffer);
+            TF_CODING_ERROR("_DestroyFramebufferCacheItem: Found invalid "
+                            "framebuffer %d in cache.\n",
+                                cacheItem->framebuffer);
         }
     }
 
     HGIGL_POST_PENDING_GL_ERRORS();
-    delete dci;
     return fboDeleted;
-}
-
-// If any of the texture attachments of a framebuffer object were deleted,
-// the cache item is deemed invalid.
-bool
-_IsValid(_DescriptorCacheItem* dci)
-{
-    for (const HgiGLTextureConstPtr &texture : dci->attachments) {
-        if (!texture) { // TfWeakPtr validity check
-            return false;
-        }
-    }
-    return true;
 }
 
 } // end anonymous namespace
@@ -239,14 +256,15 @@ _IsValid(_DescriptorCacheItem* dci)
 // HgiGLContextArena::_FramebufferCache
 // -----------------------------------------------------------------------------
 
-using _DescriptorCacheVec = std::vector<_DescriptorCacheItem*>;
+using _FramebufferCacheContainer =
+    std::unordered_set<_FramebufferCacheItemPtr>;
+using _FramebufferCacheLookupContainer =
+    std::unordered_map<_FramebufferDesc, _FramebufferCacheItem*, TfHash>;
 
 // Creating a framebuffer object or changing its attachments are expensive
 // operations when performed frequently.
 // The framebuffer cache mitigates this cost by maintaing a list of
 // active entries based on graphics cmd descriptors.
-// Although unbounded, we expect it be small with the expectation that
-// GarbageCollect() is called frequently (typically per frame).
 //
 class HgiGLContextArena::_FramebufferCache
 {
@@ -264,11 +282,12 @@ public:
     /// created for the MSAA and for the resolved textures. The bool flag can
     /// be used to access the respective ones.
     uint32_t AcquireFramebuffer(HgiGraphicsCmdsDesc const& desc,
-                                bool resolved = false);
+                                bool resolved,
+                                HgiGLContextArena* arena);
 
-    /// Removes framebuffer entries that reference invalid texture handles from
-    /// the cache.
-    void GarbageCollect();
+    // Removes a cache item from the pool. This is typically only done whenever
+    // a texture associated with a cache item is deleted.
+    void InvalidateCacheItem(_FramebufferCacheItemPtr& item);
 
 private:
     /// Clears all framebuffers from cache.
@@ -279,15 +298,45 @@ private:
         std::ostream& out,
         const _FramebufferCache& fbc)
     {
+        // Have to sort the cache so that output is stable across platforms
+        // with different unordered_set implementations
+        std::vector<_FramebufferCacheItemPtr> sortedItems(
+            fbc._cache.begin(), fbc._cache.end());
+        std::sort(sortedItems.begin(), sortedItems.end(),
+            [](_FramebufferCacheItemPtr& self, _FramebufferCacheItemPtr& other)
+        {
+            const HgiTextureHandleVector& selfColors =
+                self->desc.colorTextures;
+            const HgiTextureHandleVector& otherColors =
+                other->desc.colorTextures;
+            uint32_t selfSize = selfColors.size();
+            uint32_t otherSize = otherColors.size();
+            if (selfSize != otherSize) {
+                return selfSize < otherSize;
+            }
+            if (selfSize != 0) {
+                for (uint32_t i = 0; i < selfColors.size(); i++) {
+                    if (selfColors[i].GetId() != otherColors[i].GetId()) {
+                        return selfColors[i].GetId() < otherColors[i].GetId();
+                    }
+                }
+            }
+            uint64_t selfDepth = self->desc.depthTexture ?
+                self->desc.depthTexture.GetId() : 0;
+            uint64_t otherDepth = other->desc.depthTexture ?
+                other->desc.depthTexture.GetId() : 0;
+            return selfDepth < otherDepth;
+        });
         out << "_FramebufferCache: {" << std::endl;
-        for (_DescriptorCacheItem const * d : fbc._descriptorCache) {
-            out << "    " << d->descriptor << std::endl;
+        for (_FramebufferCacheItemPtr const& f : sortedItems) {
+            out << "    " << f->desc << std::endl;
         }
         out << "}" << std::endl;
         return out;
     }
 
-    _DescriptorCacheVec _descriptorCache;
+    _FramebufferCacheContainer _cache;
+    _FramebufferCacheLookupContainer _lookup;
 };
 
 
@@ -299,67 +348,51 @@ HgiGLContextArena::_FramebufferCache::~_FramebufferCache()
 uint32_t
 HgiGLContextArena::_FramebufferCache::AcquireFramebuffer(
     HgiGraphicsCmdsDesc const& graphicsCmdsDesc,
-    const bool resolved)
+    const bool resolved,
+    HgiGLContextArena* arena)
 {
     TRACE_FUNCTION();
-
-    _DescriptorCacheItem* dci = nullptr;
-
     _FramebufferDesc desc(graphicsCmdsDesc, resolved);
 
     // Look for our framebuffer in cache based on the descriptor.
-    for (size_t i=0; i<_descriptorCache.size(); i++) {
-        _DescriptorCacheItem* const item = _descriptorCache[i];
-        if (desc == item->descriptor) {
-            if (glIsFramebuffer(item->framebuffer)) {
-                TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
-                    "Cache Hit: Using FBO %u in cache %p.\n",
-                    item->framebuffer, &_descriptorCache);
+    auto iter = _lookup.find(desc);
+    if (iter != _lookup.end()) {
+        auto& item = iter->second;
+        if (glIsFramebuffer(item->framebuffer)) {
+            TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
+                "Cache Hit: Using FBO %u in cache %p.\n",
+                item->framebuffer, &_cache);
 
-                return item->framebuffer;
-            } else if (_IsErrorReportingEnabled()) {
-                TF_CODING_ERROR("AcquireFramebuffer: Found invalid framebuffer "
-                                "%d in cache.\n", item->framebuffer);
-            }
+            return item->framebuffer;
+        } else if (_IsErrorReportingEnabled()) {
+            TF_CODING_ERROR("AcquireFramebuffer: Found invalid framebuffer "
+                            "%d in cache.\n", item->framebuffer);
         }
     }
 
-    // Create a new descriptor cache item if it was not found
-    if (!dci) {
-        dci = _CreateDescriptorCacheItem(desc);
-        _descriptorCache.push_back(dci);
-        TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
-            "Cache Miss: Creating FBO %u in cache %p\n",
-            dci->framebuffer, (void*)this);
-    }
-
-    return dci->framebuffer;
+    // Create a new framebuffer cache item if it was not found
+    _FramebufferCacheItemPtr cacheItem =
+        _CreateFramebufferCacheItem(desc, arena);
+    _cache.insert(cacheItem);
+    TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
+        "Cache Miss: Creating FBO %u in cache %p\n",
+        cacheItem->framebuffer, (void*)this);
+    _lookup[desc] = cacheItem.get();
+    return cacheItem->framebuffer;
 }
 
 void
-HgiGLContextArena::_FramebufferCache::GarbageCollect()
+HgiGLContextArena::_FramebufferCache::InvalidateCacheItem(
+    _FramebufferCacheItemPtr& item)
 {
     TRACE_FUNCTION();
-
-    const size_t numTotalEntries = _descriptorCache.size();
-    size_t numStaleEntries = 0;
-    // Remove FBO entries refering to texture attachments that were deleted.
-    for (auto it = _descriptorCache.begin(); it != _descriptorCache.end();) {
-        _DescriptorCacheItem* const dci = *it;
-
-        if (!_IsValid(dci)) {
-            if (_DestroyDescriptorCacheItem(dci, (void*)this)) {
-                numStaleEntries++;
-            }
-            it = _descriptorCache.erase(it);
-        } else {
-            it++;
-        }
+    auto it = _cache.find(item);
+    if (it != _cache.end())
+    {
+        _lookup.erase((*it)->desc);
+        _DestroyFramebufferCacheItem(it->get(), (void*)this);
+        _cache.erase(it);
     }
-
-    TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
-        "Garbage collected %zu (of %zu) stale entries.\n",
-        numStaleEntries, numTotalEntries);
 }
 
 void
@@ -367,14 +400,15 @@ HgiGLContextArena::_FramebufferCache::_Clear()
 {
     TRACE_FUNCTION();
 
-    const size_t numTotalEntries = _descriptorCache.size();
+    const size_t numTotalEntries = _cache.size();
     size_t numClearedEntries = 0;
-    for (_DescriptorCacheItem* dci : _descriptorCache) {
-        if (_DestroyDescriptorCacheItem(dci, (void*)this)) {
+    for (const _FramebufferCacheItemPtr& cacheItem : _cache) {
+        if (_DestroyFramebufferCacheItem(cacheItem.get(), (void*)this)) {
             numClearedEntries++;
         }
     }
-    _descriptorCache.clear();
+    _lookup.clear();
+    _cache.clear();
 
     TF_DEBUG(HGIGL_DEBUG_FRAMEBUFFER_CACHE).Msg(
         "Cleared %zu (of %zu) entries.\n",
@@ -393,18 +427,21 @@ HgiGLContextArena::HgiGLContextArena()
 
 HgiGLContextArena::~HgiGLContextArena() = default;
 
+void 
+HgiGLContextArena::InvalidateCacheItem(
+    std::shared_ptr<FramebufferCacheItem>& item)
+{
+    _FramebufferCacheItemPtr castItem =
+        std::dynamic_pointer_cast<_FramebufferCacheItem>(item);
+    _framebufferCache->InvalidateCacheItem(castItem);
+}
+
 uint32_t
 HgiGLContextArena::_AcquireFramebuffer(
     HgiGraphicsCmdsDesc const& desc,
     bool resolved)
 {
-    return _framebufferCache.get()->AcquireFramebuffer(desc, resolved);
-}
-
-void
-HgiGLContextArena::_GarbageCollect()
-{
-    _framebufferCache.get()->GarbageCollect();
+    return _framebufferCache->AcquireFramebuffer(desc, resolved, this);
 }
 
 std::ostream& operator<<(

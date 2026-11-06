@@ -156,6 +156,8 @@ void wrapUsdAttributeQuery()
 
         .def("ValueMightBeTimeVarying", 
              &UsdAttributeQuery::ValueMightBeTimeVarying)
+        .def("ValueSourceMightBeTimeVarying", 
+             &UsdAttributeQuery::ValueSourceMightBeTimeVarying)
 
         .def("Get", _Get, arg("time")=UsdTimeCode::Default())
         .def("GetSpline", &UsdAttributeQuery::GetSpline,

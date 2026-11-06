@@ -13,6 +13,7 @@
 #include "Hd/version.h"
 #include "Hgi/capabilities.h"
 #include "Hgi/handle.h"
+#include "Hgi/enums.h"
 #include "Tf/token.h"
 #include "Tf/stl.h"
 #include "Tf/staticTokens.h"
@@ -175,6 +176,7 @@ public:
             std::vector<StructEntry> entries;
             int arraySize;
             bool isWritable;
+            HgiShaderStage stageVisibility;
         };
         using StructBlockBinding = std::map<HdStBinding, StructBlock>;
 
@@ -258,16 +260,19 @@ public:
             BindingDeclaration(TfToken const &name,
                                TfToken const &dataType,
                                HdStBinding binding,
-                               bool isWritable = false)
+                               bool isWritable = false,
+                               HgiShaderStage stageVisibility = HgiShaderStageAll)
                 : name(name)
                 , dataType(dataType)
                 , binding(binding)
-                , isWritable(isWritable) { }
+                , isWritable(isWritable)
+                , stageVisibility(stageVisibility) {}
 
             TfToken name;
             TfToken dataType;
             HdStBinding binding;
             bool isWritable;
+            HgiShaderStage stageVisibility;
         };
 
         // -------------------------------------------------------------------

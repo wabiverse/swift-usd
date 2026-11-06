@@ -171,6 +171,16 @@ HgiVulkanBlitCmds::CopyTextureGpuToCpu(
     HgiVulkanBuffer* stagingBuffer = srcTexture->GetStagingBuffer();
     TF_VERIFY(src && stagingBuffer);
 
+    VkBufferMemoryBarrier before = srcTexture->GetStagingBuffer()->GetBarrier(
+        VK_ACCESS_HOST_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
+    vkCmdPipelineBarrier(_commandBuffer->GetVulkanCommandBuffer(),
+        VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0,
+        0, nullptr,
+        1, &before,
+        0, nullptr);
+
     vkCmdCopyImageToBuffer(
         _commandBuffer->GetVulkanCommandBuffer(),
         srcTexture->GetImage(),
@@ -190,6 +200,17 @@ HgiVulkanBlitCmds::CopyTextureGpuToCpu(
         access,                              // type of access
         VK_PIPELINE_STAGE_TRANSFER_BIT,      // producer stage
         VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT); // consumer stage
+
+    VkBufferMemoryBarrier after = srcTexture->GetStagingBuffer()->GetBarrier(
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT);
+
+    vkCmdPipelineBarrier(_commandBuffer->GetVulkanCommandBuffer(),
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_HOST_BIT,
+        0,
+        0, nullptr,
+        1, &after,
+        0, nullptr);
 
     // Offset into the dst buffer
     char* dst = ((char*) copyOp.cpuDestinationBuffer) +

@@ -29,7 +29,7 @@ public extension Sdf.Reference
 {
   init(assetPath: String = "",
        primPath: Sdf.Path = Sdf.Path(),
-       layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(),
+       layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(0, 1),
        customData: Vt.Dictionary = Vt.Dictionary())
   {
     self = assetPath.withCString { Overlay.MakeReference($0, primPath, layerOffset, customData) }

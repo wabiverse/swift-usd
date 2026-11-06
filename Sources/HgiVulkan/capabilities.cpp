@@ -353,6 +353,8 @@ HgiVulkanCapabilities::HgiVulkanCapabilities(HgiVulkanDevice* device)
     }
 
     _maxClipDistances = vkDeviceProperties2.properties.limits.maxClipDistances;
+    _maxSamplersPerShaderStage =
+        vkDeviceProperties2.properties.limits.maxPerStageDescriptorSamplers;
     _maxUniformBlockSize =
         vkDeviceProperties2.properties.limits.maxUniformBufferRange;
     _maxShaderStorageBlockSize =

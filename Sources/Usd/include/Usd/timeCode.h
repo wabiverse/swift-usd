@@ -9,6 +9,7 @@
 
 #include "pxr/pxrns.h"
 #include "Usd/api.h"
+#include "Sdf/layerOffset.h"
 #include "Sdf/timeCode.h"
 #include "Arch/hints.h"
 #include "Tf/staticTokens.h"
@@ -230,6 +231,12 @@ std::ostream& operator<<(std::ostream& os, const UsdTimeCode& time);
 USD_API
 std::istream& operator>>(std::istream& is, UsdTimeCode& time);
 
+/// Applies the given layer `offset` to the given UsdTimeCode, resulting in
+/// a scaled and offset UsdTimeCode.
+///
+/// This function is an identity function for default and earliest UsdTimeCodes.
+USD_API
+UsdTimeCode operator*(const SdfLayerOffset& offset, const UsdTimeCode& time);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

@@ -39,11 +39,9 @@ EXEC_REGISTER_COMPUTATIONS_FOR_SCHEMA(ExecIrFkController)
     builder.NonInvertibleInputAttribute<GfMatrix4d>(
         ExecIrTokens->parentInDefaultSpace);
 
-    builder.InvertibleOutputAttribute<GfMatrix4d>(
-        ExecIrTokens->outSpace);
+    builder.InvertibleOutputAttribute<GfMatrix4d>(ExecIrTokens->outSpace);
 
-    builder.SwitchAttribute<TfToken>(
-        ExecIrTokens->inRotationOrder);
+    builder.SwitchAttribute<TfToken>(ExecIrTokens->inRotationOrder);
 
     builder.PassthroughAttributes<GfMatrix4d>(
         ExecIrTokens->inDefaultSpace,
@@ -74,6 +72,7 @@ _Invert(const VdfContext &ctx)
         ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->outSpace);
 
     ExecIrResult resultMap;
-    ExecIr_UtilsInvert(ctx, posedSpace, ExecIr_ComputeFkParams(ctx), &resultMap);
+    ExecIr_UtilsInvert(
+        ctx, posedSpace, ExecIr_ComputeFkParams(ctx), &resultMap);
     return resultMap;
 }

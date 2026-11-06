@@ -103,7 +103,7 @@ private:
             : _useDrawIndexed(true)
             , _useInstanceCulling(false)
             , _bufferArrayHash(0) { }
-        void Initialize(bool useDrawIndexed,
+        bool Initialize(bool useDrawIndexed,
                         bool useInstanceCulling,
                         size_t bufferArrayHash);
     protected:
@@ -173,6 +173,7 @@ private:
     HdStBufferResourceSharedPtr _resultBuffer;
 
     size_t _numVisibleItems;
+    size_t _numVisibleItemsPostCull;
     size_t _numTotalVertices;
     size_t _numTotalElements;
 

@@ -16,6 +16,7 @@
 #include "Tf/stringUtils.h"
 #include "Tf/diagnostic.h"
 #include "Tf/enum.h"
+#include "Tf/envSetting.h"
 #include "Tf/stl.h"
 #include "Tf/registryManager.h"
 #include "Trace/traceImpl.h"
@@ -32,6 +33,10 @@ namespace {
 // Constants for constructing GfInterval objects
 constexpr bool OPEN = false;
 constexpr bool CLOSED = true;
+
+// Env setting to disable inner looping deprecation warnings
+TF_DEFINE_ENV_SETTING(PXR_DISABLE_INNER_LOOPING_WARNINGS, false,
+                      "Disable warnings about inner looping deprecation.");
 
 } // annonymous namespace
 
@@ -109,21 +114,10 @@ TfType TsSpline::GetValueType() const
     return _GetData()->GetValueType();
 }
 
-void TsSpline::SetTimeValued(const bool timeValued)
-{
-    if (GetValueType() == Ts_GetType<GfTimeCode>()) {
-        TF_CODING_ERROR("SetTimeValued is deprecated and cannot be invoked "
-                        "when this spline's value type is GfTimeCode.");
-        return;
-    }
-    _PrepareForWrite();
-    _data->timeValued = timeValued;
-}
-
 bool TsSpline::IsTimeValued() const
 {
-    return _GetData()->valueType == Ts_GetType<GfTimeCode>() ||
-           _GetData()->timeValued;
+    return (_GetData()->valueType == Ts_GetType<GfTimeCode>() ||
+            _GetData()->valueType == Ts_GetType<GfDuration>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,7 +151,7 @@ void TsSpline::SetPreExtrapolation(
 {
     _PrepareForWrite();
     if (extrap.IsLooping() && extrap.loopBoundaryTime.has_value() &&
-        _data->loopParams != TsLoopParams())
+        _data->loopParams != Ts_LoopParams())
     {
         TF_CODING_ERROR("Cannot set extrapolation looping with a non-null "
                         "loopBoundaryTime when inner loops are possibly "
@@ -177,7 +171,7 @@ void TsSpline::SetPostExtrapolation(
 {
     _PrepareForWrite();
     if (extrap.IsLooping() && extrap.loopBoundaryTime.has_value() &&
-        _data->loopParams != TsLoopParams())
+        _data->loopParams != Ts_LoopParams())
     {
         TF_CODING_ERROR("Cannot set extrapolation looping with a non-null "
                         "loopBoundaryTime when inner loops are possibly "
@@ -224,13 +218,26 @@ TsSpline::IsPostExtrapolationValid() const
 // Inner Loops
 
 void TsSpline::SetInnerLoopParams(
-    const TsLoopParams &params)
+    const Ts_LoopParams &params)
+{
+    static std::atomic_flag warned = ATOMIC_FLAG_INIT;
+    if (!warned.test_and_set() &&
+        !TfGetEnvSetting(PXR_DISABLE_INNER_LOOPING_WARNINGS))
+    {
+        TF_WARN("TsSpline inner looping is deprecated.");
+    }
+
+    _SetInnerLoopParams(params);
+}
+                               
+void TsSpline::_SetInnerLoopParams(
+    const Ts_LoopParams &params)
 {
     _PrepareForWrite();
 
     // Don't set inner looping if it causes non-default inner looping and
     // extrapolation looping with loopBoundaryTime to be active simultaneously.
-    if (params != TsLoopParams()) {
+    if (params != Ts_LoopParams()) {
         const TsExtrapolation& preExtrap = GetPreExtrapolation();
         const TsExtrapolation& postExtrap = GetPostExtrapolation();
         if ((preExtrap.IsLooping() && preExtrap.loopBoundaryTime.has_value()) ||
@@ -257,7 +264,19 @@ void TsSpline::SetInnerLoopParams(
     }
 }
 
-TsLoopParams TsSpline::GetInnerLoopParams() const
+Ts_LoopParams TsSpline::GetInnerLoopParams() const
+{
+    static std::atomic_flag warned = ATOMIC_FLAG_INIT;
+    if (!warned.test_and_set() &&
+        !TfGetEnvSetting(PXR_DISABLE_INNER_LOOPING_WARNINGS))
+    {
+        TF_WARN("TsSpline inner looping is deprecated.");
+    }
+
+    return _GetInnerLoopParams();
+}
+
+Ts_LoopParams TsSpline::_GetInnerLoopParams() const
 {
     return _GetData()->loopParams;
 }
@@ -327,8 +346,8 @@ bool TsSpline::SetKnot(
     _PrepareForWrite(knot.GetValueType());
 
     // Copy knot data.
-    // Note that if we're setting a double knot on a TsTimeCode spline,
-    // we don't need to convert the knot to TsTimeCode -- all TsSpline knot
+    // Note that if we're setting a double knot on a GfTimeCode spline,
+    // we don't need to convert the knot to GfTimeCode -- all TsSpline knot
     // getters convert the result knots' value types to that of the spline.
     const size_t idx = _data->SetKnot(knot._GetData(), knot.GetCustomData());
 
@@ -404,6 +423,18 @@ void TsSpline::RemoveKnot(
 
 bool TsSpline::BakeInnerLoops()
 {
+    static std::atomic_flag warned = ATOMIC_FLAG_INIT;
+    if (!warned.test_and_set() &&
+        !TfGetEnvSetting(PXR_DISABLE_INNER_LOOPING_WARNINGS))
+    {
+        TF_WARN("TsSpline inner looping is deprecated.");
+    }
+
+    return _BakeInnerLoops();
+}
+
+bool TsSpline::_BakeInnerLoops()
+{
     if (!_data || !_data->HasInnerLoops()) {
         // No inner loops to bake, we're done.
         return true;
@@ -428,6 +459,18 @@ bool TsSpline::BakeInnerLoops()
 }
 
 TsKnotMap TsSpline::GetKnotsWithInnerLoopsBaked() const
+{
+    static std::atomic_flag warned = ATOMIC_FLAG_INIT;
+    if (!warned.test_and_set() &&
+        !TfGetEnvSetting(PXR_DISABLE_INNER_LOOPING_WARNINGS))
+    {
+        TF_WARN("TsSpline inner looping is deprecated.");
+    }
+
+    return _GetKnotsWithInnerLoopsBaked();
+}
+
+TsKnotMap TsSpline::_GetKnotsWithInnerLoopsBaked() const
 {
     TsKnotMap result;
 
@@ -622,7 +665,7 @@ TsSpline::GetTimeScaled(double timeScale, double timeOffset) const
     }
 
     Ts_SplineData* scaledData;
-    if (timeScale < 0 && HasInnerLoops()) {
+    if (timeScale < 0 && _HasInnerLoops()) {
         scaledData = Ts_Bake(_GetData(), GfInterval::GetFullInterval(),
                              /* includeExtrapLoops */ false);
     } else {
@@ -653,11 +696,9 @@ TsSpline::Concatenate(const std::vector<TsSpline>& splines)
     }
 
     TfType valueType;
-    TsExtrapolation preExtrapolation;
     for (const TsSpline& spline : splines) {
         if (!spline.IsEmpty()) {
             valueType = spline.GetValueType();
-            preExtrapolation = spline.GetPreExtrapolation();
             break;
         }
     }
@@ -667,7 +708,7 @@ TsSpline::Concatenate(const std::vector<TsSpline>& splines)
 
     TsSpline resultSpline(valueType);
     TsKnot prevKnot(valueType);
-    TsExtrapolation postExtrapolation;
+    bool foundPreExtrapolation = false;
     for (size_t i = 0; i < splines.size(); ++i) {
         const TsSpline& spline = splines[i];
         if (spline.IsEmpty()) {
@@ -680,13 +721,12 @@ TsSpline::Concatenate(const std::vector<TsSpline>& splines)
             return TsSpline();
         }
 
-        if (spline.HasInnerLoops()) {
+        if (spline._HasInnerLoops()) {
             TF_CODING_ERROR("Concatenation of splines with inner loops is "
                             "not supported, returning empty spline.");
             return TsSpline();
         }
 
-        postExtrapolation = spline.GetPostExtrapolation();
         TsKnotMap knots = spline.GetKnots();
         TsKnot& startKnot = *knots.begin();
 
@@ -724,10 +764,27 @@ TsSpline::Concatenate(const std::vector<TsSpline>& splines)
 
         // Store the boundary knot's pre values.
         prevKnot = *knots.rbegin();
+
+        // Set extrapolations as necessary
+        if (!foundPreExtrapolation) {
+            TsExtrapolation preExtrapolation = spline.GetPreExtrapolation();
+            if (preExtrapolation.IsLooping()
+                && !preExtrapolation.loopBoundaryTime.has_value())
+            {
+                preExtrapolation.loopBoundaryTime = prevKnot.GetTime();
+            }
+            resultSpline.SetPreExtrapolation(preExtrapolation);
+            foundPreExtrapolation = true;
+        }
+        TsExtrapolation postExtrapolation = spline.GetPostExtrapolation();
+        if (postExtrapolation.IsLooping()
+            && !postExtrapolation.loopBoundaryTime.has_value())
+        {
+            postExtrapolation.loopBoundaryTime = startKnot.GetTime();
+        }
+        resultSpline.SetPostExtrapolation(postExtrapolation);
     }
 
-    resultSpline.SetPreExtrapolation(preExtrapolation);
-    resultSpline.SetPostExtrapolation(postExtrapolation);
     return resultSpline;
 }
 
@@ -763,10 +820,22 @@ bool TsSpline::HasValueBlocks() const
 
 bool TsSpline::HasLoops() const
 {
-    return HasInnerLoops() || HasExtrapolatingLoops();
+    return _HasInnerLoops() || HasExtrapolatingLoops();
 }
 
 bool TsSpline::HasInnerLoops() const
+{
+    static std::atomic_flag warned = ATOMIC_FLAG_INIT;
+    if (!warned.test_and_set() &&
+        !TfGetEnvSetting(PXR_DISABLE_INNER_LOOPING_WARNINGS))
+    {
+        TF_WARN("TsSpline inner looping is deprecated.");
+    }
+
+    return _HasInnerLoops();
+}
+
+bool TsSpline::_HasInnerLoops() const
 {
     return _GetData()->HasInnerLoops();
 }
@@ -800,6 +869,11 @@ static std::string _ExtrapDesc(const TsExtrapolation &extrap)
         ss << " " << TfStringify(extrap.slope);
     }
 
+    if (extrap.IsLooping() && extrap.loopBoundaryTime.has_value())
+    {
+        ss << " " << TfStringify(extrap.loopBoundaryTime.value());
+    }
+
     return ss.str();
 }
 
@@ -815,9 +889,9 @@ std::ostream& operator<<(std::ostream& out, const TsSpline &spline)
         << "  post extrap "
         << _ExtrapDesc(spline.GetPostExtrapolation()) << std::endl;
 
-    if (spline.HasInnerLoops())
+    if (spline._HasInnerLoops())
     {
-        const TsLoopParams lp = spline.GetInnerLoopParams();
+        const Ts_LoopParams lp = spline._GetInnerLoopParams();
         out << "Loop:" << std::endl
             << "  start " << TfStringify(lp.protoStart)
             << ", end " << TfStringify(lp.protoEnd)
@@ -873,7 +947,8 @@ void TsSpline::_PrepareForWrite(TfType valueType)
     {
         // If we guessed correctly, upgrade to real storage by marking typed.
         if (valueType == Ts_GetType<double>()
-            || valueType == Ts_GetType<GfTimeCode>())
+            || valueType == Ts_GetType<GfTimeCode>()
+            || valueType == Ts_GetType<GfDuration>())
         {
             _data->isTyped = true;
             _data->valueType = valueType;

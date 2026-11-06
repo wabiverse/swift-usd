@@ -388,7 +388,8 @@ public:
     }
 
     /// \sa UsdAttribute::GetName()
-    TfToken const &GetName() const {  return GetAttr().GetName(); }
+    TfToken const &GetName() const & {  return GetAttr().GetName(); }
+    TfToken GetName() const && {  return GetAttr().GetName(); }
 
     /// \sa UsdAttribute::GetBaseName()
     TfToken GetBaseName() const { return GetAttr().GetBaseName(); }

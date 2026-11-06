@@ -13,6 +13,7 @@
 #include <Gf/ilmbase_halfLimits.h>
 #include <Gf/vec4f.h>
 #include <Gf/traits.h>
+#include <Gf/duration.h>
 #include <Gf/lineSeg2d.h>
 #include <Gf/dualQuatd.h>
 #include <Gf/vec3i.h>

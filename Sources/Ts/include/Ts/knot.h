@@ -15,6 +15,7 @@
 #include "Ts/typeHelpers.h"
 #include "Vt/dictionary.h"
 #include "Vt/value.h"
+#include "Gf/duration.h"
 #include "Gf/half.h"
 #include "Gf/timeCode.h"
 #include "Tf/diagnostic.h"
@@ -417,15 +418,17 @@ std::ostream& operator<<(std::ostream& out, const TsKnot &knot);
 /// TsKnot knot2(TfType::Find<float>());
 /// TsKnot knot3(TfType::Find<GfHalf>());
 /// TsKnot knot4(TfType::Find<GfTimeCode>());
+/// TsKnot knot5(TfType::Find<GfDuration>());
 /// </pre>
 ///
 /// One may write:
 ///
 /// <pre>
-/// TsDoubleKnot knot1;
-/// TsFloatKnot knot2;
-/// TsHalfKnot knot3;
+/// TsDoubleKnot   knot1;
+/// TsFloatKnot    knot2;
+/// TsHalfKnot     knot3;
 /// TsTimeCodeKnot knot4;
+/// TsDurationKnot knot5;
 /// </pre>
 ///
 template <typename T,
@@ -451,6 +454,10 @@ using TsHalfKnot = TsTypedKnot<GfHalf>;
 /// \class TsTimeCodeKnot
 /// A knot-construction convenience.  See TsTypedKnot.
 using TsTimeCodeKnot = TsTypedKnot<GfTimeCode>;
+
+/// \class TsDurationKnot
+/// A knot-construction convenience.  See TsTypedKnot.
+using TsDurationKnot = TsTypedKnot<GfDuration>;
 
 // Make sure we have coverage for all allowed types.
 #define _MAKE_CLAUSE(unused, tuple)                                          \

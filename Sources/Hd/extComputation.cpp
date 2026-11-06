@@ -99,9 +99,14 @@ HdExtComputation::_Sync(HdSceneDelegate *sceneDelegate,
     }
 
     if (bits & DirtyKernel) {
-        _gpuKernelSource = sceneDelegate->GetExtComputationKernel(GetId());
+        // XXX Since GPU kernels are often shared between prims, convert
+        // the source string to a TfToken to detect reuse.  We should
+        // consider updating upstream API's and Hydra schemas to use TfToken
+        // for shadertext rather than converting to TfToken here.
+        _gpuKernelSource =
+            TfToken(sceneDelegate->GetExtComputationKernel(GetId()));
         TF_DEBUG(HD_EXT_COMPUTATION_UPDATED).Msg("    GpuKernelSource = '%s'\n",
-                _gpuKernelSource.c_str());
+                _gpuKernelSource.GetText());
         // XXX we should update any created GPU computations as well
         // with the new kernel if we want to provide a good editing flow.
     }

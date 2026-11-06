@@ -123,9 +123,10 @@ _GetPruneMatchResult(
 
 void
 HdsiUtilsCompileCollection(
-    HdCollectionsSchema &collections,
-    TfToken const& collectionName,
-    HdSceneIndexBaseRefPtr const& sceneIndex,
+    const HdCollectionsSchema &collections,
+    const TfToken &collectionName,
+    const HdSceneIndexBaseRefPtr &sceneIndex,
+    const HdCollectionPredicateLibrary &predicateLibrary,
     SdfPathExpression *expr,
     std::optional<HdCollectionExpressionEvaluator> *eval)
 {
@@ -135,10 +136,24 @@ HdsiUtilsCompileCollection(
             collection.GetMembershipExpression()) {
             *expr = pathExprDs->GetTypedValue(0.0);
             if (!expr->IsEmpty()) {
-                *eval = HdCollectionExpressionEvaluator(sceneIndex, *expr);
+                *eval = HdCollectionExpressionEvaluator(
+                    sceneIndex, *expr, predicateLibrary);
             }
         }
     }
+}
+
+void
+HdsiUtilsCompileCollection(
+    const HdCollectionsSchema &collections,
+    const TfToken &collectionName,
+    const HdSceneIndexBaseRefPtr &sceneIndex,
+    SdfPathExpression *expr,
+    std::optional<HdCollectionExpressionEvaluator> *eval)
+{
+    HdsiUtilsCompileCollection(
+        collections, collectionName, sceneIndex,
+        HdGetCollectionPredicateLibrary(), expr, eval);
 }
 
 bool

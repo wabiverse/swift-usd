@@ -64,9 +64,9 @@ public:
     ///
     bool UpdateTimeDependence();
 
-    /// Returns `true` if the input is time dependent.
-    bool IsTimeDependent() const {
-        return _isTimeDependent;
+    /// Returns `true` if the input might be time dependent.
+    bool MightBeTimeDependent() const {
+        return _mightBeTimeDependent;
     }
 
     /// Returns `true` if the resolved input value at time \p from is different
@@ -101,7 +101,7 @@ private:
     // re-initialize the attribute query in response to edits like rename and
     // reparent.
     EsfAttributeQuery _attributeQuery;
-    bool _isTimeDependent;
+    bool _mightBeTimeDependent;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

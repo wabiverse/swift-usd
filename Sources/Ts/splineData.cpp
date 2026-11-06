@@ -48,8 +48,6 @@ Ts_SplineData* Ts_SplineData::Create(
     // Fill in default values that aren't built into the member types.  This
     // static method serves as our constructor, so we need these explicitly.
     result->curveType = TsCurveTypeBezier;
-    // Note the timeValued bit is always false at spline data creation,
-    // since it's set only with TsSpline::SetTimeValued.
     result->valueType = actualType;
 
     // Write the flag that indicates whether this is real or temporary data.

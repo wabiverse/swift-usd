@@ -10,8 +10,8 @@
 --- This is what an import might look like.
 --- #import $TOOLS/HdSt/shaders/simpleLightingShader.glslfx
 
-#import $TOOLS/Glf/shaders/pcfShader.glslfx
-#import $TOOLS/Glf/shaders/simpleLighting.glslfx
+#import $TOOLS/HdSt/shaders/pcfShader.glslfx
+#import $TOOLS/HdSt/shaders/simpleLighting.glslfx
 
 -- configuration
 {

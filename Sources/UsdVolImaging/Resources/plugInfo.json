@@ -3,13 +3,6 @@
         {
             "Info": {
                 "Types": {
-                    "UsdImagingField3DAssetAdapter": {
-                        "bases": [
-                            "UsdImagingFieldAdapter"
-                        ],
-                        "isInternal": true,
-                        "primTypeName": "Field3DAsset"
-                    },
                     "UsdImagingOpenVDBAssetAdapter": {
                         "bases": [
                             "UsdImagingFieldAdapter"
@@ -17,12 +10,20 @@
                         "isInternal": true,
                         "primTypeName": "OpenVDBAsset"
                     },
+                    "UsdImagingField3DAssetAdapter": {
+                        "bases": [
+                            "UsdImagingFieldAdapter"
+                        ],
+                        "isInternal": true,
+                        "primTypeName": "Field3DAsset"
+                    },
                     "UsdImagingParticleFieldAdapter": {
                         "bases": [
                             "UsdImagingGprimAdapter"
                         ],
                         "isInternal": true,
-                        "primTypeName": "ParticleField"
+                        "primTypeName": "ParticleField",
+                        "includeDerivedPrimTypes" : true
                     }
                 }
             },

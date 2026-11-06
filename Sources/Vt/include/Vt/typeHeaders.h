@@ -38,6 +38,7 @@
 #include "Gf/range3d.h"
 #include "Gf/range3f.h"
 #include "Gf/rect2i.h"
+#include "Gf/duration.h"
 #include "Gf/timeCode.h"
 #include "Gf/vec2d.h"
 #include "Gf/vec2f.h"

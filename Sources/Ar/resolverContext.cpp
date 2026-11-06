@@ -26,6 +26,22 @@ ArResolverContext::ArResolverContext(
     }
 }
 
+bool
+ArResolverContext::Contains(const ArResolverContext& ctx) const
+{
+    for (const auto& obj : ctx._contexts) {
+        if (std::none_of(
+                _contexts.begin(), _contexts.end(),
+                [&obj](const auto& selfObj) { 
+                    return obj->IsHolding(selfObj->GetTypeid()) &&
+                        obj->Equals(*selfObj);
+                })) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void
 ArResolverContext::_Add(const ArResolverContext& ctx)
 {

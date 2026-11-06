@@ -84,7 +84,22 @@ public extension Usd.Attribute
   {
     __GetTypeNameUnsafe()
   }
+
+  private borrowing func GetNameCopy() -> Tf.Token
+  {
+    __GetNameUnsafe().pointee
+  }
   #endif
+
+  /// The attribute's full name, its namespaces and all, like `inputs:diffuseColor`.
+  var name: Tf.Token
+  {
+    #if canImport(Usd)
+      GetNameCopy()
+    #else
+      GetName()
+    #endif
+  }
 
   var typeName: Pixar.SdfValueTypeName
   {
@@ -100,7 +115,7 @@ public extension Usd.Attribute
   }
   
   /// Returns `true` if `IsValid()` is `true`, otherwise `false`.
-  func isValid() -> Bool
+  var isValid: Bool
   {
     IsValid()
   }

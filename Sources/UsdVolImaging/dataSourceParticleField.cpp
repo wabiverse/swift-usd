@@ -6,11 +6,14 @@
 //
 #include <UsdVolImaging/dataSourceParticleField.h>
 
+#include "UsdImaging/dataSourceAttribute.h"
 #include "UsdImaging/dataSourcePrimvars.h"
 
 #include "UsdVol/particleField3DGaussianSplat.h"
 
+#include "Hd/retainedDataSource.h"
 #include "Hd/overlayContainerDataSource.h"
+#include "Hd/particleFieldSchema.h"
 #include "Hd/primvarsSchema.h"
 #include "Hd/tokens.h"
 
@@ -76,8 +79,45 @@ _GetCustomPrimvarMappings(const UsdPrim& usdPrim) {
     return mappings;
 }
 
+TfTokenVector
+UsdImagingDataSourceParticleFieldPrim::GetNames() {
+    TfTokenVector names = UsdImagingDataSourceGprim::GetNames();
+    if (std::find(names.begin(), names.end(),
+            HdParticleFieldSchema::GetSchemaToken()) == names.end()) {
+        names.push_back(HdParticleFieldSchema::GetSchemaToken());
+    }
+    return names;
+}
+
 HdDataSourceBaseHandle
 UsdImagingDataSourceParticleFieldPrim::Get(const TfToken& name) {
+
+    if (name == HdParticleFieldSchema::GetSchemaToken()) {
+
+        UsdVolParticleField3DGaussianSplat gs(_GetUsdPrim());
+
+        // XXX: right now, we hardcode the kernel type as "gaussian ellipsoid",
+        // since we don't have any other concrete particleField types.
+        // Eventually, we should determine this value through API type
+        // reflection.
+        return HdRetainedContainerDataSource::New(
+            HdParticleFieldSchemaTokens->kernelType,
+            HdRetainedTypedSampledDataSource<TfToken>::New(
+                TfToken("gaussianEllipsoid")),
+            UsdVolTokens->projectionModeHint,
+            UsdImagingDataSourceAttributeNew(
+                gs.GetProjectionModeHintAttr(),
+                _GetStageGlobals(),
+                _GetSceneIndexPath(),
+                HdParticleFieldSchema::GetDefaultLocator()),
+            UsdVolTokens->sortingModeHint,
+            UsdImagingDataSourceAttributeNew(
+                gs.GetSortingModeHintAttr(),
+                _GetStageGlobals(),
+                _GetSceneIndexPath(),
+                HdParticleFieldSchema::GetDefaultLocator()));
+    }
+
     HdDataSourceBaseHandle const result = UsdImagingDataSourceGprim::Get(name);
 
     if (name == HdPrimvarsSchema::GetSchemaToken()) {
@@ -87,18 +127,6 @@ UsdImagingDataSourceParticleFieldPrim::Get(const TfToken& name) {
                 _GetSceneIndexPath(), _GetUsdPrim(),
                 _GetCustomPrimvarMappings(_GetUsdPrim()), _GetStageGlobals()));
     }
-
-    // XXX: Todo: create a hydra "particleField" schema with the following
-    // data members, and populate it here:
-    // token particleField.kernelType =
-    //     ["gaussianEllipsoid", "gaussianSurflet", "constantSurflet"]
-    // ... populated from the typename of the applied KernelBaseAPI.
-    // token particleField.projectionModeHint = ["perspective", "tangential"]
-    // token particleField.sortingModeHint = ["zDepth", "cameraDistance"]
-    // ... populated from UsdVolParticleField3DGaussianSplat
-    //     projectionModeHint and sortingModeHint
-    // In particular, "kernelType" needs to be transported in order to make this
-    // code reusable for other concrete particle field instantiations.
 
     return result;
 }
@@ -146,6 +174,13 @@ UsdImagingDataSourceParticleFieldPrim::Invalidate(
                 result.insert(HdPrimvarsSchema::GetDefaultLocator().Append(
                     UsdVolTokens->radianceSphericalHarmonicsDegree));
             }
+            // 3D Gaussian Splat hints
+            if (propertyName == UsdVolTokens->projectionModeHint ||
+                propertyName == UsdVolTokens->sortingModeHint) {
+                result.insert(HdParticleFieldSchema::GetDefaultLocator());
+            }
+            // Note that the kernel type is type-based, and so any change will
+            // come as a prim resync, and we don't need to handle it here.
         }
     }
 

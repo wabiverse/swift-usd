@@ -36,6 +36,7 @@
 #include <UsdImaging/geomModelSchema.h>
 #include <UsdImaging/prototypeSceneIndexUtils.h>
 #include <UsdImaging/dataSourceRelationship.h>
+#include <UsdImaging/stageSceneIndexInterface.h>
 #include <UsdImaging/materialBindingAPIAdapter.h>
 #include <UsdImaging/niPrototypePruningSceneIndex.h>
 #include <UsdImaging/coordSysAPIAdapter.h>

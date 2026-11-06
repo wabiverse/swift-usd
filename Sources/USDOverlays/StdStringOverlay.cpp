@@ -74,6 +74,11 @@ namespace Overlay
     return Pixar::UsdStage::Open(std::string(filePath), load);
   }
 
+  Pixar::UsdStageRefPtr OpenStage(const Pixar::SdfLayerHandle &rootLayer, Pixar::UsdStage::InitialLoadSet load)
+  {
+    return Pixar::UsdStage::Open(rootLayer, load);
+  }
+
   bool AddReference(Pixar::UsdReferences references, const char *assetPath, const Pixar::SdfPath &primPath, const Pixar::SdfLayerOffset &layerOffset, Pixar::UsdListPosition position)
   {
     return references.AddReference(std::string(assetPath), primPath, layerOffset, position);
@@ -86,7 +91,7 @@ namespace Overlay
 
   Pixar::UsdAttribute CreateIdAttr(const Pixar::UsdShadeShader &shader, const char *defaultValue, bool writeSparsely)
   {
-    return shader.CreateIdAttr(Pixar::VtValue(std::string(defaultValue)), writeSparsely);
+    return shader.CreateIdAttr(Pixar::VtValue(Pixar::TfToken(defaultValue)), writeSparsely);
   }
 
   std::vector<std::string> MakeStringVector()

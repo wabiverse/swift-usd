@@ -7,10 +7,100 @@
 #include "pxr/pxrns.h"
 #include "Hgi/types.h"
 #include "Tf/diagnostic.h"
+#include "Tf/enum.h"
+#include "Tf/registryManager.h"
 
 #include <algorithm>
 
 PXR_NAMESPACE_OPEN_SCOPE
+
+TF_REGISTRY_FUNCTION(TfEnum)
+{
+    TF_ADD_ENUM_NAME(HgiFormatInvalid);
+
+    // UNorm8 - a 1-byte value representing a float between 0 and 1.
+    // float value = (unorm / 255.0f);
+    TF_ADD_ENUM_NAME(HgiFormatUNorm8);
+    TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec2);
+    /* TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec3 */ // Unsupported Metal (MTLPixelFormat)
+    TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec4);
+
+    // SNorm8 - a 1-byte value representing a float between -1 and 1.
+    // float value = max(snorm / 127.0f); -1.0f);
+    TF_ADD_ENUM_NAME(HgiFormatSNorm8);
+    TF_ADD_ENUM_NAME(HgiFormatSNorm8Vec2);
+    /* TF_ADD_ENUM_NAME(HgiFormatSNorm8Vec3 */ // Unsupported Metal (MTLPixelFormat)
+    TF_ADD_ENUM_NAME(HgiFormatSNorm8Vec4);
+
+    // Float16 - a 2-byte IEEE half-precision float.
+    TF_ADD_ENUM_NAME(HgiFormatFloat16);
+    TF_ADD_ENUM_NAME(HgiFormatFloat16Vec2);
+    TF_ADD_ENUM_NAME(HgiFormatFloat16Vec3);
+    TF_ADD_ENUM_NAME(HgiFormatFloat16Vec4);
+
+    // Float32 - a 4-byte IEEE float.
+    TF_ADD_ENUM_NAME(HgiFormatFloat32);
+    TF_ADD_ENUM_NAME(HgiFormatFloat32Vec2);
+    TF_ADD_ENUM_NAME(HgiFormatFloat32Vec3);
+    TF_ADD_ENUM_NAME(HgiFormatFloat32Vec4);
+
+    // Int16 - a 2-byte signed integer
+    TF_ADD_ENUM_NAME(HgiFormatInt16);
+    TF_ADD_ENUM_NAME(HgiFormatInt16Vec2);
+    TF_ADD_ENUM_NAME(HgiFormatInt16Vec3);
+    TF_ADD_ENUM_NAME(HgiFormatInt16Vec4);
+
+    // UInt16 - a 2-byte unsigned integer
+    TF_ADD_ENUM_NAME(HgiFormatUInt16);
+    TF_ADD_ENUM_NAME(HgiFormatUInt16Vec2);
+    TF_ADD_ENUM_NAME(HgiFormatUInt16Vec3);
+    TF_ADD_ENUM_NAME(HgiFormatUInt16Vec4);
+
+    // Int32 - a 4-byte signed integer
+    TF_ADD_ENUM_NAME(HgiFormatInt32);
+    TF_ADD_ENUM_NAME(HgiFormatInt32Vec2);
+    TF_ADD_ENUM_NAME(HgiFormatInt32Vec3);
+    TF_ADD_ENUM_NAME(HgiFormatInt32Vec4);
+
+    // UNorm8 SRGB - a 1-byte value representing a float between 0 and 1.
+    // Gamma compression/decompression happens during read/write.
+    // Alpha component is linear.
+    /* TF_ADD_ENUM_NAME(HgiFormatUNorm8srgb */     // Unsupported by OpenGL
+    /* TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec2srgb */ // Unsupported by OpenGL
+    /* TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec3srgb */ // Unsupported Metal (MTLPixelFormat)
+    TF_ADD_ENUM_NAME(HgiFormatUNorm8Vec4srgb);
+
+    // BPTC compressed. 3-component, 4x4 blocks, signed floating-point
+    TF_ADD_ENUM_NAME(HgiFormatBC6FloatVec3);
+
+    // BPTC compressed. 3-component, 4x4 blocks, unsigned floating-point
+    TF_ADD_ENUM_NAME(HgiFormatBC6UFloatVec3);
+
+    // BPTC compressed. 4-component, 4x4 blocks, unsigned byte.
+    // Representing a float between 0 and 1.
+    TF_ADD_ENUM_NAME(HgiFormatBC7UNorm8Vec4);
+
+    // BPTC compressed. 4-component, 4x4 blocks, unsigned byte, sRGB.
+    // Representing a float between 0 and 1.
+    TF_ADD_ENUM_NAME(HgiFormatBC7UNorm8Vec4srgb);
+
+    // S3TC/DXT compressed. 4-component, 4x4 blocks, unsigned byte
+    // Representing a float between 0 and 1.
+    TF_ADD_ENUM_NAME(HgiFormatBC1UNorm8Vec4);
+
+    // S3TC/DXT compressed. 4-component, 4x4 blocks, unsigned byte
+    // Representing a float between 0 and 1.
+    TF_ADD_ENUM_NAME(HgiFormatBC3UNorm8Vec4);
+
+    // Depth stencil format (Float32 can be used for just depth)
+    TF_ADD_ENUM_NAME(HgiFormatFloat32UInt8);
+
+    // Packed 32-bit value with four normalized signed two's complement
+    // integer values arranged as 10 bits, 10 bits, 10 bits, and 2 bits.
+    TF_ADD_ENUM_NAME(HgiFormatPackedInt1010102);
+
+    TF_ADD_ENUM_NAME(HgiFormatCount);
+}
 
 size_t
 HgiGetComponentCount(const HgiFormat f)

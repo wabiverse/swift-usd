@@ -8,13 +8,25 @@
 
 #include "UsdImaging/drawModeStandin.h"
 #include "UsdImaging/geomModelSchema.h"
+#include "UsdImaging/tokens.h"
+
+#include "Hd/sceneIndexObserver.h"
+#include "Hf/perfLog.h"
 
 #include "Sdf/path.h"
 
 #include "Trace/traceImpl.h"
 #include "Work/loops.h"
 
-#include "OneTBB/tbb/concurrent_vector.h"
+#include "pxr/pxrns.h"
+
+#include <OneTBB/tbb/concurrent_vector.h>
+
+#include <cstddef>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -25,9 +37,16 @@ namespace
 // Default draw mode can be expressed by either the empty token
 // or UsdGeomTokens->default_.
 TfToken
-_GetDrawMode(const HdSceneIndexPrim &prim)
+_GetDrawMode(const SdfPath &path, const HdSceneIndexPrim &prim)
 {
     static const TfToken empty;
+
+    if (path.GetParentPath().GetNameToken() ==
+        UsdImagingTokens->niPropagatedPrototypesScope) {
+        // Instance aggregation copies the instance's geomModel onto this
+        // grouping prim to hash it; the prim itself is not a model.
+        return empty;
+    }
 
     UsdImagingGeomModelSchema geomModelSchema =
         UsdImagingGeomModelSchema::GetFromParent(prim.dataSource);
@@ -39,12 +58,109 @@ _GetDrawMode(const HdSceneIndexPrim &prim)
     if (!applySrc->GetTypedValue(0.0f)) {
         return empty;
     }
-    
+
     HdTokenDataSourceHandle const modeSrc = geomModelSchema.GetDrawMode();
     if (!modeSrc) {
         return empty;
     }
     return modeSrc->GetTypedValue(0.0f);
+}
+
+auto _FindPrefixOfPath(
+    const std::map<SdfPath, UsdImaging_DrawModeStandinSharedPtr> &container,
+    const SdfPath &path)
+{
+    // Use std::map::lower_bound over std::lower_bound since the latter
+    // is slow given that std::map iterators are not random access.
+    auto it = container.lower_bound(path);
+    if (it != container.end() && path == it->first) {
+        // Path itself is in the container
+        return it;
+    }
+    // If a prefix of path is in container, it will point to the next element
+    // in the container, rather than the prefix itself.
+    if (it == container.begin()) {
+        return container.end();
+    }
+    --it;
+    if (path.HasPrefix(it->first)) {
+        return it;
+    }
+    return container.end();
+}
+
+bool
+_IsImmediateChildOf(const SdfPath &path, const SdfPath &parentPath)
+{
+    return
+        path.GetPathElementCount() - parentPath.GetPathElementCount() == 1 &&
+        path.HasPrefix(parentPath);
+}
+
+// deduplicates (a later PrimAddedEntry for the same path wins w.r.t. prim type)
+// and ensures entries for ancestor paths precede entries for their descendants
+HdSceneIndexObserver::AddedPrimEntries
+_NormalizeAddedEntries(const HdSceneIndexObserver::AddedPrimEntries& entries)
+{
+    TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
+    const size_t n = entries.size();
+
+    // map of prim path to index of last entry with that path;
+    // last encountered duplicate will "win"
+    std::unordered_map<SdfPath, size_t, SdfPath::Hash> pathToLastIndex;
+    pathToLastIndex.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        pathToLastIndex[entries[i].primPath] = i;
+    }
+
+    // index of entry[i]'s nearest ancestor;
+    // n if no ancestor in entries
+    std::vector<size_t> parent(n, n);
+    // inverse of parent - indices of entry[i]'s nearest descendants
+    std::vector<std::vector<size_t>> children(n);
+    for (size_t i = 0; i < n; ++i) {
+        const SdfPath& path = entries[i].primPath;
+        if (pathToLastIndex[path] != i) { continue; }
+        if (path.IsAbsoluteRootPath()) { continue; }
+        for (SdfPath p = path.GetParentPath(); ; p = p.GetParentPath()) {
+            const auto it = pathToLastIndex.find(p);
+            if (it != pathToLastIndex.end()) {
+                parent[i] = it->second;
+                children[it->second].push_back(i);
+                break;
+            }
+            if (p.GetPathElementCount() == 0) { break; }
+        }
+    }
+
+    // Topological sorting (Kahn 1962)
+
+    // sorted output entries (L)
+    HdSceneIndexObserver::AddedPrimEntries sortedEntries;
+    sortedEntries.reserve(pathToLastIndex.size());
+    // nodes with no incoming edge (S)
+    std::set<size_t> s;
+    for (size_t i = 0; i < n; ++i) {
+        if (pathToLastIndex[entries[i].primPath] == i && parent[i] == n) {
+            s.insert(i);
+        }
+    }
+
+    while (!s.empty()) {
+        // pop a node from front of S
+        const size_t i = *s.begin();
+        s.erase(s.begin());
+        // push node to L
+        sortedEntries.push_back(entries[i]);
+        // push nearest descendants to S
+        for (const size_t ci : children[i]) {
+            s.insert(ci);
+        }
+    }
+
+    return sortedEntries;
 }
 
 }
@@ -70,34 +186,10 @@ UsdImagingDrawModeSceneIndex::UsdImagingDrawModeSceneIndex(
 
     const HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(rootPath);
 
-    _RecursePrims(_GetDrawMode(prim), rootPath, prim, nullptr);
+    _RecursePrims(_GetDrawMode(rootPath, prim), rootPath, prim, nullptr);
 }
 
 UsdImagingDrawModeSceneIndex::~UsdImagingDrawModeSceneIndex() = default;
-
-static
-auto _FindPrefixOfPath(
-    const std::map<SdfPath, UsdImaging_DrawModeStandinSharedPtr> &container,
-    const SdfPath &path)
-{
-    // Use std::map::lower_bound over std::lower_bound since the latter
-    // is slow given that std::map iterators are not random access.
-    auto it = container.lower_bound(path);
-    if (it != container.end() && path == it->first) {
-        // Path itself is in the container
-        return it;
-    }
-    // If a prefix of path is in container, it will point to the next element
-    // in the container, rather than the prefix itself.
-    if (it == container.begin()) {
-        return container.end();
-    }
-    --it;
-    if (path.HasPrefix(it->first)) {
-        return it;
-    }
-    return container.end();
-}
 
 UsdImaging_DrawModeStandinSharedPtr
 UsdImagingDrawModeSceneIndex::_FindStandinForPrimOrAncestor(
@@ -129,15 +221,6 @@ UsdImagingDrawModeSceneIndex::GetPrim(
     }
 
     return _GetInputSceneIndex()->GetPrim(primPath);
-}
-
-static
-bool
-_IsImmediateChildOf(const SdfPath &path, const SdfPath &parentPath)
-{
-    return
-        path.GetPathElementCount() - parentPath.GetPathElementCount() == 1 &&
-        path.HasPrefix(parentPath);
 }
 
 SdfPathVector
@@ -204,7 +287,8 @@ UsdImagingDrawModeSceneIndex::_RecursePrims(
         const HdSceneIndexBaseRefPtr &s = _GetInputSceneIndex();
         for (const SdfPath &childPath : s->GetChildPrimPaths(path)) {
             const HdSceneIndexPrim prim = s->GetPrim(childPath);
-            _RecursePrims(_GetDrawMode(prim), childPath, prim, entries);
+            _RecursePrims(
+                _GetDrawMode(childPath, prim), childPath, prim, entries);
         }
     }
 }
@@ -219,26 +303,31 @@ UsdImagingDrawModeSceneIndex::_PrimsAdded(
     HdSceneIndexObserver::AddedPrimEntries newEntries;
     HdSceneIndexObserver::RemovedPrimEntries removedEntries;
 
+    // Reorder into topological (ancestors-before-descendants) order, which
+    // this handler relies on. See comments below concerning order dependence.
+    const HdSceneIndexObserver::AddedPrimEntries sortedEntries =
+        _NormalizeAddedEntries(entries);
+
     // Loop over notices to determine the prims that have a draw mode. Since
     // the prim container is used to determine this, it can be quite expensive.
     // So, we parallelize the work below with the caveat that we may be querying
     // descendant prims under a tracked prim that has a draw mode.
-    // XXX We preserve the order of notice entries to workaround a bug in 
-    // backend emulation in the handling of geom subset prims.
+    // XXX: We preserve the order of the sorted notice entries to work around a
+    // bug in backend emulation in the handling of geom subset prims.
     //
     using _AddedEntryAndPrimPair =
         std::pair<HdSceneIndexObserver::AddedPrimEntry, HdSceneIndexPrim>;
     tbb::concurrent_vector<_AddedEntryAndPrimPair> entryPrimPairs(
-        entries.size());
+        sortedEntries.size());
 
     {
         TRACE_FUNCTION_SCOPE("Notice processing - prim query");
-        WorkParallelForN(entries.size(),
+        WorkParallelForN(sortedEntries.size(),
             [&](size_t begin, size_t end) {
                 for (size_t i = begin; i < end; ++i) {
                     const HdSceneIndexObserver::AddedPrimEntry &entry =
-                        entries[i];
-                    
+                        sortedEntries[i];
+
                     const SdfPath &path = entry.primPath;
                     const HdSceneIndexPrim prim =
                         _GetInputSceneIndex()->GetPrim(path);
@@ -254,6 +343,21 @@ UsdImagingDrawModeSceneIndex::_PrimsAdded(
 
         // Suppress prims from input scene delegate that have an ancestor
         // with a draw mode.
+        //
+        // XXX: Notice Order Dependence
+        // Assume </Foo> has draw mode enabled and </Foo/Bar>
+        // does not. _prims contains a standin for </Foo>. Now we
+        // disable draw mode on </Foo>. ModelAPIAdapter issues a resync
+        // for </Foo> and </Foo/Bar> as Added notices. This code works
+        // as written only if the </Foo> Added notice strictly precedes
+        // the </Foo/Bar> Added notice.
+        //
+        // If, for some reason, </Foo/Bar>'s Added notice arrives before
+        // </Foo>'s, we will silently quash </Foo/Bar>'s Added notice,
+        // and the original geometry never makes it back into the scene.
+        // As noted below, a merging scene index can introduce non-
+        // deterministic notice ordering due to parallelized notice
+        // processing.
         bool isPathDescendant = false;
         if (UsdImaging_DrawModeStandinSharedPtr standin =
                _FindStandinForPrimOrAncestor(path, &isPathDescendant)) {
@@ -262,7 +366,7 @@ UsdImagingDrawModeSceneIndex::_PrimsAdded(
             }
         }
 
-        const TfToken drawMode = _GetDrawMode(prim);
+        const TfToken drawMode = _GetDrawMode(path, prim);
 
         if (UsdImaging_DrawModeStandinSharedPtr standin =
             UsdImaging_GetDrawModeStandin(
@@ -299,13 +403,58 @@ UsdImagingDrawModeSceneIndex::_PrimsAdded(
             // UsdImagingStageSceneIndex.
             //
             _DeleteSubtree(path);
-            removedEntries.push_back({path});
+            // XXX: We should not send removal for path (</Foo>), since that
+            // prim still exists. This is an Added notice, after all. When the
+            // removal for </Foo> reaches the merging scene index, it will call
+            // GetPrim(</Foo>) and see that a prim still exists there. So it
+            // will turn the Removed notice for </Foo> into an Added notice for
+            // </Foo> and all its descendants (via GetChildPrimPaths()). Since
+            // we also issue Added notices for </Foo> and its descendant standin
+            // prims (via ComputePrimAddedEntries()), the merging scene index
+            // ends up issuing two separate Added calls for </Foo> and its
+            // entire standin subtree. And while notice batching will combine
+            // the separate _PrimsAdded() calls into one, it does not
+            // deduplicate the individual Added entries. So two full sets of
+            // Added entries for the </Foo> standin subtree make it to every
+            // downstream consumer, triggering unnecessary prim resyncs.
+            //
+            // Instead, we issue Removed notices for all the immediate children
+            // of </Foo> that will be replaced by the standin, but not for
+            // </Foo> itself. No need to descend below immediate children,
+            // since removal of a prim removes its subtree. We then issue Added
+            // for </Foo> and its new standin descendants.
+            for (const SdfPath& childPath :
+                _GetInputSceneIndex()->GetChildPrimPaths(path)) {
+                removedEntries.push_back({childPath});
+            }
 
-            // The prim needs to be replaced by stand-in geometry.
+            // The prim needs to be replaced by stand-in geometry. Note that
+            // this is also where the Added notice for the draw-mode-enabled
+            // prim we're currently processing gets forwarded to newEntries
+            // with its new empty primType.
             standin->ComputePrimAddedEntries(&newEntries);
             _prims[path] = std::move(standin);
         } else {
-            // Just forward added entry.
+            // XXX: Notice Order Dependence
+            // If we are here, the prim being added does not have draw mode
+            // enabled and has no ancestor with draw mode enabled. But if this
+            // prim previously had draw mode enabled, a stand-in for it still
+            // exists in the _prims cache, and the standin prims need to be
+            // removed from the scene.
+            const auto it = _prims.find(path);
+            if (it != _prims.end()) {
+                for (const SdfPath &standinPath : it->second->GetPrimPaths()) {
+                    // Do not remove *this* prim! Just its stand-in descendants.
+                    if (standinPath != path) {
+                        removedEntries.push_back({ standinPath });
+                    }
+                }
+                // Clear the _prims cache of this standin
+                _DeleteSubtree(path);
+            }
+            // Note that this is where the Added notice for the
+            // draw-mode-disabled prim we're currently processing gets forwarded
+            // to newEntries with its restored prim type (if any).
             newEntries.push_back(entry);
         }
     }
@@ -341,7 +490,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
     const HdSceneIndexObserver::DirtiedPrimEntries &entries)
 {
     TRACE_FUNCTION();
-    
+
     // Determine the paths of all prims whose draw mode might have changed.
     std::set<SdfPath> paths;
 
@@ -350,7 +499,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
             UsdImagingGeomModelSchemaTokens->drawMode),
         UsdImagingGeomModelSchema::GetDefaultLocator().Append(
             UsdImagingGeomModelSchemaTokens->applyDrawMode)};
-            
+
     for (const HdSceneIndexObserver::DirtiedPrimEntry &entry : entries) {
         if (drawModeLocators.Intersects(entry.dirtyLocators)) {
             paths.insert(entry.primPath);
@@ -364,7 +513,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
         // Draw mode changed means we need to remove the stand-in geometry
         // or prims forwarded from the input scene delegate and then (re-)add
         // the stand-in geometry or prims from the input scene delegate.
-        
+
         // Set this to skip all descendants of a given path.
         SdfPath lastPath;
         for (const SdfPath &path : paths) {
@@ -383,10 +532,10 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
                     continue;
                 }
             }
-            
+
             // Determine new draw mode.
             const HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(path);
-            const TfToken drawMode = _GetDrawMode(prim);
+            const TfToken drawMode = _GetDrawMode(path, prim);
 
             const auto it = _prims.find(path);
             if (it == _prims.end()) {
@@ -418,7 +567,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
                     //    to recursively pull the geometry from the input scene
                     //    index again and send corresponding added entries.
                     //    If the prim has a descendant with non-default draw
-                    //    mode, the recursion stops and we use stand-in 
+                    //    mode, the recursion stops and we use stand-in
                     //    geometry instead.
                     // 2. The prim switched to a different non-default draw
                     //    mode. This can be regarded as the special case where
@@ -446,7 +595,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
     // Now account for dirtyLocators not related to resolving the draw mode.
 
     HdSceneIndexObserver::DirtiedPrimEntries dirtiedEntries;
-    
+
     for (const HdSceneIndexObserver::DirtiedPrimEntry &entry : entries) {
         const SdfPath &path = entry.primPath;
         bool isPathDescendant = false;
@@ -463,7 +612,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
             // Descendants of prims with non-default draw mode can be ignored.
             continue;
         }
-        
+
         // Prim replaced by stand-in geometry has changed. Determine how
         // stand-in geometry is affected by changed attributed on prim.
         // ProcessDirtyLocators will do this; if the prim has changed in a
@@ -471,7 +620,7 @@ UsdImagingDrawModeSceneIndex::_PrimsDirtied(
         // or removed), it will set needsRefresh to true and we can then call
         // _RefreshDrawModeStandin. Note that _RefreshDrawModeStandin calls
         // _SendPrimsRemoved and _SendPrimsAdded as needed.
-        
+
         bool needsRefresh = false;
         standin->ProcessDirtyLocators(
             entry.dirtyLocators, &dirtiedEntries, &needsRefresh);

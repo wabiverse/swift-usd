@@ -40,6 +40,11 @@ public:
 
     ~ExecUsd_RequestImpl();
 
+    /// Returns false if any value key in the request has expired.
+    bool IsValid() const {
+        return _isValid;
+    }
+
     /// Returns per-index expiration state.
     const TfBits &GetExpiredIndices() const {
         return _expired;
@@ -73,6 +78,7 @@ public:
 private:
     std::vector<ExecUsdValueKey> _valueKeys;
     TfBits _expired;
+    bool _isValid;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

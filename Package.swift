@@ -143,6 +143,10 @@ let package = Package(
       targets: ["UsdMedia"]
     ),
     .library(
+      name: "UsdPmc",
+      targets: ["UsdPmc"]
+    ),
+    .library(
       name: "UsdMtlx",
       targets: ["UsdMtlx"]
     ),
@@ -378,6 +382,10 @@ let package = Package(
       name: "UsdLuxValidators",
       targets: ["UsdLuxValidators"]
     ),
+    .library(
+      name: "UsdMediaValidators",
+      targets: ["UsdMediaValidators"]
+    ),
     // ----------------- Apps -----
     .executable(
       name: "UsdView",
@@ -414,11 +422,12 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/SwiftUsd.git", from: "8.1.0"),
+    .package(url: "https://github.com/apple/SwiftUsd.git", from: "9.0.0"),
     .package(url: "https://github.com/moreSwift/swift-cross-ui.git", from: "0.10.0"),
     .package(url: "https://github.com/wabiverse/MetaTBB.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaAlembic.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaDraco.git", from: "1.0.0"),
+    .package(url: "https://github.com/wabiverse/MetaPMC.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaMaterialX.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaOpenSubdiv.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaOpenImageIO.git", from: "1.0.0"),
@@ -1070,6 +1079,37 @@ let package = Package(
         .define("MFB_ALT_PACKAGE_NAME", to: "UsdDraco"),
         .define("MFB_PACKAGE_MODULE", to: "UsdDraco"),
         .define("USDDRACO_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+
+    .target(
+      name: "UsdPmc",
+      dependencies: [
+        .target(name: "Arch"),
+        .target(name: "Tf"),
+        .target(name: "Js"),
+        .target(name: "Gf"),
+        .target(name: "Vt"),
+        .target(name: "Ar"),
+        .target(name: "Sdf"),
+        .target(name: "Usd"),
+        .target(name: "UsdGeom"),
+        .target(name: "UsdUtils"),
+        .product(name: "PMC", package: "MetaPMC"),
+      ],
+      resources: [
+        .process("Resources")
+      ],
+      cxxSettings: [
+        .headerSearchPath("include/UsdPmc"),
+        .define("MFB_PACKAGE_NAME", to: "UsdPmc"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "UsdPmc"),
+        .define("MFB_PACKAGE_MODULE", to: "UsdPmc"),
+        .define("USDPMC_EXPORTS", to: "1"),
         .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
@@ -1807,7 +1847,6 @@ let package = Package(
         .target(name: "Hio"),
       ],
       resources: [
-        .copy("shaders"),
         .process("Resources")
       ],
       cxxSettings: [
@@ -2079,6 +2118,7 @@ let package = Package(
         .target(name: "Sdf"),
         .target(name: "Usd"),
         .target(name: "UsdGeom"),
+        .target(name: "UsdHydra"),
         .target(name: "UsdLux"),
         .target(name: "UsdRender"),
         .target(name: "UsdShade"),
@@ -2498,6 +2538,28 @@ let package = Package(
         .define("MFB_ALT_PACKAGE_NAME", to: "UsdLuxValidators"),
         .define("MFB_PACKAGE_MODULE", to: "UsdLuxValidators"),
         .define("USDLUXVALIDATORS_EXPORTS", to: "1"),
+        .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
+        .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
+        .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
+        .define("NOMINMAX", .when(platforms: [.windows])),
+      ]
+    ),
+
+    .target(
+      name: "UsdMediaValidators",
+      dependencies: [
+        .target(name: "Plug"),
+        .target(name: "Tf"),
+        .target(name: "Sdf"),
+        .target(name: "Usd"),
+        .target(name: "UsdMedia"),
+        .target(name: "UsdValidation"),
+      ],
+      cxxSettings: [
+        .define("MFB_PACKAGE_NAME", to: "UsdMediaValidators"),
+        .define("MFB_ALT_PACKAGE_NAME", to: "UsdMediaValidators"),
+        .define("MFB_PACKAGE_MODULE", to: "UsdMediaValidators"),
+        .define("USDMEDIAVALIDATORS_EXPORTS", to: "1"),
         .define("_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH", .when(platforms: [.windows])),
         .define("_ALLOW_KEYWORD_MACROS", to: "1", .when(platforms: [.windows])),
         .define("static_assert(_conditional, ...)", to: "", .when(platforms: [.windows])),
@@ -2998,6 +3060,7 @@ enum Arch
           .target(name: "UsdAbc"),
           .target(name: "UsdDraco"),
           .target(name: "UsdMedia"),
+          .target(name: "UsdPmc"),
           .target(name: "UsdMtlx"),
           .target(name: "UsdPhysics"),
           .target(name: "UsdProc"),
@@ -3065,6 +3128,7 @@ enum Arch
           .target(name: "UsdUtilsValidators"),
           .target(name: "UsdLodValidators"),
           .target(name: "UsdLuxValidators"),
+          .target(name: "UsdMediaValidators"),
           // -------- macros. ------
           .target(name: "PixarMacros"),
           // -----------------------

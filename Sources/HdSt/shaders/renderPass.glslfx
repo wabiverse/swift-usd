@@ -49,13 +49,6 @@ MAT4  GetProjectionMatrix() {
     return MAT4(1);
 #endif
 }
-MAT4  GetProjectionInverseMatrix() {
-#if defined(HD_HAS_projectionInverseMatrix)
-    return MAT4(HdGet_projectionInverseMatrix());
-#else
-    return MAT4(1);
-#endif
-}
 vec3 GetPositionInWorldSpace(vec3 windowRelativeCoord)
 {
 #if defined(HD_HAS_imageToWorldMatrix)
@@ -69,13 +62,6 @@ vec3 GetPositionInWorldSpace(vec3 windowRelativeCoord)
 float GetLightingBlendAmount() {
 #if defined(HD_HAS_lightingBlendAmount)
     return HdGet_lightingBlendAmount();
-#else
-    return 1;
-#endif
-}
-float GetLinearExposure() {
-#if defined(HD_HAS_linearExposure)
-    return HdGet_linearExposure();
 #else
     return 1;
 #endif
@@ -165,6 +151,7 @@ vec2 HorizontallyNormalizedFilmbackCoordinates()
 
 -- glsl RenderPass.ApplyClipPlanes
 
+#ifdef HD_USE_HARDWARE_CLIPPING
 void ApplyClipPlanes(vec4 Peye)
 {
 #if defined(HD_HAS_numClipPlanes)
@@ -182,6 +169,7 @@ void ApplyClipPlanes(vec4 Peye)
 #endif
 #endif
 }
+#endif
 
 -- glsl RenderPass.NoColorOverrides
 
@@ -247,17 +235,6 @@ vec4 ApplyColorOverridesPostLighting(vec4 color)
     return color;
 }
 
--- glsl RenderPass.RenderOutput
-
-void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
-{
-    // Write to any desired AOVs here. The render pass shader configuation 
-    // decides if any of these are no-ops.
-    RenderColor(color);
-    RenderId();
-    RenderNeye(Neye);
-}
-
 -- layout RenderPass.RenderColor
 
 [
@@ -266,61 +243,45 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 
 -- glsl RenderPass.RenderColor
 
-void RenderColor(vec4 color)
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
     colorOut = color;
-}
-
--- glsl RenderPass.RenderColorNoOp
-
-void RenderColor(vec4 color)
-{
-    // do nothing
 }
 
 -- layout RenderPass.RenderId
 
 [
-    ["out", "int", "primIdOut"],
-    ["out", "int", "instanceIdOut"]
+    ["out", "vec4", "primIdOut"],
+    ["out", "vec4", "instanceIdOut"]
 ]
 
 -- glsl RenderPass.RenderId
 
-void RenderId()
+// XXX: This whole snippet is a little sketchy and should ideally be replaced
+// with AoVs.  We generate "primId" and "instanceId", and depending on how
+// the client called glDrawBuffers, they will get one or both.
+
+vec4 IntToVec4(int id)
 {
-    primIdOut = HdGet_primID();
+    return vec4(((id >>  0) & 0xff) / 255.0,
+                ((id >>  8) & 0xff) / 255.0,
+                ((id >> 16) & 0xff) / 255.0,
+                ((id >> 24) & 0xff) / 255.0);
+}
+
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    // Allow alpha threshold discard for ID renders regardless of material tag
+    if (ShouldDiscardByAlpha(color)) {
+        discard;
+    }
+
+    int primId = HdGet_primID();
+    primIdOut = IntToVec4(primId);
 
     // instanceIndex is a tuple of integers (num nested levels).
     // for picking, we store global instanceId (instanceIndex[0]) in the
     // selection framebuffer and then reconstruct the tuple in postprocess.
-    instanceIdOut = GetDrawingCoord().instanceIndex[0];
+    int instanceId = GetDrawingCoord().instanceIndex[0];
+    instanceIdOut = IntToVec4(instanceId);
 }
-
--- glsl RenderPass.RenderIdNoOp
-
-void RenderId()
-{
-    // do nothing
-}
-
--- layout RenderPass.RenderNeye
-
-[
-    ["out", "vec4", "NeyeOut"]
-]
-
--- glsl RenderPass.RenderNeye
-
-void RenderNeye(vec3 Neye)
-{
-    NeyeOut = vec4(Neye, 1.0);
-}
-
--- glsl RenderPass.RenderNeyeNoOp
-
-void RenderNeye(vec3 Neye)
-{
-    // do nothing
-}
-

@@ -474,3 +474,1357 @@ def Shader "UsdTransform2d" (
         doc = "Outputs transformed float2 values."
     )
 }
+
+def Shader "PxrSurface"
+{
+    # RenderMan's args order, which Sdr hands inputs back in, so their pages read as in other DCCs.
+    reorder properties = [
+        "outputs:out",
+        "inputs:diffuseGain",
+        "inputs:diffuseColor",
+        "inputs:diffuseRoughness",
+        "inputs:diffuseExponent",
+        "inputs:diffuseBumpNormal",
+        "inputs:diffuseDoubleSided",
+        "inputs:diffuseBackUseDiffuseColor",
+        "inputs:diffuseBackColor",
+        "inputs:diffuseTransmitGain",
+        "inputs:diffuseTransmitColor",
+        "inputs:specularFresnelMode",
+        "inputs:specularFaceColor",
+        "inputs:specularEdgeColor",
+        "inputs:specularFresnelShape",
+        "inputs:specularIor",
+        "inputs:specularExtinctionCoeff",
+        "inputs:specularRoughness",
+        "inputs:specularModelType",
+        "inputs:specularAnisotropy",
+        "inputs:specularAnisotropyDirection",
+        "inputs:specularBumpNormal",
+        "inputs:specularDoubleSided",
+        "inputs:roughSpecularFresnelMode",
+        "inputs:roughSpecularFaceColor",
+        "inputs:roughSpecularEdgeColor",
+        "inputs:roughSpecularFresnelShape",
+        "inputs:roughSpecularIor",
+        "inputs:roughSpecularExtinctionCoeff",
+        "inputs:roughSpecularRoughness",
+        "inputs:roughSpecularModelType",
+        "inputs:roughSpecularAnisotropy",
+        "inputs:roughSpecularAnisotropyDirection",
+        "inputs:roughSpecularBumpNormal",
+        "inputs:roughSpecularDoubleSided",
+        "inputs:clearcoatFresnelMode",
+        "inputs:clearcoatFaceColor",
+        "inputs:clearcoatEdgeColor",
+        "inputs:clearcoatFresnelShape",
+        "inputs:clearcoatIor",
+        "inputs:clearcoatExtinctionCoeff",
+        "inputs:clearcoatThickness",
+        "inputs:clearcoatAbsorptionTint",
+        "inputs:clearcoatRoughness",
+        "inputs:clearcoatModelType",
+        "inputs:clearcoatAnisotropy",
+        "inputs:clearcoatAnisotropyDirection",
+        "inputs:clearcoatBumpNormal",
+        "inputs:clearcoatDoubleSided",
+        "inputs:specularEnergyCompensation",
+        "inputs:clearcoatEnergyCompensation",
+        "inputs:iridescenceFaceGain",
+        "inputs:iridescenceEdgeGain",
+        "inputs:iridescenceFresnelShape",
+        "inputs:iridescenceMode",
+        "inputs:iridescencePrimaryColor",
+        "inputs:iridescenceSecondaryColor",
+        "inputs:iridescenceRoughness",
+        "inputs:iridescenceAnisotropy",
+        "inputs:iridescenceAnisotropyDirection",
+        "inputs:iridescenceBumpNormal",
+        "inputs:iridescenceCurve",
+        "inputs:iridescenceScale",
+        "inputs:iridescenceFlip",
+        "inputs:iridescenceThickness",
+        "inputs:iridescenceDoubleSided",
+        "inputs:fuzzGain",
+        "inputs:fuzzColor",
+        "inputs:fuzzConeAngle",
+        "inputs:fuzzBumpNormal",
+        "inputs:fuzzDoubleSided",
+        "inputs:subsurfaceType",
+        "inputs:subsurfaceGain",
+        "inputs:subsurfaceColor",
+        "inputs:subsurfaceDmfp",
+        "inputs:subsurfaceDmfpColor",
+        "inputs:shortSubsurfaceGain",
+        "inputs:shortSubsurfaceColor",
+        "inputs:shortSubsurfaceDmfp",
+        "inputs:longSubsurfaceGain",
+        "inputs:longSubsurfaceColor",
+        "inputs:longSubsurfaceDmfp",
+        "inputs:subsurfaceDirectionality",
+        "inputs:subsurfaceBleed",
+        "inputs:subsurfaceDiffuseBlend",
+        "inputs:subsurfaceResolveSelfIntersections",
+        "inputs:subsurfaceIor",
+        "inputs:subsurfacePostTint",
+        "inputs:subsurfaceDiffuseSwitch",
+        "inputs:subsurfaceDoubleSided",
+        "inputs:subsurfaceTransmitGain",
+        "inputs:considerBackside",
+        "inputs:continuationRayMode",
+        "inputs:maxContinuationHits",
+        "inputs:followTopology",
+        "inputs:subsurfaceSubset",
+        "inputs:singlescatterGain",
+        "inputs:singlescatterColor",
+        "inputs:singlescatterMfp",
+        "inputs:singlescatterMfpColor",
+        "inputs:singlescatterDirectionality",
+        "inputs:singlescatterIor",
+        "inputs:singlescatterBlur",
+        "inputs:singlescatterDirectGain",
+        "inputs:singlescatterDirectGainTint",
+        "inputs:singlescatterDoubleSided",
+        "inputs:singlescatterConsiderBackside",
+        "inputs:singlescatterContinuationRayMode",
+        "inputs:singlescatterMaxContinuationHits",
+        "inputs:singlescatterDirectGainMode",
+        "inputs:singlescatterSubset",
+        "inputs:irradianceTint",
+        "inputs:irradianceRoughness",
+        "inputs:unitLength",
+        "inputs:refractionGain",
+        "inputs:reflectionGain",
+        "inputs:refractionColor",
+        "inputs:glassRoughness",
+        "inputs:glassRefractionRoughness",
+        "inputs:glassRefraction2Roughness",
+        "inputs:glassRefraction2Blend",
+        "inputs:glassRefraction2Tint",
+        "inputs:glassAnisotropy",
+        "inputs:glassAnisotropyDirection",
+        "inputs:glassBumpNormal",
+        "inputs:glassIor",
+        "inputs:mwWalkable",
+        "inputs:mwIor",
+        "inputs:thinGlass",
+        "inputs:ignoreFresnel",
+        "inputs:ignoreAccumOpacity",
+        "inputs:blocksVolumes",
+        "inputs:volumeAggregate",
+        "inputs:volumeAggregateName",
+        "inputs:ssAlbedo",
+        "inputs:extinction",
+        "inputs:g0",
+        "inputs:g1",
+        "inputs:blend",
+        "inputs:volumeGlow",
+        "inputs:maxExtinction",
+        "inputs:multiScatter",
+        "inputs:enableOverlappingVolumes",
+        "inputs:glowGain",
+        "inputs:glowColor",
+        "inputs:bumpNormal",
+        "inputs:shadowBumpTerminator",
+        "inputs:shadowColor",
+        "inputs:shadowMode",
+        "inputs:exitColor",
+        "inputs:presence",
+        "inputs:presenceCached",
+        "inputs:mwStartable",
+        "inputs:roughnessMollificationClamp",
+        "inputs:userColor",
+        "inputs:utilityPattern"
+    ]
+
+    uniform token info:id = "PxrSurface"
+    uniform token info:implementationSource = "sourceAsset"
+
+    # RenderMan implements this bxdf, the dummy sourceAsset gives it an
+    # RmanCpp entry in the registry.
+    uniform asset info:RmanCpp:sourceAsset = @./empty.args@
+
+    token outputs:out (
+        sdrMetadata = {
+            string renderType = "terminal bxdf"
+        }
+    )
+
+    float inputs:diffuseGain = 1.0 (
+        sdrMetadata = {
+            string label = "Gain"
+            string page = "Diffuse"
+        }
+    )
+
+    color3f inputs:diffuseColor = (0.18, 0.18, 0.18) (
+        sdrMetadata = {
+            string label = "Color"
+            string page = "Diffuse"
+        }
+    )
+
+    float inputs:diffuseRoughness = 0.0 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Diffuse"
+        }
+    )
+
+    float inputs:diffuseExponent = 1.0 (
+        sdrMetadata = {
+            string label = "Exponent"
+            string page = "Diffuse:Advanced"
+        }
+    )
+
+    normal3f inputs:diffuseBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Diffuse:Advanced"
+        }
+    )
+
+    int inputs:diffuseDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Diffuse:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:diffuseBackUseDiffuseColor = 1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Use Diffuse Color"
+            string page = "Diffuse:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    color3f inputs:diffuseBackColor = (0.18, 0.18, 0.18) (
+        sdrMetadata = {
+            string label = "Back Color"
+            string page = "Diffuse:Advanced"
+        }
+    )
+
+    float inputs:diffuseTransmitGain = 0.0 (
+        sdrMetadata = {
+            string label = "Transmit Gain"
+            string page = "Diffuse:Advanced"
+        }
+    )
+
+    color3f inputs:diffuseTransmitColor = (0.18, 0.18, 0.18) (
+        sdrMetadata = {
+            string label = "Transmit Color"
+            string page = "Diffuse:Advanced"
+        }
+    )
+
+    int inputs:specularFresnelMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Fresnel Mode"
+            string page = "Primary Specular"
+            string widget = "mapper"
+            string options = "Artistic:0|Physical:1"
+        }
+    )
+
+    color3f inputs:specularFaceColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Face Color"
+            string page = "Primary Specular"
+        }
+    )
+
+    color3f inputs:specularEdgeColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Edge Color"
+            string page = "Primary Specular"
+        }
+    )
+
+    float inputs:specularFresnelShape = 5.0 (
+        sdrMetadata = {
+            string label = "Fresnel Exponent"
+            string page = "Primary Specular"
+        }
+    )
+
+    color3f inputs:specularIor = (1.5, 1.5, 1.5) (
+        sdrMetadata = {
+            string label = "Refraction Index"
+            string page = "Primary Specular"
+        }
+    )
+
+    color3f inputs:specularExtinctionCoeff = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Extinction Coefficient"
+            string page = "Primary Specular"
+        }
+    )
+
+    float inputs:specularRoughness = 0.2 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Primary Specular"
+        }
+    )
+
+    int inputs:specularModelType = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Model"
+            string page = "Primary Specular:Advanced"
+            string widget = "mapper"
+            string options = "Beckmann:0|Ggx:1"
+        }
+    )
+
+    float inputs:specularAnisotropy = 0.0 (
+        sdrMetadata = {
+            string label = "Anisotropy"
+            string page = "Primary Specular:Advanced"
+        }
+    )
+
+    vector3f inputs:specularAnisotropyDirection = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shading Tangent"
+            string page = "Primary Specular:Advanced"
+        }
+    )
+
+    normal3f inputs:specularBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Primary Specular:Advanced"
+        }
+    )
+
+    int inputs:specularDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Primary Specular:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:roughSpecularFresnelMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Fresnel Mode"
+            string page = "Rough Specular"
+            string widget = "mapper"
+            string options = "Artistic:0|Physical:1"
+        }
+    )
+
+    color3f inputs:roughSpecularFaceColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Face Color"
+            string page = "Rough Specular"
+        }
+    )
+
+    color3f inputs:roughSpecularEdgeColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Edge Color"
+            string page = "Rough Specular"
+        }
+    )
+
+    float inputs:roughSpecularFresnelShape = 5.0 (
+        sdrMetadata = {
+            string label = "Fresnel Exponent"
+            string page = "Rough Specular"
+        }
+    )
+
+    color3f inputs:roughSpecularIor = (1.5, 1.5, 1.5) (
+        sdrMetadata = {
+            string label = "Refraction Index"
+            string page = "Rough Specular"
+        }
+    )
+
+    color3f inputs:roughSpecularExtinctionCoeff = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Extinction Coefficient"
+            string page = "Rough Specular"
+        }
+    )
+
+    float inputs:roughSpecularRoughness = 0.6 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Rough Specular"
+        }
+    )
+
+    int inputs:roughSpecularModelType = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Model"
+            string page = "Rough Specular:Advanced"
+            string widget = "mapper"
+            string options = "Beckmann:0|Ggx:1"
+        }
+    )
+
+    float inputs:roughSpecularAnisotropy = 0.0 (
+        sdrMetadata = {
+            string label = "Anisotropy"
+            string page = "Rough Specular:Advanced"
+        }
+    )
+
+    vector3f inputs:roughSpecularAnisotropyDirection = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shading Tangent"
+            string page = "Rough Specular:Advanced"
+        }
+    )
+
+    normal3f inputs:roughSpecularBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Rough Specular:Advanced"
+        }
+    )
+
+    int inputs:roughSpecularDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Rough Specular:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:clearcoatFresnelMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Fresnel Mode"
+            string page = "Clear Coat"
+            string widget = "mapper"
+            string options = "Artistic:0|Physical:2"
+        }
+    )
+
+    color3f inputs:clearcoatFaceColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Face Color"
+            string page = "Clear Coat"
+        }
+    )
+
+    color3f inputs:clearcoatEdgeColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Edge Color"
+            string page = "Clear Coat"
+        }
+    )
+
+    float inputs:clearcoatFresnelShape = 5.0 (
+        sdrMetadata = {
+            string label = "Fresnel Exponent"
+            string page = "Clear Coat"
+        }
+    )
+
+    color3f inputs:clearcoatIor = (1.5, 1.5, 1.5) (
+        sdrMetadata = {
+            string label = "Refraction Index"
+            string page = "Clear Coat"
+        }
+    )
+
+    color3f inputs:clearcoatExtinctionCoeff = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Extinction Coefficient"
+            string page = "Clear Coat"
+        }
+    )
+
+    float inputs:clearcoatThickness = 0.0 (
+        sdrMetadata = {
+            string label = "Layer Thickness"
+            string page = "Clear Coat"
+        }
+    )
+
+    color3f inputs:clearcoatAbsorptionTint = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Absorption Tint"
+            string page = "Clear Coat"
+        }
+    )
+
+    float inputs:clearcoatRoughness = 0.0 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Clear Coat"
+        }
+    )
+
+    int inputs:clearcoatModelType = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Model"
+            string page = "Clear Coat:Advanced"
+            string widget = "mapper"
+            string options = "Beckmann:0|Ggx:1"
+        }
+    )
+
+    float inputs:clearcoatAnisotropy = 0.0 (
+        sdrMetadata = {
+            string label = "Anisotropy"
+            string page = "Clear Coat:Advanced"
+        }
+    )
+
+    vector3f inputs:clearcoatAnisotropyDirection = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shading Tangent"
+            string page = "Clear Coat:Advanced"
+        }
+    )
+
+    normal3f inputs:clearcoatBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Clear Coat:Advanced"
+        }
+    )
+
+    int inputs:clearcoatDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Clear Coat:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:specularEnergyCompensation = 0.0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Specular Energy Compen"
+            string page = "Specular and Clearcoat Globals"
+        }
+    )
+
+    float inputs:clearcoatEnergyCompensation = 0.0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Clearcoat Energy Compen"
+            string page = "Specular and Clearcoat Globals"
+        }
+    )
+
+    float inputs:iridescenceFaceGain = 0.0 (
+        sdrMetadata = {
+            string label = "Face gain"
+            string page = "Iridescence"
+        }
+    )
+
+    float inputs:iridescenceEdgeGain = 0.0 (
+        sdrMetadata = {
+            string label = "Edge gain"
+            string page = "Iridescence"
+        }
+    )
+
+    float inputs:iridescenceFresnelShape = 5.0 (
+        sdrMetadata = {
+            string label = "Fresnel Exponent"
+            string page = "Iridescence"
+        }
+    )
+
+    int inputs:iridescenceMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string page = "Iridescence"
+            string widget = "mapper"
+            string options = "Artistic:0|Physical:1"
+        }
+    )
+
+    color3f inputs:iridescencePrimaryColor = (1.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Primary Color"
+            string page = "Iridescence"
+        }
+    )
+
+    color3f inputs:iridescenceSecondaryColor = (0.0, 0.0, 1.0) (
+        sdrMetadata = {
+            string label = "Secondary Color"
+            string page = "Iridescence"
+        }
+    )
+
+    float inputs:iridescenceRoughness = 0.2 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Iridescence"
+        }
+    )
+
+    float inputs:iridescenceAnisotropy = 0.0 (
+        sdrMetadata = {
+            string label = "Anisotropy"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    vector3f inputs:iridescenceAnisotropyDirection = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shading Tangent"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    normal3f inputs:iridescenceBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    float inputs:iridescenceCurve = 1.0 (
+        sdrMetadata = {
+            string label = "Falloff Speed"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    float inputs:iridescenceScale = 1.0 (
+        sdrMetadata = {
+            string label = "Falloff Scale"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    int inputs:iridescenceFlip = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Flip Hue Direction"
+            string page = "Iridescence:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:iridescenceThickness = 800.0 (
+        sdrMetadata = {
+            string label = "Thin Film Thickness"
+            string page = "Iridescence:Advanced"
+        }
+    )
+
+    int inputs:iridescenceDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Iridescence:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:fuzzGain = 0.0 (
+        sdrMetadata = {
+            string label = "Gain"
+            string page = "Fuzz"
+        }
+    )
+
+    color3f inputs:fuzzColor = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Color"
+            string page = "Fuzz"
+        }
+    )
+
+    float inputs:fuzzConeAngle = 8.0 (
+        sdrMetadata = {
+            string label = "Cone Angle"
+            string page = "Fuzz"
+        }
+    )
+
+    normal3f inputs:fuzzBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Fuzz:Advanced"
+        }
+    )
+
+    int inputs:fuzzDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Fuzz:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:subsurfaceType = 5 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Subsurface Model"
+            string page = "Subsurface"
+            string widget = "mapper"
+            string options = "Jensen Dipole (not implemented in XPU):0|DEon Better Dipole (not implemented in XPU):3|Multiple Mean Free Paths (not implemented in XPU):2|Burley Normalized:4|Exponential Path Traced:5|Non-Exponential Path Traced:6"
+        }
+    )
+
+    float inputs:subsurfaceGain = 0.0 (
+        sdrMetadata = {
+            string label = "Gain"
+            string page = "Subsurface"
+        }
+    )
+
+    color3f inputs:subsurfaceColor = (0.83, 0.791, 0.753) (
+        sdrMetadata = {
+            string label = "Color"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:subsurfaceDmfp = 10.0 (
+        sdrMetadata = {
+            string label = "Mean Free Path Distance"
+            string page = "Subsurface"
+        }
+    )
+
+    color3f inputs:subsurfaceDmfpColor = (0.851, 0.557, 0.395) (
+        sdrMetadata = {
+            string label = "Mean Free Path Color"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:shortSubsurfaceGain = 0.0 (
+        sdrMetadata = {
+            string label = "Short Gain"
+            string page = "Subsurface"
+        }
+    )
+
+    color3f inputs:shortSubsurfaceColor = (0.9, 0.9, 0.9) (
+        sdrMetadata = {
+            string label = "Short Color"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:shortSubsurfaceDmfp = 5.0 (
+        sdrMetadata = {
+            string label = "Short MFP Distance"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:longSubsurfaceGain = 0.0 (
+        sdrMetadata = {
+            string label = "Long Gain"
+            string page = "Subsurface"
+        }
+    )
+
+    color3f inputs:longSubsurfaceColor = (0.8, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Long Color"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:longSubsurfaceDmfp = 20.0 (
+        sdrMetadata = {
+            string label = "Long MFP Distance"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:subsurfaceDirectionality = 0.0 (
+        sdrMetadata = {
+            string label = "Directionality"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:subsurfaceBleed = 0.0 (
+        sdrMetadata = {
+            string label = "Bleed"
+            string page = "Subsurface"
+        }
+    )
+
+    float inputs:subsurfaceDiffuseBlend = 0.0 (
+        sdrMetadata = {
+            string label = "Diffuse Blend"
+            string page = "Subsurface"
+        }
+    )
+
+    int inputs:subsurfaceResolveSelfIntersections = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Resolve Self Intersections"
+            string page = "Subsurface"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:subsurfaceIor = 1.4 (
+        sdrMetadata = {
+            string label = "Internal reflection index"
+            string page = "Subsurface"
+        }
+    )
+
+    color3f inputs:subsurfacePostTint = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Post Tint"
+            string page = "Subsurface:Advanced"
+        }
+    )
+
+    float inputs:subsurfaceDiffuseSwitch = 1.0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Diffuse Computation Switch"
+            string page = "Subsurface:Advanced"
+        }
+    )
+
+    int inputs:subsurfaceDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Subsurface:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:subsurfaceTransmitGain = 0.0 (
+        sdrMetadata = {
+            string label = "Transmit Gain"
+            string page = "Subsurface:Advanced"
+        }
+    )
+
+    int inputs:considerBackside = 1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Consider Backside"
+            string page = "Subsurface:Trace Control"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:continuationRayMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Continuation Ray Mode"
+            string page = "Subsurface:Trace Control"
+            string widget = "mapper"
+            string options = "Off:0|Last Hit:1|All Hits:2"
+        }
+    )
+
+    int inputs:maxContinuationHits = 2 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Max Continuation Hits"
+            string page = "Subsurface:Trace Control"
+        }
+    )
+
+    float inputs:followTopology = 0.0 (
+        sdrMetadata = {
+            string label = "Follow Topology"
+            string page = "Subsurface:Trace Control"
+        }
+    )
+
+    string inputs:subsurfaceSubset = "" (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Trace Subset"
+            string page = "Subsurface:Trace Control"
+        }
+    )
+
+    float inputs:singlescatterGain = 0.0 (
+        sdrMetadata = {
+            string label = "Gain"
+            string page = "Single Scatter"
+        }
+    )
+
+    color3f inputs:singlescatterColor = (0.83, 0.791, 0.753) (
+        sdrMetadata = {
+            string label = "Color"
+            string page = "Single Scatter"
+        }
+    )
+
+    float inputs:singlescatterMfp = 10.0 (
+        sdrMetadata = {
+            string label = "Mean Free Path"
+            string page = "Single Scatter"
+        }
+    )
+
+    color3f inputs:singlescatterMfpColor = (0.851, 0.557, 0.395) (
+        sdrMetadata = {
+            string label = "Mean Free Path Color"
+            string page = "Single Scatter"
+        }
+    )
+
+    float inputs:singlescatterDirectionality = 0.0 (
+        sdrMetadata = {
+            string label = "Directionality"
+            string page = "Single Scatter:Advanced"
+        }
+    )
+
+    float inputs:singlescatterIor = 1.3 (
+        sdrMetadata = {
+            string label = "Refractive Index"
+            string page = "Single Scatter:Advanced"
+        }
+    )
+
+    float inputs:singlescatterBlur = 0.0 (
+        sdrMetadata = {
+            string label = "Blur"
+            string page = "Single Scatter:Advanced"
+        }
+    )
+
+    float inputs:singlescatterDirectGain = 0.0 (
+        sdrMetadata = {
+            string label = "Backside Direct Gain"
+            string page = "Single Scatter:Advanced"
+        }
+    )
+
+    color3f inputs:singlescatterDirectGainTint = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Direct Gain Tint"
+            string page = "Single Scatter:Advanced"
+        }
+    )
+
+    int inputs:singlescatterDoubleSided = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Double Sided"
+            string page = "Single Scatter:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:singlescatterConsiderBackside = 1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Consider Backside"
+            string page = "Single Scatter:Trace Control"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:singlescatterContinuationRayMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Continuation Ray Mode"
+            string page = "Single Scatter:Trace Control"
+            string widget = "mapper"
+            string options = "Off:0|Last Hit:1|All Hits:2"
+        }
+    )
+
+    int inputs:singlescatterMaxContinuationHits = 2 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Max Continuation Hits"
+            string page = "Single Scatter:Trace Control"
+        }
+    )
+
+    int inputs:singlescatterDirectGainMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Direct Gain Mode"
+            string page = "Single Scatter:Trace Control"
+            string widget = "mapper"
+            string options = "First Hit:0|Last Hit:1|All Hits:2"
+        }
+    )
+
+    string inputs:singlescatterSubset = "" (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Trace Subset"
+            string page = "Single Scatter:Trace Control"
+        }
+    )
+
+    color3f inputs:irradianceTint = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Irradiance Tint"
+            string page = "Scattering Globals"
+        }
+    )
+
+    float inputs:irradianceRoughness = 0.0 (
+        sdrMetadata = {
+            string label = "Irradiance Roughness"
+            string page = "Scattering Globals"
+        }
+    )
+
+    float inputs:unitLength = 0.1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Unit Length"
+            string page = "Scattering Globals"
+        }
+    )
+
+    float inputs:refractionGain = 0.0 (
+        sdrMetadata = {
+            string label = "Refraction Gain"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:reflectionGain = 0.0 (
+        sdrMetadata = {
+            string label = "Reflection Gain"
+            string page = "Glass"
+        }
+    )
+
+    color3f inputs:refractionColor = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Refraction Color"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:glassRoughness = 0.1 (
+        sdrMetadata = {
+            string label = "Roughness"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:glassRefractionRoughness = -1.0 (
+        sdrMetadata = {
+            string label = "Refraction Roughness"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:glassRefraction2Roughness = 0.0 (
+        sdrMetadata = {
+            string label = "Refraction 2 Roughness"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:glassRefraction2Blend = 0.0 (
+        sdrMetadata = {
+            string label = "Refraction 2 Roughness Blend Factor"
+            string page = "Glass"
+        }
+    )
+
+    color3f inputs:glassRefraction2Tint = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Refraction 2 Tint"
+            string page = "Glass"
+        }
+    )
+
+    float inputs:glassAnisotropy = 0.0 (
+        sdrMetadata = {
+            string label = "Anisotropy"
+            string page = "Glass:Advanced"
+        }
+    )
+
+    vector3f inputs:glassAnisotropyDirection = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shading Tangent"
+            string page = "Glass:Advanced"
+        }
+    )
+
+    normal3f inputs:glassBumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Glass:Advanced"
+        }
+    )
+
+    float inputs:glassIor = 1.5 (
+        sdrMetadata = {
+            string label = "Refractive Index"
+            string page = "Glass:Advanced"
+        }
+    )
+
+    int inputs:mwWalkable = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Enable Manifold Walk"
+            string page = "Glass:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:mwIor = -1.0 (
+        sdrMetadata = {
+            string label = "Manifold Walk IOR"
+            string page = "Glass:Advanced"
+        }
+    )
+
+    int inputs:thinGlass = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Thin"
+            string page = "Glass:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:ignoreFresnel = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Ignore Fresnel Weight"
+            string page = "Glass:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:ignoreAccumOpacity = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Ignore Accum Opacity"
+            string page = "Glass:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:blocksVolumes = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Blocks Volumes"
+            string page = "Glass:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:volumeAggregate = 0 (
+        sdrMetadata = {
+            string page = "Glass:Interior"
+            string widget = "checkBox"
+        }
+    )
+
+    string inputs:volumeAggregateName = "interiorVolumeAggregate" (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string page = "Glass:Interior"
+        }
+    )
+
+    color3f inputs:ssAlbedo = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Single Scatter Albedo"
+            string page = "Glass:Interior"
+        }
+    )
+
+    color3f inputs:extinction = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Extinction"
+            string page = "Glass:Interior"
+        }
+    )
+
+    float inputs:g0 = 0.0 (
+        sdrMetadata = {
+            string label = "g0"
+            string page = "Glass:Interior:Advanced"
+        }
+    )
+
+    float inputs:g1 = 0.0 (
+        sdrMetadata = {
+            string label = "g1"
+            string page = "Glass:Interior:Advanced"
+        }
+    )
+
+    float inputs:blend = 0.0 (
+        sdrMetadata = {
+            string label = "Blend"
+            string page = "Glass:Interior:Advanced"
+        }
+    )
+
+    color3f inputs:volumeGlow = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Volume Glow"
+            string page = "Glass:Interior:Advanced"
+        }
+    )
+
+    float inputs:maxExtinction = -1.0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Global Max Extinction"
+            string page = "Glass:Interior:Advanced"
+        }
+    )
+
+    int inputs:multiScatter = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Multiscattering"
+            string page = "Glass:Interior:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    int inputs:enableOverlappingVolumes = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Overlapping Volumes"
+            string page = "Glass:Interior:Advanced"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:glowGain = 0.0 (
+        sdrMetadata = {
+            string label = "Gain"
+            string page = "Glow"
+        }
+    )
+
+    color3f inputs:glowColor = (1.0, 1.0, 1.0) (
+        sdrMetadata = {
+            string label = "Color"
+            string page = "Glow"
+        }
+    )
+
+    normal3f inputs:bumpNormal = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Bump"
+            string page = "Globals"
+        }
+    )
+
+    int inputs:shadowBumpTerminator = 1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Shadow Bump Terminator"
+            string page = "Globals"
+            string widget = "checkBox"
+        }
+    )
+
+    color3f inputs:shadowColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Shadow Color"
+            string page = "Globals"
+        }
+    )
+
+    int inputs:shadowMode = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Shadow Mode"
+            string page = "Globals"
+            string widget = "mapper"
+            string options = "Shader and shadow color:0|Shadow color only:1"
+        }
+    )
+
+    color3f inputs:exitColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "Exit Color"
+            string page = "Globals"
+        }
+    )
+
+    float inputs:presence = 1.0 (
+        sdrMetadata = {
+            string label = "Presence"
+            string page = "Globals"
+        }
+    )
+
+    int inputs:presenceCached = 1 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Presence Cached"
+            string page = "Globals"
+            string widget = "mapper"
+            string options = "Non cached:0|Cached:1"
+        }
+    )
+
+    int inputs:mwStartable = 0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Enable Manifold Exploration"
+            string page = "Globals"
+            string widget = "checkBox"
+        }
+    )
+
+    float inputs:roughnessMollificationClamp = 32.0 (
+        connectability = "interfaceOnly"
+        sdrMetadata = {
+            string label = "Roughness Mollification Clamp"
+            string page = "Globals"
+        }
+    )
+
+    color3f inputs:userColor = (0.0, 0.0, 0.0) (
+        sdrMetadata = {
+            string label = "User Color"
+            string page = "Globals"
+        }
+    )
+
+    int[] inputs:utilityPattern = [0] (
+        sdrMetadata = {
+            string label = "Utility Pattern"
+            string widget = "dynamicArray"
+            string isDynamicArray = "1"
+        }
+    )
+}

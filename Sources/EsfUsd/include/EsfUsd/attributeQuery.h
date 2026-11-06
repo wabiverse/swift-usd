@@ -33,7 +33,7 @@ private:
     void _Initialize() final;
     bool _Get(VtValue *value, UsdTimeCode time) const final;
     std::optional<TsSpline> _GetSpline() const final;
-    bool _ValueMightBeTimeVarying() const final;
+    bool _ValueSourceMightBeTimeVarying() const final;
     bool _IsTimeVarying(UsdTimeCode from, UsdTimeCode to) const final;
 
 private:

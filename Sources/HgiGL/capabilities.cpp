@@ -105,6 +105,11 @@ HgiGLCapabilities::_LoadCapabilities()
     glGetIntegerv(GL_MAX_CLIP_PLANES, &maxClipDistances);
     _maxClipDistances = maxClipDistances;
 
+    // GL has combined texture/sampler units
+    GLint maxSamplersPerShaderStage = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxSamplersPerShaderStage);
+    _maxSamplersPerShaderStage = maxSamplersPerShaderStage;
+
     // initialize by Core versions
     if (_glVersion >= 310) {
         GLint maxUniformBlockSize = 0;

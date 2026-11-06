@@ -53,6 +53,7 @@
 #include "Hd/materialSchema.h"
 #include "Hd/meshSchema.h"
 #include "Hd/meshTopologySchema.h"
+#include "Hd/primIdSchema.h"
 #include "Hd/primvarsSchema.h"
 #include "Hd/purposeSchema.h"
 #include "Hd/renderBufferSchema.h"
@@ -199,6 +200,10 @@ HdDirtyBitsTranslator::RprimDirtyBitsToLocatorSet(TfToken const& primType,
         if (bits & HdChangeTracker::DirtyTopology) {
             set->append(HdMeshTopologySchema::GetDefaultLocator());
         }
+    }
+
+    if (bits & HdChangeTracker::DirtyPrimID) {
+        set->append(HdPrimIdSchema::GetDefaultLocator());
     }
 
     if (bits & HdChangeTracker::DirtyPrimvar) {
@@ -814,6 +819,12 @@ HdDirtyBitsTranslator::RprimLocatorSetToDirtyBits(
         if (_FindLocator(HdMeshTopologySchema::GetDefaultLocator(), end, &it)) {
             bits |= HdChangeTracker::DirtyTopology;
         }
+    }
+
+    // Locator (*): primId
+
+    if (_FindLocator(HdPrimIdSchema::GetDefaultLocator(), end, &it)) {
+        bits |= HdChangeTracker::DirtyPrimID;
     }
 
     // Locator (*): primvars

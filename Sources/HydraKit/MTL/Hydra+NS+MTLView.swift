@@ -38,12 +38,15 @@ import OpenUSDKit
         private let hydra: Hydra.RenderEngine!
         private let device: MTLDevice!
         private let renderer: MTLRenderer!
+        private let framesPerSecond: Int?
 
-        public init(hydra: Hydra.RenderEngine, renderer: MTLRenderer)
+        /// `framesPerSecond` caps how often it draws, the display's refresh rate when `nil`.
+        public init(hydra: Hydra.RenderEngine, renderer: MTLRenderer, framesPerSecond: Int? = nil)
         {
           self.hydra = hydra
           device = hydra.hydraDevice
           self.renderer = renderer
+          self.framesPerSecond = framesPerSecond
         }
 
         public func makeCoordinator() -> Coordinator
@@ -54,7 +57,11 @@ import OpenUSDKit
           mtkView.enableSetNeedsDisplay = false // don't wait for setNeedsDisplay
           mtkView.presentsWithTransaction = false // sync presentation with our command buffer
 
-          if let mode = CGDisplayCopyDisplayMode(CGMainDisplayID())
+          if let framesPerSecond
+          {
+            mtkView.preferredFramesPerSecond = framesPerSecond
+          }
+          else if let mode = CGDisplayCopyDisplayMode(CGMainDisplayID())
           {
             mtkView.preferredFramesPerSecond = Int(mode.refreshRate)
           }

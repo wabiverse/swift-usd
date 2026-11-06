@@ -10,6 +10,7 @@
 #include "Gf/math.h"
 #include "Work/loops.h"
 
+#include "Sdf/changeBlock.h"
 #include "Sdf/layer.h"
 #include "Sdf/primSpec.h"
 #include "Sdf/schema.h"
@@ -41,6 +42,15 @@ UsdUtilsCopyLayerMetadata(const SdfLayerHandle &source,
         last = std::remove_if(infoKeys.begin(), last,
                               [](TfToken key) { return (key == SdfFieldKeys->SubLayers || key == SdfFieldKeys->SubLayerOffsets); });
     }
+
+    // Batch all the SetInfo calls into a single change block. This specifically
+    // avoids leaving the SubLayers and SubLayerOffsets fields out of sync with
+    // each other, which Pcp would report as a
+    // PcpErrorType_InvalidSublayerAndOffsetCount composition error.
+    // Regardless, batching such changes in a single change block is a good
+    // practice, as it avoids unnecessary invalidation and recomposition of the
+    // stage.
+    SdfChangeBlock block;
 
     for (auto key = infoKeys.begin(); key != last; ++key){
         destPseudo->SetInfo(*key, sourcePseudo->GetInfo(*key));

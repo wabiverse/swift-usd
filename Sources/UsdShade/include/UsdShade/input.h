@@ -40,7 +40,10 @@ public:
 
     /// Get the name of the attribute associated with the Input. 
     /// 
-    TfToken const &GetFullName() const { 
+    TfToken const &GetFullName() const & { 
+        return _attr.GetName(); 
+    }
+    TfToken GetFullName() const && { 
         return _attr.GetName(); 
     }
 
@@ -209,7 +212,8 @@ public:
     static bool IsInterfaceInputName(const std::string & name);
 
     /// Explicit UsdAttribute extractor.
-    const UsdAttribute &GetAttr() const { return _attr; }
+    const UsdAttribute &GetAttr() const & { return _attr; }
+    UsdAttribute GetAttr() const && { return _attr; }
 
     /// Allow UsdShadeInput to auto-convert to UsdAttribute, so you can
     /// pass a UsdShadeInput to any function that accepts a UsdAttribute or

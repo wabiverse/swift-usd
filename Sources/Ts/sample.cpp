@@ -462,7 +462,8 @@ _BakeAndShiftPostExtrapLoop(
 Ts_SplineData*
 _BakeAndShiftExtrapLoopBoundary(
     const Ts_SplineData* const data,
-    const double boundaryOppositeTime,
+    const double firstTime,
+    const double lastTime,
     const GfInterval& interval,
     const bool isPre,
     TsExtrapolation* extrap)
@@ -539,8 +540,14 @@ _BakeAndShiftExtrapLoopBoundary(
                   : _BakeAndShiftPostExtrapLoop(data, interval, numSegments,
                                                 resultData);
     } else {
-        resultData = Ts_Bake(data, GfInterval::GetFullInterval(),
-                             /* includeExtrapLooops */ false);
+        // Bake the finite knot region
+        GfInterval boundedInterval(firstTime, lastTime, CLOSED, OPEN);
+        isPre ? boundedInterval.SetMax(interval.GetMax())
+              : boundedInterval.SetMin(interval.GetMin());
+        resultData = Ts_Bake(data, boundedInterval,
+                             /* includeExtrapLoops */ true);
+
+        extrap->loopBoundaryTime = loopBoundaryTime;
     }
 
     return resultData;
@@ -709,7 +716,7 @@ Ts_SplineData* Ts_Bake(
     if (data->times.empty()) {
         // Nothing to bake, just reset the inner loop params. Baked data no
         // longer has inner loops.
-        bakedData->loopParams = TsLoopParams();
+        bakedData->loopParams = Ts_LoopParams();
         return bakedData;
     }
 
@@ -786,7 +793,7 @@ Ts_SplineData* Ts_Bake(
     }
 
     // reset the inner loop params. Baked data no longer has inner loops.
-    bakedData->loopParams = TsLoopParams();
+    bakedData->loopParams = Ts_LoopParams();
 
     return bakedData;
 }
@@ -839,11 +846,13 @@ Ts_Truncate(
 
     Ts_SplineData* resultData = nullptr;
     if (minFinite && !maxFinite && postExtrap.IsLooping()) {
-        resultData = _BakeAndShiftExtrapLoopBoundary(data, firstTime, interval,
+        resultData = _BakeAndShiftExtrapLoopBoundary(data, firstTime, lastTime,
+                                                     interval,
                                                      /* isPre */ false,
                                                      &postExtrap);
     } else if (!minFinite && maxFinite && preExtrap.IsLooping()) {
-        resultData = _BakeAndShiftExtrapLoopBoundary(data, lastTime, interval,
+        resultData = _BakeAndShiftExtrapLoopBoundary(data, firstTime, lastTime,
+                                                     interval,
                                                      /* isPre */ true,
                                                      &preExtrap);
     } else {
@@ -880,7 +889,7 @@ Ts_Truncate(
         TF_VERIFY(false, "Ts_Truncate failed bake of input spline data");
         return nullptr;
     }
-    resultData->loopParams = TsLoopParams();
+    resultData->loopParams = Ts_LoopParams();
 
     // Write back simplified extrapolation. This ensures we don't
     // breakdown in a looped section that actually behaves like held

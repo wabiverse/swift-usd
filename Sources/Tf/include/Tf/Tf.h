@@ -52,6 +52,7 @@
 #include <Tf/pyWrapContext.h>
 #include <Tf/envSetting.h>
 #include <Tf/hashmap.h>
+#include <Tf/eternalString.h>
 #include <Tf/weakBase.h>
 #include <Tf/wrapTypeHelpers.h>
 #include <Tf/notice.h>
@@ -76,6 +77,7 @@
 #include <Tf/scopeDescriptionPrivate.h>
 #include <Tf/nullPtr.h>
 #include <Tf/makePyConstructor.h>
+#include <Tf/buffer.h>
 #include <Tf/diagnostic.h>
 #include <Tf/pyModuleNotice.h>
 #include <Tf/functionTraits.h>

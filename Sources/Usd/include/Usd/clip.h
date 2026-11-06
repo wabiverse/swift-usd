@@ -132,19 +132,21 @@ public:
 
     SdfPropertySpecHandle GetPropertyAtPath(const SdfPath& path) const;
 
+    SdfPath TranslatePathToClip(const SdfPath &path) const;
+
     template <class T>
     bool HasField(
         const SdfPath& path, const TfToken& field,
         T* value) const
     {
         return _GetLayerForClip()->HasField(
-            _TranslatePathToClip(path), field, value);
+            TranslatePathToClip(path), field, value);
     }
 
     std::type_info const &
     GetFieldTypeid(const SdfPath& path, const TfToken& field) const {
         return _GetLayerForClip()->GetFieldTypeid(
-            _TranslatePathToClip(path), field);
+            TranslatePathToClip(path), field);
     }    
 
     size_t GetNumTimeSamplesForPath(const SdfPath& path) const;
@@ -165,6 +167,11 @@ public:
     /// typeid(), otherwise return typeid(void).
     const std::type_info &QueryTimeSampleTypeid(
         const SdfPath &path, UsdTimeCode time) const;
+
+
+    /// If an authored spline exists, populates \p result and returns true,
+    /// otherwise false.
+    bool GetSplineForClip(const SdfPath& path, TsSpline* result) const;
 
     /// Evaluates the clip's spline at external time `time` and stores the
     /// result in `value`.
@@ -203,10 +210,6 @@ public:
     /// corresponding to the given \p path. Analogous to
     /// \ref HasAuthoredTimeSamples.
     bool HasAuthoredSpline(const SdfPath& path) const;
-
-    /// Return true if a value block is authored for the attribute
-    /// corresponding to the given \p path at \p time.
-    bool IsBlocked(const SdfPath& path, ExternalTime time) const;
 
     /// Return the layer associated with this clip, opening it if it hasn't
     /// been opened already.
@@ -264,15 +267,26 @@ private:
         const SdfPath& path,
         std::set<ExternalTime>* samples) const;
 
-    SdfPath _TranslatePathToClip(const SdfPath &path) const;
-
     // Helpers to translate between internal and external time domains.
+    // _TranslateTimeToInternal optionally returns the resolved TimeMapping
+    // segment it used (after any jump-discontinuity substitution) via
+    // \p m1Out / \p m2Out, so callers can apply the same linear map (scale
+    // and offset) when converting time-based values.
     InternalTime _TranslateTimeToInternal(
-        UsdTimeCode extTime) const;
+        UsdTimeCode extTime,
+        TimeMapping* m1Out = nullptr, TimeMapping* m2Out = nullptr) const;
     ExternalTime _TranslateTimeToExternal(
         InternalTime clipTime, size_t i1, size_t i2) const;
 
     SdfLayerRefPtr _GetLayerForClip() const;
+    
+    // Helps translate external time domains to internal clip time while
+    // computing whether the translated time should be pre time or regular
+    // time, necessary for value source formats that contain dual valued
+    // datapoints like splines.
+    UsdTimeCode _TranslateTimeToInternalDualValued(
+        UsdTimeCode extTime,
+        TimeMapping* m1Out = nullptr, TimeMapping* m2Out = nullptr) const;
 
 private:
     mutable bool _hasLayer;

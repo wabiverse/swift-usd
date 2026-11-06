@@ -65,11 +65,13 @@ _GetRenderContextForShaderOutput(UsdShadeOutput const& output)
     return TfToken();
 }
 
-// For the fixed terminal cases, such as light and lightFilter, there are
-// no output connections to examine for authored renderContexts.  Instead,
+// For the fixed terminal cases (e.g. light, lightFilter, volumeFilter) there are
+// no output connections to examine for authored renderContexts. Instead,
 // we must examine the nodes for renderContextNodeIdentifiers.
 TfTokenVector
-_CollectRenderContextsFromNodeIdentifiers(UsdPrim const& usdPrim)
+_CollectRenderContextsFromNodeIdentifiers(
+    UsdPrim const& usdPrim,
+    const TfToken& fixedTerminalName)
 {
     TRACE_FUNCTION();
 
@@ -81,23 +83,8 @@ _CollectRenderContextsFromNodeIdentifiers(UsdPrim const& usdPrim)
     };
 
     // Determine the appropriate suffix for the shaderId property.
-    TfToken shaderIdSuffix;
-    if (UsdLuxLightAPI(usdPrim)) {
-        // Light
-        static const TfToken lightSuffix(
-            ":" + UsdLuxTokens->lightShaderId.GetString());
-        shaderIdSuffix = lightSuffix;
-    } else if (UsdLuxLightFilter(usdPrim)) {
-        // Light filter
-        static const TfToken lightFilterSuffix(
-            ":" + UsdLuxTokens->lightFilterShaderId.GetString());
-        shaderIdSuffix = lightFilterSuffix;
-    } else {
-        // Not a known case that requires special handling.  We don't warn
-        // since this isn't necessarily problematic.  Provide the default
-        // render contexts from above.
-        return result;
-    }
+    const std::string shaderIdSuffix =
+        ":" + SdfPath::JoinIdentifier(fixedTerminalName, TfToken("shaderId"));
 
     // Scan contained prims for renderContexts.
     for (TfToken const& propName: usdPrim.GetPropertyNames()) {
@@ -678,7 +665,7 @@ UsdImagingDataSourceMaterial::GetNames()
     if (!_fixedTerminalName.IsEmpty()) {
         // Fixed terminal materials require scanning the nodes for
         // shaderId attributes providing a renderContext.
-        return _CollectRenderContextsFromNodeIdentifiers(_usdPrim);
+        return _CollectRenderContextsFromNodeIdentifiers(_usdPrim, _fixedTerminalName);
     }
 
     TfTokenVector renderContexts;
@@ -1065,6 +1052,12 @@ UsdImagingDataSourceMaterial::Get(const TfToken &name)
             _usdPrim.GetPath(),
             HdMaterialSchema::GetDefaultLocator().Append(name));
     } else {
+        // For fixed terminals, only build a network
+        // for render contexts that the prim explicitly supports.
+        if (!_Contains(
+                _CollectRenderContextsFromNodeIdentifiers(_usdPrim, _fixedTerminalName), name)) {
+            return nullptr;
+        }
         return _BuildNetwork(
             UsdShadeConnectableAPI(_usdPrim),
             _fixedTerminalName, _stageGlobals, name,

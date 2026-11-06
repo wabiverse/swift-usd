@@ -7,6 +7,8 @@
 
 #include "Hd/dataSourceHash.h"
 
+#include "Sdf/path.h"
+
 #include "Tf/token.h"
 #include "Vt/array.h"
 #include "Vt/types.h"
@@ -44,6 +46,8 @@ _MakePair(Handle const &ds, const _Args &args)
 // one run to the next. Currently, these include:
 //
 //  - TfToken: default hash includes a pointer address
+//  - SdfPath: GetHash() uses pool-handle indices that can change when
+//    a transiently-created path node is freed
 //
 // Ideally, value type hash implementations should be stable, and that is the
 // preferred solution to unstable data source hashes. However, sometimes a
@@ -73,10 +77,14 @@ struct _HashVisitor
     VtValue
     operator()(const VtArray<TfToken>& x) const
     {
-        VtArray<std::string> stringArray(x.size());
-        for (const TfToken& t : x) {
-            stringArray.push_back(t.GetString());
-        }
+        const size_t arraySize = x.size();
+        VtArray<std::string> stringArray;
+        stringArray.resize(arraySize,
+            [&] (std::string* start, std::string* end) {
+                for (size_t i = 0; i < arraySize; ++i) {
+                    new (start + i) std::string(x[i].GetString());
+                }
+            });
         return VtValue(stringArray);
     }
 
@@ -89,6 +97,24 @@ struct _HashVisitor
     VtValue
     operator()(const VtValue& x) const
     {
+        // SdfPath is not a registered VtVisitValue type, so it falls
+        // through to this catch-all. Hash path strings for stability.
+        if (x.IsHolding<SdfPath>()) {
+            return VtValue(x.UncheckedGet<SdfPath>().GetString());
+        }
+        if (x.IsHolding<VtArray<SdfPath>>()) {
+            const VtArray<SdfPath> &pathArray =
+                x.UncheckedGet<VtArray<SdfPath>>();
+            const size_t arraySize = pathArray.size();
+            VtArray<std::string> stringArray;
+            stringArray.resize(arraySize,
+                [&] (std::string* start, std::string* end) {
+                    for (size_t i = 0; i < arraySize; ++i) {
+                        new (start + i) std::string(pathArray[i].GetString());
+                    }
+                });
+            return VtValue(stringArray);
+        }
         return x;
     }
 };

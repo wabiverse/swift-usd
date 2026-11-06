@@ -34,6 +34,7 @@ Robustly and scalably interchange 3D scenes while fostering highly collaborative
 - ``UsdDraco``
 - ``UsdHydra``
 - ``UsdMedia``
+- ``UsdPmc``
 - ``UsdMtlx``
 - ``UsdPhysics``
 - ``UsdProc``

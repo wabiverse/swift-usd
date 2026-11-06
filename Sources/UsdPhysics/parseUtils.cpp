@@ -944,9 +944,18 @@ UsdPrim _GetBodyPrim(UsdStageWeakPtr stage, const SdfPath& relPath,
     UsdPrim collisionPrim = UsdPrim();
     while (parent && parent != stage->GetPseudoRoot())
     {
-        if (parent.HasAPI<UsdPhysicsRigidBodyAPI>())
+        const UsdPhysicsRigidBodyAPI rigidBodyAPI(parent);
+        if (rigidBodyAPI)
         {
-            return parent;
+            // A disabled body takes no part in simulation and does not own
+            // this prim, so keep searching the ancestors as though the API
+            // were not applied at all.
+            bool rigidBodyEnabled = true;
+            rigidBodyAPI.GetRigidBodyEnabledAttr().Get(&rigidBodyEnabled);
+            if (rigidBodyEnabled)
+            {
+                return parent;
+            }
         }
         if (parent.HasAPI<UsdPhysicsCollisionAPI>())
         {
@@ -1645,12 +1654,18 @@ bool _HasDynamicBodyParent(const UsdPrim& usdPrim, const RigidBodyMap& bodyMap,
 
         if (physicsAPIFound)
         {
-            *outBodyPrimPath = parent;
-            return false;
+            // A disabled rigid body takes no part in simulation and owns no
+            // colliders. Keep searching the ancestors: a nested disabled body
+            // may still have an enabled body above it, which this prim
+            // belongs to.
+            parent = parent.GetParent();
+            continue;
         }
 
         parent = parent.GetParent();
     }
+
+    // No enabled body above this prim, so it is a static collision.
     return false;
 }
 
@@ -1908,19 +1923,9 @@ SdfPath _GetRigidBody(const UsdPrim& usdPrim, const RigidBodyMap& bodyMap)
     {
         return bodyPrim.GetPrimPath();
     }
-    else
-    {
-        // collision does not have a dynamic body parent, it is considered a 
-        // static collision        
-        if (bodyPrim == UsdPrim())
-        {
-            return SdfPath();
-        }
-        else
-        {
-            return bodyPrim.GetPrimPath();
-        }
-    }
+
+    // No enabled body above the collision, so it is a static collision.
+    return SdfPath();
 }
 
 // Compute the relative pose between the collision and the rigid body

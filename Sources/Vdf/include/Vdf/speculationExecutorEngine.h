@@ -21,6 +21,8 @@
 #include "Vdf/requiredInputsPredicate.h"
 #include "Vdf/speculationExecutorBase.h"
 
+#include "Tf/mallocTag.h"
+
 PXR_NAMESPACE_OPEN_SCOPE
 
 class VdfExecutorErrorLogger;
@@ -176,6 +178,7 @@ VdfSpeculationExecutorEngine<DataManagerType>::RunSchedule(
     F &&callback)
 {
     TRACE_FUNCTION();
+    TfAutoMallocTag tag("VdfSpeculationExecutorEngine::RunSchedule");
 
     // Make sure the executor data manager is appropriately sized.
     Base::_GetDataManager()->Resize(*schedule.GetNetwork());

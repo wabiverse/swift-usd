@@ -7,7 +7,6 @@
 #include "UsdImaging/niInstanceAggregationSceneIndex.h"
 
 #include "UsdImaging/niPrototypeSceneIndex.h"
-#include "UsdImaging/rerootingContainerDataSource.h"
 #include "UsdImaging/tokens.h"
 #include "UsdImaging/usdPrimInfoSchema.h"
 
@@ -27,9 +26,11 @@
 #include "Vt/typeHeaders.h"
 #include "Vt/visitValue.h"
 
+#include "Tf/stringUtils.h"
 #include "Trace/traceImpl.h"
 
 #include <string>
+#include <unordered_map>
 #include <variant>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -1200,6 +1201,7 @@ void
 _InstanceObserver::PrimsAdded(const HdSceneIndexBase &sender,
                               const AddedPrimEntries &entries)
 {
+    TRACE_FUNCTION();
     _RetainedSceneIndexOperations
         retainedSceneIndexOperations(_retainedSceneIndex);
 
@@ -1240,6 +1242,8 @@ _InstanceObserver::PrimsDirtied(const HdSceneIndexBase &sender,
     if (_instanceToInfo.empty()) {
         return;
     }
+
+    TRACE_FUNCTION();
 
     _RetainedSceneIndexOperations
         retainedSceneIndexOperations(_retainedSceneIndex);
@@ -1314,6 +1318,8 @@ _InstanceObserver::PrimsRemoved(const HdSceneIndexBase &sender,
         return;
     }
 
+    TRACE_FUNCTION();
+
     for (const RemovedPrimEntry &entry : entries) {
         const SdfPath &path = entry.primPath;
         auto it = _instanceToInfo.lower_bound(path);
@@ -1331,9 +1337,6 @@ _InstanceObserver::PrimsRenamed(const HdSceneIndexBase &sender,
     ConvertPrimsRenamedToRemovedAndAdded(sender, entries, this);
 }
 
-
-
-
 void
 _InstanceObserver::_Populate()
 {
@@ -1345,6 +1348,283 @@ _InstanceObserver::_Populate()
                                     SdfPath::AbsoluteRootPath())) {
         _AddPrim(primPath, &retainedSceneIndexOperations);
     }
+}
+
+// USD-12324
+// Lazily normalizes SdfPath values in a native instance's binding data
+// sources so that structurally-equivalent instances produce the same
+// binding hash. This does on-the-fly what a prebuilt PcpMapFunction would
+// do, but folded into the single HdDataSourceHash traversal (avoiding a
+// separate pass that recurses the whole subtree to collect paths and
+// build a map function, which is the alternative of using
+// UsdImagingRerootingContainerDataSource).
+struct _BindingHashPathTranslator
+{
+    SdfPath primPath;
+    TfToken prototypeName;
+    HdSceneIndexBaseRefPtr inputScene;
+    // Cache of prototype name per ancestor path to avoid redundant
+    // GetPrim() calls when multiple paths share ancestor segments (e.g.
+    // /A/Rig/skeleton and /A/Rig/anim both walk through /A/Rig). An empty
+    // token means "checked, not a native instance". Shared across all path
+    // data sources in one prim's hash walk, which is single-threaded and
+    // transient, so no lock is needed.
+    mutable std::unordered_map<SdfPath, TfToken, SdfPath::Hash> ancestorCache;
+
+    SdfPath Translate(const SdfPath &src) const;
+};
+
+using _BindingHashPathTranslatorSharedPtr =
+    std::shared_ptr<const _BindingHashPathTranslator>;
+
+SdfPath
+_BindingHashPathTranslator::Translate(const SdfPath &src) const
+{
+    if (src.IsEmpty()) {
+        return src;
+    }
+
+    // Descendant of primPath (including primPath itself): reroot to the
+    // prototype. Only the part relative to primPath is important; the
+    // prototype name distinguishes the same relative binding across
+    // different prototypes.
+    if (src.HasPrefix(primPath)) {
+        return src.ReplacePrefix(
+            primPath,
+            SdfPath::AbsoluteRootPath().AppendChild(prototypeName));
+    }
+
+    // Non-descendant path: walk ancestors to find the nearest native
+    // instance root and reroot it to its prototype root. Keying on the
+    // native instance root (not the original path) means prefix rerooting
+    // handles all sub-paths automatically (e.g. rerooting /A/Rig also
+    // covers /A/Rig/skeleton).
+    for (SdfPath ancestor = src; !ancestor.IsAbsoluteRootPath();
+         ancestor = ancestor.GetParentPath()) {
+        TfToken nativeProto;
+        const auto cacheIt = ancestorCache.find(ancestor);
+        if (cacheIt != ancestorCache.end()) {
+            nativeProto = cacheIt->second;
+        }
+        else {
+            const HdSceneIndexPrim prim = inputScene->GetPrim(ancestor);
+            if (prim.dataSource) {
+                nativeProto = _GetUsdPrototypeName(prim.dataSource);
+            }
+            ancestorCache[ancestor] = nativeProto;
+        }
+        if (!nativeProto.IsEmpty()) {
+            return src.ReplacePrefix(
+                ancestor,
+                SdfPath::AbsoluteRootPath().AppendChild(nativeProto));
+        }
+    }
+
+    // We ignore the case of having a namespace ancestor of primPath that is not
+    // a native instance (e.g. /A/Rig's ModelAPI.modelPath points to its parent
+    // /A in UsdModelAPI because Rig itself is not a model). Otherwise it would
+    // be handled here by an "if (primPath.HasPrefix(src))" case.
+    // Instead we follow the deferred skinning pattern by relocating it to the
+    // model:modelPath primvar in UsdImaging_NiPrototypePropagatingSceneIndex.
+    // See the comment there for more details.
+
+    // Truly absolute cross-scene reference that must match exactly: leave
+    // unchanged.
+    return src;
+}
+
+HdDataSourceBaseHandle
+_CreateTranslatingDataSource(
+    HdDataSourceBaseHandle const &inputDataSource,
+    const _BindingHashPathTranslatorSharedPtr &translator);
+
+class _TranslatingPathDataSource : public HdPathDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(_TranslatingPathDataSource)
+
+    VtValue GetValue(const Time shutterOffset) override
+    {
+        return VtValue(GetTypedValue(shutterOffset));
+    }
+
+    bool GetContributingSampleTimesForInterval(
+        const Time startTime,
+        const Time endTime,
+        std::vector<Time> * const outSampleTimes) override
+    {
+        if (!_inputDataSource) {
+            return false;
+        }
+        return _inputDataSource->GetContributingSampleTimesForInterval(
+            startTime, endTime, outSampleTimes);
+    }
+
+    SdfPath GetTypedValue(const Time shutterOffset) override
+    {
+        if (!_inputDataSource) {
+            return SdfPath();
+        }
+        return _translator->Translate(
+            _inputDataSource->GetTypedValue(shutterOffset));
+    }
+
+private:
+    _TranslatingPathDataSource(
+        HdPathDataSourceHandle inputDataSource,
+        _BindingHashPathTranslatorSharedPtr translator)
+      : _inputDataSource(std::move(inputDataSource))
+      , _translator(std::move(translator))
+    {
+    }
+
+    const HdPathDataSourceHandle _inputDataSource;
+    const _BindingHashPathTranslatorSharedPtr _translator;
+};
+
+class _TranslatingPathArrayDataSource : public HdPathArrayDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(_TranslatingPathArrayDataSource)
+
+    VtValue GetValue(const Time shutterOffset) override
+    {
+        return VtValue(GetTypedValue(shutterOffset));
+    }
+
+    bool GetContributingSampleTimesForInterval(
+        const Time startTime,
+        const Time endTime,
+        std::vector<Time> * const outSampleTimes) override
+    {
+        if (!_inputDataSource) {
+            return false;
+        }
+        return _inputDataSource->GetContributingSampleTimesForInterval(
+            startTime, endTime, outSampleTimes);
+    }
+
+    VtArray<SdfPath> GetTypedValue(const Time shutterOffset) override
+    {
+        if (!_inputDataSource) {
+            return {};
+        }
+        VtArray<SdfPath> result
+            = _inputDataSource->GetTypedValue(shutterOffset);
+        for (SdfPath &path : result) {
+            path = _translator->Translate(path);
+        }
+        return result;
+    }
+
+private:
+    _TranslatingPathArrayDataSource(
+        HdPathArrayDataSourceHandle inputDataSource,
+        _BindingHashPathTranslatorSharedPtr translator)
+      : _inputDataSource(std::move(inputDataSource))
+      , _translator(std::move(translator))
+    {
+    }
+
+    const HdPathArrayDataSourceHandle _inputDataSource;
+    const _BindingHashPathTranslatorSharedPtr _translator;
+};
+
+class _TranslatingVectorDataSource : public HdVectorDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(_TranslatingVectorDataSource)
+
+    size_t GetNumElements() override {
+        return _inputDataSource->GetNumElements();
+    }
+
+    HdDataSourceBaseHandle GetElement(const size_t element) override {
+        return _CreateTranslatingDataSource(
+            _inputDataSource->GetElement(element), _translator);
+    }
+
+private:
+    _TranslatingVectorDataSource(
+        HdVectorDataSourceHandle inputDataSource,
+        _BindingHashPathTranslatorSharedPtr translator)
+      : _inputDataSource(std::move(inputDataSource))
+      , _translator(std::move(translator))
+    {
+    }
+
+    const HdVectorDataSourceHandle _inputDataSource;
+    const _BindingHashPathTranslatorSharedPtr _translator;
+};
+
+class _TranslatingContainerDataSource : public HdContainerDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(_TranslatingContainerDataSource)
+
+    TfTokenVector GetNames() override
+    {
+        if (!_inputDataSource) {
+            return {};
+        }
+        return _inputDataSource->GetNames();
+    }
+
+    HdDataSourceBaseHandle Get(const TfToken &name) override
+    {
+        if (!_inputDataSource) {
+            return nullptr;
+        }
+        return _CreateTranslatingDataSource(
+            _inputDataSource->Get(name), _translator);
+    }
+
+private:
+    _TranslatingContainerDataSource(
+        HdContainerDataSourceHandle inputDataSource,
+        _BindingHashPathTranslatorSharedPtr translator)
+      : _inputDataSource(std::move(inputDataSource))
+      , _translator(std::move(translator))
+    {
+    }
+
+    const HdContainerDataSourceHandle _inputDataSource;
+    const _BindingHashPathTranslatorSharedPtr _translator;
+};
+
+HdDataSourceBaseHandle
+_CreateTranslatingDataSource(
+    HdDataSourceBaseHandle const &inputDataSource,
+    const _BindingHashPathTranslatorSharedPtr &translator)
+{
+    if (!inputDataSource) {
+        return nullptr;
+    }
+
+    if (auto containerDs = HdContainerDataSource::Cast(inputDataSource)) {
+        return _TranslatingContainerDataSource::New(
+            std::move(containerDs), translator);
+    }
+
+    if (auto vectorDs = HdVectorDataSource::Cast(inputDataSource)) {
+        return _TranslatingVectorDataSource::New(
+            std::move(vectorDs), translator);
+    }
+
+    if (auto pathDs =
+            HdTypedSampledDataSource<SdfPath>::Cast(inputDataSource)) {
+        return _TranslatingPathDataSource::New(
+            std::move(pathDs), translator);
+    }
+
+    if (auto pathArrayDs =
+            HdTypedSampledDataSource<VtArray<SdfPath>>::Cast(
+                inputDataSource)) {
+        return _TranslatingPathArrayDataSource::New(
+            std::move(pathArrayDs), translator);
+    }
+
+    return inputDataSource;
 }
 
 _InstanceInfo
@@ -1382,18 +1662,19 @@ _InstanceObserver::_GetInfo(const SdfPath &primPath,
         //
         // Thus, we do include the prototype name in the path translation.
         //
-        // Note that we do another path translation below in
-        // _AddInstance when calling _MakeBindingCopy. That path translation is
-        // using a different path, namely that of the propagated prototype.
-        //
-        // The reason for using a different path here is to avoid a chicken and
-        // egg problem: we cannot use the path of the propagated prototype when
-        // computing the binding hash because that path itself depends on the
-        // binding hash.
-        UsdImagingRerootingContainerDataSource::New(
+        // Beyond descendant paths, the translator also covers non-descendant
+        // paths (siblings, ancestors) that are themselves native instances,
+        // mapping them to their prototype roots.  This ensures
+        // structurally-equivalent instances whose bindings reference
+        // out-of-prototype-tree prims (e.g. a sibling skeleton scope) produce
+        // the same binding hash and can be aggregated. The translation is
+        // applied lazily during the hash walk, avoiding a separate pass to
+        // recurse the subtree and build a PcpMapFunction.
+        _TranslatingContainerDataSource::New(
             primSource,
-            primPath,
-            SdfPath::AbsoluteRootPath().AppendChild(result.prototypeName)),
+            std::make_shared<const _BindingHashPathTranslator>(
+                _BindingHashPathTranslator{
+                    primPath, result.prototypeName, _inputScene})),
         _instanceDataSourceNames);
 
     return result;
@@ -1421,12 +1702,10 @@ _InstanceObserver::_AddInstance(
         retainedSceneIndexOperations->AddPrim(
             info.GetBindingPrimPath(),
             { TfToken(),
-              _MakeBindingCopy(
-                  // See the comment in _GetInfo when computing the binding
-                  // hash.
-                  UsdImagingRerootingContainerDataSource::New(
-                      _inputScene->GetPrim(primPath).dataSource,
-                      primPath, info.GetPrototypePath()),
+              // No need to translate or reroot dataSource here.
+              // The downstream instanceProxyPathTranslationSceneIndex
+              // will handle it.
+              _MakeBindingCopy(_inputScene->GetPrim(primPath).dataSource,
                   _instanceDataSourceNames) });
     }
 

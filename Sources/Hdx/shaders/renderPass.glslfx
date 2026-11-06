@@ -41,27 +41,9 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 
 -- glsl HdxRenderPass.WriteOitLayersToBufferCommon
 
-// PackRGBA takes a float4 value and packs it into a UINT (8 bits / float)
-uint PackRGBA(vec4 unpackedInput)
-{
-    uvec4 u = uvec4(unpackedInput * vec4(255, 255, 255, 1.0f));
-    uint packedOutput = (u.w << 24u) | (u.z << 16u) | (u.y << 8u) | u.x;
-	return packedOutput;
-}
-
-// ToRGBE - takes a float RGB value and converts it to a float RGB value with a shared exponent
-vec4 ToRGBE(vec3 inColor)
-{
-	float base = max(inColor.r, max(inColor.g, inColor.b));
-	int e;
-	float m = frexp(base, e);
-    vec3 rgb = clamp(inColor.rgb / exp2(float(e)), 0.0, 1.0);
-	return vec4(rgb, e + 127);
-}
-
 void RenderOutputImpl(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
-    #if defined(HD_HAS_hdxOitColorBuffer) || defined(HD_HAS_hdxOitDataBuffer)
+    #if defined(HD_HAS_hdxOitDataBuffer)
 
     const int screenWidth = int(HdGet_oitScreenSize().x);
     const int screenHeight = int(HdGet_oitScreenSize().y);
@@ -83,12 +65,7 @@ void RenderOutputImpl(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
         if (screenIndex < counterBufferSize) {
             int prevIndex =
                 ATOMIC_EXCHANGE(hdxOitCounterBuffer[screenIndex+1], writeIndex);
-            #if defined(HD_HAS_hdxOitDataBuffer)
             hdxOitDataBuffer[writeIndex] = color;
-            #else
-            uint packedColor = PackRGBA(ToRGBE(color.rgb));
-            hdxOitColorBuffer[writeIndex] = packedColor;
-            #endif
 
             // Note that we have a choice here to either pick gl_FragCoord.z or
             // the depth value from Peye. The former is obtained by applying
@@ -110,23 +87,8 @@ void RenderOutputImpl(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
             // OIT resolve shader cannot compare depths in the OIT list
             // against the depth buffer unless it takes the perspective
             // transform into account.
-            #if defined(HD_HAS_hdxOitDataBuffer)
-            oitJointBufferBar[writeIndex].hdxOitDepthBuffer = Peye.z / Peye.w;
-            #else
-            float c = HdGet_projectionMatrix()[2][2];
-            float d = HdGet_projectionMatrix()[2][3];
-
-            // Calculate the near and far planes
-            float nearPlane = d / (2.0 * (c + 1.0));
-            float farPlane = d / (2.0 * (c - 1.0));
-            float depth = gl_FragCoord.z;
-            float linearDepth = (2.0 * nearPlane) / (farPlane + nearPlane - depth * (farPlane - nearPlane));
-
-            oitJointBufferBar[writeIndex].hdxOitTransmissionDepthBuffer =
-                (uint(color.a * 0xFF) & 0xFFu) | ((uint(linearDepth * 0xFFFFFF) & 0xFFFFFFu) << 8);
-            #endif
-
-            oitJointBufferBar[writeIndex].hdxOitIndexBuffer = prevIndex;
+            hdxOitDepthBuffer[writeIndex] = Peye.z / Peye.w;
+            hdxOitIndexBuffer[writeIndex] = prevIndex;
         }
     } else {
         // We may overrun the counter buffer integer and wrap back to 0 if
@@ -144,24 +106,8 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
     // There are two render passes for ordinary OIT geometry.
     // Fragments with alpha >= 1.0 are handled in the first (opaque)
     // render pass.
-
-    if (color.a < 1.0) {
-        // Default to presence opacityMode behavior if we are unable to query
-        // the mode directly.
-        int opacityMode = 0;
-    #ifdef HD_HAS_opacityMode
-        opacityMode = HdGet_opacityMode();
-    #endif
-
-        // Presence opacityMode -> ignore any colors with an opacity of 0.
-        const bool presencePass = opacityMode == 0 && color.a >= 0.0001;
-
-        // Transparent opacityMode -> write out all non-opaque colors.
-        const bool transparentPass = opacityMode == 1;
-
-        if (presencePass || transparentPass) {
-            RenderOutputImpl(Peye, Neye, color, patchCoord);
-        }
+    if (color.a < 1.0 && color.a >= 0.0001) {
+        RenderOutputImpl(Peye, Neye, color, patchCoord);
     }
 }
 
@@ -179,11 +125,11 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 -- layout HdxRenderPass.RenderPick
 
 [
-    ["out", "int", "primIdOut"],
-    ["out", "int", "instanceIdOut"],
-    ["out", "int", "elementIdOut"],
-    ["out", "int", "edgeIdOut"],
-    ["out", "int", "pointIdOut"],
+    ["out", "vec4", "primIdOut"],
+    ["out", "vec4", "instanceIdOut"],
+    ["out", "vec4", "elementIdOut"],
+    ["out", "vec4", "edgeIdOut"],
+    ["out", "vec4", "pointIdOut"],
     ["out", "vec4", "neyeOut"],
     ["buffer readWrite", "CounterBuffer", "PickBuffer", ["atomic_int", "PickBuffer"]]
 ]
@@ -202,6 +148,7 @@ vec4 IntToVec4(int id)
 FORWARD_DECL(int GetElementID()); // generated via codeGen
 FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generated via codeGen
 FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
+FORWARD_DECL(bool ShouldDiscardByAlpha(vec4 color)); // defined in hdSt/shaders/renderPass.glslfx
 
 // Declared below.
 #if defined(HD_HAS_PickBuffer)
@@ -210,21 +157,37 @@ FORWARD_DECL(void RenderDeepPicks(int primId, int instanceId, int elementId, int
 
 void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
-    primIdOut = HdGet_primID();
+    // The pick pass draws without blending, so fully transparent translucent
+    // geometry would still write a prim id and occlude what is behind it.
+    // Discard such fragments by alpha.
+#if defined(HD_MATERIAL_TAG_TRANSLUCENT)
+    if (ShouldDiscardByAlpha(color)) {
+        discard;
+        return;
+    }
+#endif
+
+    int primId = HdGet_primID();
+    primIdOut = IntToVec4(primId);
 
     // instanceIndex is a tuple of integers (num nested levels).
     // for picking, we store global instanceId (instanceIndex[0]) in the
     // selection framebuffer and then reconstruct the tuple in postprocess.
-    instanceIdOut = GetDrawingCoord().instanceIndex[0];
+    int instanceId = GetDrawingCoord().instanceIndex[0];
+    instanceIdOut = IntToVec4(instanceId);
 
-    elementIdOut = GetElementID();
-    edgeIdOut = GetPrimitiveEdgeId();
-    pointIdOut = GetPointId();
+    int elementId = GetElementID();
+    int edgeId = GetPrimitiveEdgeId();
+    int pointId = GetPointId();
+
+    elementIdOut = IntToVec4(elementId);
+    edgeIdOut = IntToVec4(edgeId);
+    pointIdOut = IntToVec4(pointId);
     
     neyeOut = IntToVec4(hd_vec4_2_10_10_10_set(vec4(Neye,0)));
 
 #if defined(HD_HAS_PickBuffer)
-    RenderDeepPicks(primIdOut, instanceIdOut, elementIdOut, edgeIdOut, pointIdOut);
+    RenderDeepPicks(primId, instanceId, elementId, edgeId, pointId);
 #endif
 }
 

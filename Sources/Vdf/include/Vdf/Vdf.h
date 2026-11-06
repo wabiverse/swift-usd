@@ -25,6 +25,7 @@
 #include <Vdf/maskMemoizer.h>
 #include <Vdf/boxedContainer.h>
 #include <Vdf/lruCache.h>
+#include <Vdf/vectorIterator.h>
 #include <Vdf/executorDataManager.h>
 #include <Vdf/dataManagerAllocator.h>
 #include <Vdf/scheduleInvalidator.h>

@@ -13,6 +13,7 @@
 #include "pxr/pxrns.h"
 #include "Tf/singleton.h"
 #include "Sdr/api.h"
+#include "Arch/swiftInterop.h"
 #include "Sdr/declare.h"
 #include "Sdr/discoveryPlugin.h"
 #include "Sdr/parserPlugin.h"
@@ -43,7 +44,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// registry will begin the parsing process on an as-needed basis. See
 /// `SdrShaderNodeDiscoveryResult` for the information that can be retrieved
 /// without triggering a parse.
-class SdrRegistry : public TfWeakBase
+class SWIFT_IMMORTAL_REFERENCE SdrRegistry : public TfWeakBase
 {
 public:
     using DiscoveryPluginRefPtrVec = SdrDiscoveryPluginRefPtrVector;

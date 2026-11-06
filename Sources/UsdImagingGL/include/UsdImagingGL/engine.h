@@ -64,10 +64,11 @@ TF_DECLARE_REF_PTRS(HdCachingSceneIndex);
 TF_DECLARE_REF_PTRS(HdsiLegacyDisplayStyleOverrideSceneIndex);
 TF_DECLARE_REF_PTRS(HdsiPrimTypeAndPathPruningSceneIndex);
 TF_DECLARE_REF_PTRS(HdsiSceneGlobalsSceneIndex);
+TF_DECLARE_REF_PTRS(HdsiApplicationRenderSettingsSceneIndex);
 TF_DECLARE_REF_PTRS(HdSceneIndexBase);
 TF_DECLARE_REF_PTRS(HdMergingSceneIndex);
 TF_DECLARE_REF_PTRS(HdxTaskControllerSceneIndex);
-TF_DECLARE_REF_PTRS(UsdExecImagingStageSceneIndexInterface);
+TF_DECLARE_REF_PTRS(UsdImagingStageSceneIndexInterface);
 
 using UsdStageWeakPtr = TfWeakPtr<class UsdStage>;
 
@@ -415,6 +416,32 @@ public:
         int *outHitInstanceIndex = NULL,
         HdInstancerContext *outInstancerContext = NULL);
 
+    /// Result of a batch DecodeIntersection call.
+    struct DecodeResult
+    {
+        SdfPath primPath;
+        HdInstancerContext instancerContext;
+    };
+
+    using DecodeResultVector = std::vector<DecodeResult>;
+
+    struct PickId
+    {
+        int primId;
+        int instanceId;
+    };
+
+    using PickIdVector = std::vector<PickId>;
+
+    /// Batch version of DecodeIntersection. Resolves multiple
+    /// (primId, instanceId) pairs in one call, amortizing the cost of
+    /// instancer topology computation across all hits.
+    ///
+    /// Returns a vector of DecodeResults (though some entries may be empty).
+    /// Each entry corresponds to the same-indexed entry in \p pickIds.
+    USDIMAGINGGL_API
+    DecodeResultVector DecodeIntersections(const PickIdVector& pickIds);
+
     /// \deprecated Please use the override of TestIntersection that takes
     ///
     /// PickParams and returns an IntersectionResultVector instead!
@@ -501,9 +528,9 @@ public:
     USDIMAGINGGL_API
     bool SetRendererAovs(TfTokenVector const &ids);
 
-    /// Set which AOV is colorized and shown in the viewport. SetRendererAovs
-    /// disables this when given more than one AOV; call this afterwards to keep
-    /// drawing e.g. color while extra id AOVs are rendered for readback.
+    /// Sets which AOV is colorized and shown in the viewport. SetRendererAovs
+    /// disables this when given more than one AOV; call this afterwards to
+    /// keep drawing e.g. color while extra id AOVs are rendered for readback.
     USDIMAGINGGL_API
     void SetViewportRenderOutput(TfToken const &aovName);
 
@@ -521,20 +548,11 @@ public:
     USDIMAGINGGL_API
     HdRenderBuffer* GetAovRenderBuffer(TfToken const& name) const;
 
-    /// The raw HgiTexture backing an AOV's render buffer.
-    /// GetAovTexturePtr reads the task context, where only
-    /// the viewport (color) AOV is published, this reads the
-    /// render buffer directly, so id AOVs like primId/instanceId
-    /// are reachable for a GPU readback.
     HgiTexture* _Nullable GetAovRenderBufferTexturePtr(TfToken const& name) const {
         HdRenderBuffer* const renderBuffer = GetAovRenderBuffer(name);
         if (!renderBuffer) {
             return nullptr;
         }
-        // prefer the multisampled texture: integer AOVs (primId/instanceId)
-        // cannot be resolved by Metal, so the single-sample "resolved" texture
-        // is uninitialized. the caller reads each sample of the multisampled one.
-        // fall back to single-sample when MSAA is off.
         VtValue resource = renderBuffer->GetResource(/* multiSampled = */ true);
         if (!resource.IsHolding<HgiTextureHandle>()) {
             resource = renderBuffer->GetResource(/* multiSampled = */ false);
@@ -897,11 +915,23 @@ private:
 
     HdLegacyRenderControlInterface * _GetLegacyRenderControl() const;
 
+    // The application-managed render settings scene index, if the renderer
+    // advertised render setting descriptors (the Hydra 2.0 path). Null
+    // otherwise (in which case callers fall back to the legacy render control).
+    HdsiApplicationRenderSettingsSceneIndexRefPtr
+    _GetApplicationRenderSettingsSceneIndex() const;
+
+    SdfPath _GetSceneIndexPrimPathFromPrimId(int primId) const;
+
     HdSceneIndexBaseRefPtr
     _AppendOverridesSceneIndices(
-        const HdSceneIndexBaseRefPtr &inputScene);
+        HdSceneIndexBaseRefPtr const &inputScene,
+        HdContainerDataSourceHandle const &sceneIndexCreateArgs);
 
     UsdImagingGLEngine_Impl::_AppSceneIndicesSharedPtr _appSceneIndices;
+
+    HdSceneIndexBaseRefPtr
+    _CreateExecSceneIndices(const HdSceneIndexBaseRefPtr &inputScene);
 
     bool _CreateSceneIndicesAndRenderer(
         HdRendererPluginHandle const &plugin,
@@ -913,7 +943,7 @@ private:
 
     // Note that we'll only ever use one of _sceneIndex/_sceneDelegate
     // at a time.
-    UsdExecImagingStageSceneIndexInterfaceRefPtr _execStageSceneIndex;
+    UsdImagingStageSceneIndexInterfaceRefPtr _execStageSceneIndex;
     HdNoticeBatchingSceneIndexRefPtr _noticeBatchingStageSceneIndex;
     UsdImagingRootOverridesSceneIndexRefPtr _rootOverridesSceneIndex;
     UsdImagingLegacyRenderSettingsSceneIndexRefPtr _legacyRenderSettingsSceneIndex;
@@ -928,11 +958,31 @@ private:
     HdCachingSceneIndexRefPtr _cachingSceneIndex;
     HdSceneIndexBaseRefPtr _terminalSceneIndex;
 
+    // Create-args container data source returned by the renderer plugin
+    // (see HdRendererPlugin::GetSceneIndexCreateArgs). Retained so that
+    // GetRendererSettingsList() can source the render settings from it.
+    HdContainerDataSourceHandle _sceneIndexCreateArgs;
+
     /* Hydra 1.0 */
     std::unique_ptr<UsdImagingDelegate> _sceneDelegate;
 
     bool _allowAsynchronousSceneProcessing = false;
     bool _enableUsdDrawModes = true;
+
+    /* Hydra 1.0 */
+    // A flag indicating whether the active render pass prim path
+    // on the scene globals scene index was set.
+    //
+    // Explanation: The active render passs prim path can be set by a
+    // client of UsdImagingGLEngine through SetActiveRenderSettingsPrimPath
+    // and or by reading the stage metadata when using the UsdImagingDelegate.
+    //
+    // Thus, we could get into a situation where a user explicitly sets it
+    // through the UsdImagingGLEngine API first and then we wrongfully change
+    // it later by reading the stage metadata.
+    //
+    // This flag is here to prevent this.
+    bool _setActiveRenderSettingsPrimPathCalled = false;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

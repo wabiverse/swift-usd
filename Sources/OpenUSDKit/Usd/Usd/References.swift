@@ -36,7 +36,7 @@ public extension Usd.References
   @discardableResult
   mutating func addReference(assetPath: String,
                              primPath: Sdf.Path,
-                             layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(),
+                             layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(0, 1),
                              position: Pixar.UsdListPosition = .backOfPrependList) -> Bool
   {
     assetPath.withCString { Overlay.AddReference(self, $0, primPath, layerOffset, position) }
@@ -44,7 +44,7 @@ public extension Usd.References
 
   @discardableResult
   mutating func addReference(assetPath: String,
-                             layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(),
+                             layerOffset: Sdf.LayerOffset = Sdf.LayerOffset(0, 1),
                              position: Pixar.UsdListPosition = .backOfPrependList) -> Bool
   {
     assetPath.withCString { Overlay.AddReference(self, $0, layerOffset, position) }

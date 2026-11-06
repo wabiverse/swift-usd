@@ -383,7 +383,8 @@ public:
     operator UsdAttribute const& () const { return _attr; }
 
     /// Explicit UsdAttribute extractor
-    UsdAttribute const &GetAttr() const { return _attr; }
+    UsdAttribute const &GetAttr() const & { return _attr; }
+    UsdAttribute GetAttr() const && { return _attr; }
     
     /// Return true if the underlying UsdAttribute::IsDefined(), and in
     /// addition the attribute is identified as a Primvar.  Does not imply

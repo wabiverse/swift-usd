@@ -28,16 +28,14 @@ EXEC_REGISTER_COMPUTATIONS_FOR_SCHEMA(ExecIrSwitchController)
 {
     ExecIrControllerBuilder builder(self, &_Compute, &_Invert);
 
-    builder.SwitchAttribute<TfToken>(
-        ExecIrTokens->switch_);
+    builder.SwitchAttribute<TfToken>(ExecIrTokens->switch_);
 
     builder.InvertibleInputAttributes<GfMatrix4d>({
         ExecIrTokens->rig1Space,
         ExecIrTokens->rig2Space,
     });
 
-    builder.InvertibleOutputAttribute<GfMatrix4d>(
-        ExecIrTokens->outSpace);
+    builder.InvertibleOutputAttribute<GfMatrix4d>(ExecIrTokens->outSpace);
 }
 
 // The switch controller forward computation passes through the computed values
@@ -48,19 +46,17 @@ static ExecIrResult
 _Compute(const VdfContext &ctx)
 {
     const TfToken &switchValue = ctx.GetInputValue<TfToken>(
-            ExecIrTokens->switch_);
+        ExecIrTokens->switch_);
     if (switchValue == ExecIrTokens->rig1) {
         return {{
             {ExecIrTokens->outSpace,
-             VtValue(ctx.GetInputValue<GfMatrix4d>(
-                         ExecIrTokens->rig1Space))},
+             VtValue(ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->rig1Space))},
         }};
     }
     else if (switchValue == ExecIrTokens->rig2) {
         return {{
             {ExecIrTokens->outSpace,
-             VtValue(ctx.GetInputValue<GfMatrix4d>(
-                         ExecIrTokens->rig2Space))},
+             VtValue(ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->rig2Space))},
         }};
     } else {
         TF_VERIFY(false, "Unexpected switch value '%s'", switchValue.GetText());
@@ -80,15 +76,13 @@ _Invert(const VdfContext &ctx)
     if (switchValue == ExecIrTokens->rig1) {
         return {{
             {ExecIrTokens->rig1Space,
-             VtValue(ctx.GetInputValue<GfMatrix4d>(
-                         ExecIrTokens->outSpace))},
+             VtValue(ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->outSpace))},
         }};
     }
     else if (switchValue == ExecIrTokens->rig2) {
         return {{
             {ExecIrTokens->rig2Space,
-             VtValue(ctx.GetInputValue<GfMatrix4d>(
-                         ExecIrTokens->outSpace))},
+             VtValue(ctx.GetInputValue<GfMatrix4d>(ExecIrTokens->outSpace))},
         }};
     } else {
         TF_VERIFY(false, "Unexpected switch value '%s'", switchValue.GetText());

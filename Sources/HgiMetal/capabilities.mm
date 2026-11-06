@@ -118,6 +118,7 @@ HgiMetalCapabilities::HgiMetalCapabilities(id<MTLDevice> device)
     _uniformBufferOffsetAlignment = 16;
     _maxClipDistances             = 8;
     _pageSizeAlignment            = 4096;
+    _maxSamplersPerShaderStage    = [device maxArgumentBufferSamplerCount];
 
     // Apple Silicon only support memory barriers between vertex stages after
     // macOS 12.3.

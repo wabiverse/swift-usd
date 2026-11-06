@@ -11,6 +11,7 @@
 #include "pxr/pxrns.h"
 
 #include "Sdf/predicateExpressionParser.h"
+#include "Sdf/pathPattern.h"
 #include "Pegtl/pegtl.hpp"
 
 #include <memory>

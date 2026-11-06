@@ -27,7 +27,6 @@ UsdImagingDataSourceStage::GetNames()
     return {
         HdSystemSchema::GetSchemaToken(),
         HdSceneGlobalsSchema::GetSchemaToken(),
-        HdSceneGlobalsSchema::GetSchemaToken(),
         UsdImagingUsdUpAxisSchema::GetSchemaToken(),
     };
 }

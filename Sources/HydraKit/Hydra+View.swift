@@ -37,11 +37,15 @@ public extension Hydra
 
 public extension Hydra.Viewport
 {
-  init(engine: Hydra.RenderEngine)
+  init(engine: Hydra.RenderEngine, framesPerSecond: Int? = nil)
   {
     #if canImport(Metal)
       let renderer = Hydra.MTLRenderer(hydra: engine)
-      self.init(hydra: engine, renderer: renderer)
+      #if os(macOS)
+        self.init(hydra: engine, renderer: renderer, framesPerSecond: framesPerSecond)
+      #else
+        self.init(hydra: engine, renderer: renderer)
+      #endif
     #endif // canImport(Metal)
   }
 }

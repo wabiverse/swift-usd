@@ -142,37 +142,41 @@ uint8_t Ts_BinaryDataAccess::GetBinaryFormatVersion(
     // Version 2: addition of tangent algorithm AutoEase
     // Version 3: addition of loopBoundaryTime for looped extrapolation
     //            addition of GfTimeCode value type to replace timeValued bit
+    // Version 4: addition of GfDuration valued type
 
-    uint8_t version = 1;
+    // Check from highest to lowest version so we can stop checking when we
+    // match a version requirement.
+    TfType valueType = spline.GetValueType();
+    if (valueType == Ts_GetType<GfDuration>()) {
+        return 4;
+    }
+
+    if (valueType == Ts_GetType<GfTimeCode>()) {
+        return 3;
+    }
+
+    // Check looped extrapolation for specification of loopBoundaryTime.
+    const Ts_SplineData &data = *(spline._data.get());
+    const TsExtrapolation& preExtrap = data.preExtrapolation;
+    const TsExtrapolation& postExtrap = data.postExtrapolation;
+    if ((preExtrap.IsLooping() && preExtrap.loopBoundaryTime.has_value()) ||
+        (postExtrap.IsLooping() && postExtrap.loopBoundaryTime.has_value()))
+    {
+        return 3;
+    }
 
     // Scan the knots for a tangent algorithm != None
-    const Ts_SplineData &data = *(spline._data.get());
     const size_t knotCount = data.times.size();
     for (size_t i = 0; i < knotCount; ++i) {
         const Ts_KnotData* knotData = data.GetKnotPtrAtIndex(i);
         if (knotData->preTanAlgorithm != TsTangentAlgorithmNone ||
             knotData->postTanAlgorithm != TsTangentAlgorithmNone)
         {
-            version = 2;
-            break;
+            return 2;
         }
     }
 
-    // Check looped extrapolation for specification of loopBoundaryTime.
-    const TsExtrapolation& preExtrap = data.preExtrapolation;
-    const TsExtrapolation& postExtrap = data.postExtrapolation;
-    if ((preExtrap.IsLooping() && preExtrap.loopBoundaryTime.has_value()) ||
-        (postExtrap.IsLooping() && postExtrap.loopBoundaryTime.has_value()))
-    {
-        version = 3;
-    }
-
-    // Check for presence of time valued splines or modern GfTimeCode splines.
-    if (spline.IsTimeValued()) {
-        version = 3;
-    }
-
-    return version;
+    return 1;
 }
 
 // static
@@ -193,7 +197,7 @@ void Ts_BinaryDataAccess::GetBinaryData(
 
     const Ts_SplineData &data = *(spline._data.get());
     TfType valueType = spline.GetValueType();
-    const bool hasLoops = (spline.GetInnerLoopParams() != TsLoopParams());
+    const bool hasLoops = (spline._GetInnerLoopParams() != Ts_LoopParams());
     const bool isHermite = (spline.GetCurveType() == TsCurveTypeHermite);
 
     // Buffer size:
@@ -204,21 +208,20 @@ void Ts_BinaryDataAccess::GetBinaryData(
     const size_t bufSize =
         2
         + 2 * sizeof(double)
-        + sizeof(TsLoopParams)
+        + sizeof(Ts_LoopParams)
         + data.times.size() * data.GetKnotStructSize();
     buf->reserve(bufSize);
 
     // Map of value types to descriptors.
     static const std::map<TfType, uint8_t> typeMap = {
-        { TfType(),             0 },    // Can be valid with no knots.
-        { Ts_GetType<double>(), 1 },
-        { Ts_GetType<float>(),  2 },
-        { Ts_GetType<GfHalf>(), 3 },
-        { Ts_GetType<GfTimeCode>(), 4} };
+        { TfType(),                 0 },    // Can be valid with no knots.
+        { Ts_GetType<double>(),     1 },
+        { Ts_GetType<float>(),      2 },
+        { Ts_GetType<GfHalf>(),     3 },
+        { Ts_GetType<GfTimeCode>(), 4 },
+        { Ts_GetType<GfDuration>(), 5 },
+    };
 
-    if (spline.IsTimeValued()) {
-        valueType = Ts_GetType<GfTimeCode>();
-    }
     const uint8_t typeDescriptor = TfMapLookupByValue(typeMap, valueType, 0);
 
     // Header byte 1:
@@ -283,7 +286,7 @@ void Ts_BinaryDataAccess::GetBinaryData(
     // Write inner loop params, if applicable.
     if (hasLoops)
     {
-        const TsLoopParams &lp = data.loopParams;
+        const Ts_LoopParams &lp = data.loopParams;
         _WriteBytes<double>(buf, lp.protoStart);
         _WriteBytes<double>(buf, lp.protoEnd);
         _WriteBytes<int32_t>(buf, lp.numPreLoops);
@@ -319,7 +322,7 @@ void Ts_BinaryDataAccess::GetBinaryData(
 namespace
 {
     template <typename T>
-    struct _BinaryDataReaderV1_3
+    struct _BinaryDataReaderV1_4
     {
         void operator()(
             uint8_t version,
@@ -399,7 +402,7 @@ namespace
     }
 
 // static
-TsSpline Ts_BinaryDataAccess::_ParseV1_3(
+TsSpline Ts_BinaryDataAccess::_ParseV1_4(
     uint8_t version,
     const std::vector<uint8_t> &buf,
     std::unordered_map<TsTime, VtDictionary> &&customData)
@@ -413,7 +416,9 @@ TsSpline Ts_BinaryDataAccess::_ParseV1_3(
         { 1, Ts_GetType<double>() },
         { 2, Ts_GetType<float>()  },
         { 3, Ts_GetType<GfHalf>() },
-        { 4, Ts_GetType<GfTimeCode>() }, };
+        { 4, Ts_GetType<GfTimeCode>() },
+        { 5, Ts_GetType<GfDuration>() },
+    };
 
     // Header byte 1.
     uint8_t headerByte = 0;
@@ -483,7 +488,7 @@ TsSpline Ts_BinaryDataAccess::_ParseV1_3(
     // Read inner loop params, if present.
     if (hasLoops)
     {
-        TsLoopParams* const lp = &(data->loopParams);
+        Ts_LoopParams* const lp = &(data->loopParams);
         READ(&(lp->protoStart));
         READ(&(lp->protoEnd));
         READ(&(lp->numPreLoops));
@@ -495,7 +500,7 @@ TsSpline Ts_BinaryDataAccess::_ParseV1_3(
     if (valueType)
     {
         bool ok = false;
-        TsDispatchToStorageValueTypeTemplate<_BinaryDataReaderV1_3>(
+        TsDispatchToStorageValueTypeTemplate<_BinaryDataReaderV1_4>(
             valueType, version, data.get(), isHermite, &readPtr, &remain, &ok);
         if (!ok)
         {
@@ -537,7 +542,8 @@ TsSpline Ts_BinaryDataAccess::CreateSplineFromBinaryData(
       case 1:
       case 2:
       case 3:
-        spline = _ParseV1_3(version, buf, std::move(customData));
+      case 4:
+        spline = _ParseV1_4(version, buf, std::move(customData));
         break;
 
       default:

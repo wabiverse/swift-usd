@@ -102,6 +102,9 @@ void wrapUsdTimeCode()
         .def(self > self)
         .def(self >= self)
 
+
+        .def(other<SdfLayerOffset>() * self)
+
         .def("__hash__", __hash__)
         .def("__repr__", __repr__)
 //        .def(str(self))

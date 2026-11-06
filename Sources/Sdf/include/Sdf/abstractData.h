@@ -19,6 +19,7 @@
 #include "Tf/weakBase.h"
 #include "Tf/declarePtrs.h"
 
+#include <string>
 #include <vector>
 #include <type_traits>
 

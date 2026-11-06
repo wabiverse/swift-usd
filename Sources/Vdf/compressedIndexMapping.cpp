@@ -96,7 +96,9 @@ Vdf_CompressedIndexMapping::FindDataIndex(
     // the right block using a binary search.
     *blockHint = blockIdx = FindBlockIndex(logicalIdx);
 
-    TF_VERIFY(ComputeDataIndex(blockIdx, logicalIdx, &dataIdx));
+    TF_VERIFY(ComputeDataIndex(blockIdx, logicalIdx, &dataIdx),
+              "Expected block (%zu) does not contain logical index (%zu)",
+              blockIdx, logicalIdx);
 
     return dataIdx;
 }

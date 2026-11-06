@@ -35,6 +35,13 @@ WRAP_CUSTOM;
 
         
 static UsdAttribute
+_CreateSwitchAttr(ExecIrSwitchController &self,
+                                      object defaultVal, bool writeSparsely) {
+    return self.CreateSwitchAttr(
+        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Token), writeSparsely);
+}
+        
+static UsdAttribute
 _CreateRig1SpaceAttr(ExecIrSwitchController &self,
                                       object defaultVal, bool writeSparsely) {
     return self.CreateRig1SpaceAttr(
@@ -96,6 +103,13 @@ void wrapExecIrSwitchController()
 
         .def(!self)
 
+        
+        .def("GetSwitchAttr",
+             &This::GetSwitchAttr)
+        .def("CreateSwitchAttr",
+             &_CreateSwitchAttr,
+             (arg("defaultValue")=object(),
+              arg("writeSparsely")=false))
         
         .def("GetRig1SpaceAttr",
              &This::GetRig1SpaceAttr)

@@ -14,18 +14,18 @@
 
                         "tags": ["hdGp:proceduralResolution"],
                         "ordering": {
-                            # hd:sceneAssembly is a special/built-in tag, used
+                            # hd:sceneAssembly is a special/built-in tag, used 
                             # here for clarity to indicate that procedural
                             # resolution should happen after scene assembly.
                             "after": "hd:sceneAssembly"
                         }
                     }
                 }
-            },
-            "LibraryPath": "",
-            "Name": "HdGp",
-            "ResourcePath": ".",
-            "Root": ".",
+            }, 
+            "LibraryPath": "", 
+            "Name": "HdGp", 
+            "ResourcePath": ".", 
+            "Root": ".", 
             "Type": "library"
         }
     ]

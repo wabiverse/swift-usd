@@ -37,7 +37,7 @@ Exec_AttributeInputNode::Exec_AttributeInputNode(
             valueType,
             TfToken(VdfTokens->out)))
     , _attributeQuery(std::move(attributeQuery))
-    , _isTimeDependent(false)
+    , _mightBeTimeDependent(false)
 {
     UpdateTimeDependence();
 }
@@ -54,9 +54,9 @@ Exec_AttributeInputNode::UpdateValueResolutionState()
 bool
 Exec_AttributeInputNode::UpdateTimeDependence()
 {
-    const bool wasTimeDependent = _isTimeDependent;
-    _isTimeDependent = _attributeQuery->ValueMightBeTimeVarying();
-    return wasTimeDependent != _isTimeDependent;
+    const bool wasTimeDependent = _mightBeTimeDependent;
+    _mightBeTimeDependent = _attributeQuery->ValueSourceMightBeTimeVarying();
+    return wasTimeDependent != _mightBeTimeDependent;
 }
 
 bool
@@ -113,7 +113,7 @@ Exec_AttributeInputNode::_ComputeOutputDependencyMask(
     
     // If the node is potentially time-varying, there is a dependency.
     // Otherwise, there is not.
-    return IsTimeDependent() ? VdfMask::AllOnes(1) : VdfMask();
+    return MightBeTimeDependent() ? VdfMask::AllOnes(1) : VdfMask();
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

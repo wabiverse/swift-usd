@@ -25,6 +25,7 @@
 #include "Hd/material.h"
 #include "Hd/meshTopology.h"
 #include "Hd/prefixingSceneIndex.h"
+#include "Hd/primIdSchema.h"
 #include "Hd/renderDelegate.h"
 #include "Hd/renderSettings.h"
 #include "Hd/repr.h"
@@ -33,6 +34,7 @@
 #include "Hd/sceneIndexObserver.h"
 #include "Hd/sceneIndexPrimView.h"
 #include "Hd/schemaTypeDefs.h"
+#include "Hd/systemMessages.h"
 #include "Hd/tokens.h"
 #include "Hd/topology.h"
 #include "Hd/types.h"
@@ -150,6 +152,7 @@ HdSceneIndexAdapterSceneDelegate::HdSceneIndexAdapterSceneDelegate(
     SdfPath const &delegateID)
 : HdSceneDelegate(parentIndex, delegateID)
 , _inputSceneIndex(inputSceneIndex)
+, _didAddOrRemovePrimsSinceLastSync(false)
 , _sceneDelegatesBuilt(false)
 , _cachedLocatorSet()
 , _cachedDirtyBits(0)
@@ -357,7 +360,12 @@ HdSceneIndexAdapterSceneDelegate::PrimsAdded(
         _PrimAdded(entry.primPath, entry.primType);
     }
     if (!entries.empty()) {
+        // Clear, rather than only flagging: these are raw pointers to
+        // delegates we do not own, and an entry left here can outlive the
+        // delegate it points at.
+        _sceneDelegates.clear();
         _sceneDelegatesBuilt = false;
+        _didAddOrRemovePrimsSinceLastSync = true;
     }
 }
 
@@ -424,7 +432,12 @@ HdSceneIndexAdapterSceneDelegate::PrimsRemoved(
     }
 
     if (!entries.empty()) {
+        // Clear, rather than only flagging: these are raw pointers to
+        // delegates we do not own, and an entry left here can outlive the
+        // delegate it points at.
+        _sceneDelegates.clear();
         _sceneDelegatesBuilt = false;
+        _didAddOrRemovePrimsSinceLastSync = true;
     }
 }
 
@@ -1862,6 +1875,7 @@ HdPrimvarDescriptorFromSchema(TfToken const& name, HdPrimvarSchema primvar)
 
     desc.name = name;
 
+    // interpolation
     HdTokenDataSourceHandle interpolationDataSource =
         primvar.GetInterpolation();
     if (!interpolationDataSource) {
@@ -1869,16 +1883,22 @@ HdPrimvarDescriptorFromSchema(TfToken const& name, HdPrimvarSchema primvar)
         desc.interpolation = HdInterpolationCount;
         return desc;
     }
-
     TfToken interpolationToken =
         interpolationDataSource->GetTypedValue(0.0f);
     desc.interpolation =
         Hd_InterpolationAsEnum(interpolationToken);
 
+    // role
     if (HdTokenDataSourceHandle roleDataSource = primvar.GetRole()) {
         desc.role = roleDataSource->GetTypedValue(0.0f);
     }
 
+    // elementSize
+    if (HdIntDataSourceHandle elementSizeDs = primvar.GetElementSize()) {
+        desc.elementSize = elementSizeDs->GetTypedValue(0.0f);
+    }
+
+    // indexed
     desc.indexed = primvar.IsIndexed();
 
     return desc;
@@ -3001,14 +3021,32 @@ HdSceneIndexAdapterSceneDelegate::Sync(HdSyncRequestVector* request)
 void
 HdSceneIndexAdapterSceneDelegate::PostSyncCleanup()
 {
-    if (!_sceneDelegatesBuilt) {
-        return;
+    // Only valid while _sceneDelegatesBuilt: these are raw pointers to
+    // delegates we do not own, and unlike Sync() we must not rebuild here.
+    if (_sceneDelegatesBuilt) {
+        for (auto sd : _sceneDelegates) {
+            if (TF_VERIFY(sd != nullptr)) {
+                sd->PostSyncCleanup();
+            }
+        }
     }
 
-    for (auto sd : _sceneDelegates) {
-        if (TF_VERIFY(sd != nullptr)) {
-            sd->PostSyncCleanup();
+    // Cache eviction strategy:
+    //
+    // If prims were added or removed since the last sync, send a
+    // "dropCaches" system message.  This allows scene indexes to
+    // reclaim storage associated with internal caches supporting
+    // efficient scene population.  If no prims were addded or removed,
+    // leave caches in place in case they are supporting interactive
+    // edit loops (PrimsDirtied).
+    //
+    // This caching strategy may continue to evolve in the future.
+    if (_didAddOrRemovePrimsSinceLastSync) {
+        if (_inputSceneIndex) {
+            _inputSceneIndex->SystemMessage(
+                HdSystemMessageTokens->dropCaches, nullptr);
         }
+        _didAddOrRemovePrimsSinceLastSync = false;
     }
 }
 
@@ -3138,6 +3176,25 @@ HdSceneIndexAdapterSceneDelegate::GetCullStyle(SdfPath const &id)
     }
 
     return result;
+}
+
+int32_t
+HdSceneIndexAdapterSceneDelegate::GetPrimId(SdfPath const &id)
+{
+    TRACE_FUNCTION();
+
+    const HdSceneIndexPrim prim = _GetInputPrim(id);
+    
+    HdPrimIdDataSourceHandle const ds =
+        HdPrimIdSchema::GetFromParent(prim.dataSource)
+            .GetPrimId();
+    if (!ds) {
+        TF_WARN(
+            "No prim id for prim <%s> of type '%s' from terminal scene index.",
+            id.GetText(), prim.primType.GetText());
+        return -1;
+    }
+    return static_cast<int32_t>(ds->GetTypedValue(0.0f));
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

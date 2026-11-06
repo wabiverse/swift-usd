@@ -41,6 +41,13 @@ HgiGLDevice::SetCurrentArena(HgiGLContextArenaHandle const& arena)
     }
 }
 
+HGIGL_API
+HgiGLContextArena*
+HgiGLDevice::GetCurrentArena() const
+{
+    return _activeArena;
+}
+
 uint32_t
 HgiGLDevice::AcquireFramebuffer(
     HgiGraphicsCmdsDesc const& desc,
@@ -52,7 +59,6 @@ HgiGLDevice::AcquireFramebuffer(
 void
 HgiGLDevice::GarbageCollect()
 {
-    return _GetArena()->_GarbageCollect();
 }
 
 HgiGLContextArena const *

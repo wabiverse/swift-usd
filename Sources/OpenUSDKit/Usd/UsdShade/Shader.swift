@@ -54,6 +54,7 @@ public extension UsdShade.Shader
    */
   enum ShaderId: String, CaseIterable
   {
+    case pxrSurface = "PxrSurface"
     case usdPreviewSurface = "UsdPreviewSurface"
     case usdUVTexture = "UsdUVTexture"
 
@@ -135,7 +136,7 @@ extension Overlay
 {
   public static func CreateIdAttr(_ shader: Pixar.UsdShadeShader, _ defaultValue: UnsafePointer<CChar>, _ writeSparsely: Bool) -> Pixar.UsdAttribute
   {
-    shader.CreateIdAttr(Pixar.VtValue(std.string(defaultValue)), writeSparsely)
+    shader.CreateIdAttr(Pixar.VtValue(Tf.Token(String(cString: defaultValue))), writeSparsely)
   }
 }
 #endif

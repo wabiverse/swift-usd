@@ -77,10 +77,12 @@ public:
     GfRange3d(class GfRange3f const &other);
 
     /// Returns the minimum value of the range.
-    const GfVec3d &GetMin() const { return _min; }
+    const GfVec3d &GetMin() const & { return _min; }
+    GfVec3d GetMin() const && { return _min; }
 
     /// Returns the maximum value of the range.
-    const GfVec3d &GetMax() const { return _max; }
+    const GfVec3d &GetMax() const & { return _max; }
+    GfVec3d GetMax() const && { return _max; }
 
     /// Returns the size of the range.
     GfVec3d GetSize() const { return _max - _min; }

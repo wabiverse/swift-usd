@@ -17,6 +17,7 @@
 #include "Usd/primRange.h"
 #include "UsdGeom/camera.h"
 #include "UsdGeom/imageable.h"
+#include "UsdUI/objectHints.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -88,7 +89,7 @@ UsdviewqUtils::PrimInfo::PrimInfo(const UsdPrim &prim, const UsdTimeCode time)
         name = _tokens->root.GetString();
     typeName = prim.GetTypeName().GetString();
 
-    displayName = prim.GetDisplayName();
+    displayName = UsdUIObjectHints(prim).GetDisplayName();
 }
 
 /*static*/

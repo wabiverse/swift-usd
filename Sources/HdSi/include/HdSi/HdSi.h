@@ -13,6 +13,7 @@
 #include <HdSi/materialPrimvarTransferSceneIndex.h>
 #include <HdSi/extComputationDependencySceneIndex.h>
 #include <HdSi/materialBindingResolvingSceneIndex.h>
+#include <HdSi/primIdSceneIndex.h>
 #include <HdSi/tetMeshConversionSceneIndex.h>
 #include <HdSi/implicitSurfaceSceneIndex.h>
 #include <HdSi/primTypeNoticeBatchingSceneIndex.h>
@@ -33,6 +34,8 @@
 #include <HdSi/sceneMaterialPruningSceneIndex.h>
 #include <HdSi/particleFieldConversionSceneIndex.h>
 #include <HdSi/materialRenderContextFilteringSceneIndex.h>
+#include <HdSi/primIdSceneIndexPlugin.h>
+#include <HdSi/applicationRenderSettingsSceneIndex.h>
 #include <HdSi/debuggingSceneIndexPlugin.h>
 #include <HdSi/primManagingSceneIndexObserver.h>
 #include <HdSi/renderPassPruneSceneIndex.h>

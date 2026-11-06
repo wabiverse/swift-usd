@@ -264,6 +264,10 @@ _PrimLevelWrappingDataSource::Get(
             return *ds;
         }
 
+        // Track allocations for this data source.
+        TfAutoMallocTag mallocTag(
+            "hd", "HdFlatteningSceneIndex", name.GetText());
+
         const HdFlattenedDataSourceProvider::Context ctx(
             _flatteningSceneIndex,
             _primPath,

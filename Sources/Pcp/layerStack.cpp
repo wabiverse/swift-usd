@@ -295,7 +295,20 @@ public:
         TRACE_FUNCTION();
 
         _layerStack = &layerStack;
-        _isUsd = layerStack.IsUsd();
+        _supportsPrimRelocates = 
+            [&]() {
+                // If all layers in the layer stack share the same schema, just
+                // check whether that schema supports prim relocates.
+                const SdfSchemaBase* schema = 
+                    layerStack.GetSchemaForAllLayers();
+                if (schema) {
+                    return schema->IsRegistered(Pcp_Fields->primRelocates);
+                }
+
+                // Otherwise we need to check each layer to see if it may
+                // support prim relocates.
+                return true;
+            }();
 
         const SdfLayerRefPtrVector & layers = layerStack.GetLayers();
 
@@ -322,7 +335,7 @@ public:
         TRACE_FUNCTION();
 
         _layerStack = nullptr;
-        _isUsd = true;
+        _supportsPrimRelocates = false;
 
         // Compose the authored relocations from each layer.
         for (const auto &[layer, relocates] : layerRelocates) {
@@ -352,12 +365,11 @@ private:
             return;
         }
 
-        // Collect relocates from the layer metadata first. In USD mode, this
-        // is the only place we collect relocates from. In non-USD mode, 
-        // layer metadata relocates usurp any relocates otherwise authored on
-        // prims so we skip the full traversal of namespace for relocates if 
-        // we found layer metadata or are in USD mode.
-        if (_CollectLayerRelocates(layer) || _isUsd) {
+        // Collect relocates from the layer metadata first. These relocates
+        // usurp any relocates otherwise authored on prims so we skip the full
+        // traversal of namespace for relocates if we found layer relocates or
+        // this layer stack does not support prim relocates.
+        if (_CollectLayerRelocates(layer) || !_supportsPrimRelocates) {
             return;
         }
 
@@ -472,7 +484,8 @@ private:
     {
         // Check for relocations on this prim.
         SdfRelocatesMap relocates;
-        if (!layer->HasField(primPath, SdfFieldKeys->Relocates, &relocates)) {
+        if (!layer->HasField(primPath, Pcp_Fields->primRelocates,
+                             &relocates)) {
             return false;
         }
 
@@ -506,7 +519,8 @@ private:
     void
     _ConformLegacyRelocates()
     {
-        if (_isUsd || !TfGetEnvSetting(PCP_ENABLE_LEGACY_RELOCATES_BEHAVIOR)) {
+        if (!_supportsPrimRelocates ||
+            !TfGetEnvSetting(PCP_ENABLE_LEGACY_RELOCATES_BEHAVIOR)) {
             return;
         }
 
@@ -629,7 +643,8 @@ private:
             // will update these cases to conform in the future, but the work to
             // do so is non-trivial, so for now we need to allow these cases to 
             // still work.
-            if (!_isUsd && TfGetEnvSetting(PCP_ENABLE_LEGACY_RELOCATES_BEHAVIOR)) {
+            if (_supportsPrimRelocates &&
+                TfGetEnvSetting(PCP_ENABLE_LEGACY_RELOCATES_BEHAVIOR)) {
                 continue;
             }
 
@@ -868,7 +883,7 @@ private:
     }
 
     const PcpLayerStack *_layerStack = nullptr;
-    bool _isUsd = true;
+    bool _supportsPrimRelocates = false;
 
     std::vector<PcpErrorInvalidConflictingRelocationPtr>
         _invalidConflictingRelocates;
@@ -1130,6 +1145,7 @@ PcpLayerStack::PcpLayerStack(
                 std::move(composedExpressionVars));
 
         }())
+    , _schemaForAllLayers(nullptr)
     , _isUsd(registry._IsUsd())
 
     // Note that we do not set the _registry member here. This will be
@@ -1406,6 +1422,12 @@ PcpLayerStack::GetLayerOffsetForLayer(size_t layerIdx) const
     return layerOffset.IsIdentity() ? NULL : &layerOffset;
 }
 
+const SdfSchemaBase*
+PcpLayerStack::GetSchemaForAllLayers() const
+{
+    return _schemaForAllLayers;
+}
+
 const std::set<std::string>& 
 PcpLayerStack::GetMutedLayers() const
 {
@@ -1570,6 +1592,9 @@ PcpLayerStack::_Compute(const std::string &fileFormatTarget,
     const double rootTcps = _identifier.rootLayer->GetTimeCodesPerSecond();
     SdfLayerOffset rootLayerOffset;
 
+    // Initialize _schemaForAllLayers.
+    _schemaForAllLayers = &_identifier.rootLayer->GetSchema();
+
     // The layer stack's time codes per second initially comes from the root 
     // layer. An opinion in the session layer may override it below.
     _timeCodesPerSecond = rootTcps;
@@ -1690,14 +1715,37 @@ PcpLayerStack::_BuildLayerStack(
     // Accumulate layer into results.
     _layers.push_back(layer);
 
+    if (_schemaForAllLayers != &layer->GetSchema()) {
+        _schemaForAllLayers = nullptr;
+    }
+
     const PcpMapFunction::PathMap &identity = PcpMapFunction::IdentityPathMap();
     PcpMapFunction mapFunction = PcpMapFunction::Create(identity, offset);
     _mapFunctions.push_back(mapFunction);
         
     // Recurse over sublayers to build subtrees.
     vector<string> sublayers = layer->GetSubLayerPaths();
-    const SdfLayerOffsetVector &sublayerOffsets = layer->GetSubLayerOffsets();
+    SdfLayerOffsetVector sublayerOffsets = layer->GetSubLayerOffsets();
     const size_t numSublayers = sublayers.size();
+
+    // We should report a composition error if the number of sublayers is not
+    // equal to the number of offsets, these must be of the same size, else the
+    // following code will be out-of-bounds. This is an illegal scenario and we
+    // report these as PcpErrorInvalidSublayerAndOffsetCount errors. We will
+    // also update the sublayerOffsets to identity offsets to avoid
+    // out-of-bounds.
+    if (numSublayers != sublayerOffsets.size()) {
+        PcpErrorInvalidSublayerAndOffsetCountPtr err =
+            PcpErrorInvalidSublayerAndOffsetCount::New();
+        err->rootSite = PcpSite(_identifier, SdfPath::AbsoluteRootPath());
+        err->layer = layer;
+        err->sublayerCount = numSublayers;
+        err->offsetCount = sublayerOffsets.size();
+        errors->push_back(std::move(err));
+        // need to update sublayerOffsets to identity offsets to avoid
+        // out-of-bounds access below
+        sublayerOffsets.assign(numSublayers, SdfLayerOffset());
+    }
 
     // Evaluate expressions and compute mutedness first.
     for(size_t i=0; i != numSublayers; ++i) {

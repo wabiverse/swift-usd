@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "Sdf/parserHelpers.h"
+#include "Sdf/predicateExpression.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
 

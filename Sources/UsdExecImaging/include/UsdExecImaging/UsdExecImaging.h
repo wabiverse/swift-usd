@@ -5,13 +5,11 @@
 #include <UsdExecImaging/valueKeyMap.h>
 #include <UsdExecImaging/computedDataSource.h>
 #include <UsdExecImaging/primAdapterInterface.h>
-#include <UsdExecImaging/stageSceneIndexInterface.h>
 #include <UsdExecImaging/adapterRegistry.h>
 #include <UsdExecImaging/geomXformablePrimAdapter.h>
 #include <UsdExecImaging/debugCodes.h>
 #include <UsdExecImaging/irXformablePrimAdapter.h>
 #include <UsdExecImaging/requestBuilder.h>
-#include <UsdExecImaging/stageSceneIndexFactory.h>
 #include <UsdExecImaging/valueKey.h>
 #include <UsdExecImaging/api.h>
 #include <UsdExecImaging/requestAccessorInterface.h>

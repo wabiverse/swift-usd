@@ -152,6 +152,12 @@ _StringFromValue(const SdfPathExpression& pathExpr)
     return Sdf_FileIOUtility::Quote(pathExpr.GetText());
 }
 
+static string
+_StringFromValue(const GfDuration& duration)
+{
+    return TfStringify(duration);
+}
+
 template <class T>
 static void
 _StringFromVtArray(
@@ -191,35 +197,49 @@ _StringFromVtValueHelper(string* valueStr, const VtValue& value,
                          UpgradeFn &&requestUpgrade)
 {
     if (value.IsHolding<T>()) {
+        if constexpr (std::is_same_v<T, GfDuration>) {
+            std::forward<UpgradeFn>(requestUpgrade)(
+                SdfFileVersion(1,4,0),
+                "A GfDuration value was detected which requires usda"
+                " version 1.4.");
+        }
+
         *valueStr = _StringFromValue(value.UncheckedGet<T>());
+
         return true;
     }
     else if (value.IsHolding<VtArray<T> >()) {
+        if constexpr (std::is_same_v<T, GfDuration>) {
+            std::forward<UpgradeFn>(requestUpgrade)(
+                SdfFileVersion(1,4,0),
+                "A GfDuration value was detected which requires usda"
+                " version 1.4.");
+        }
+
         const VtArray<T>& valArray = value.UncheckedGet<VtArray<T> >();
         _StringFromVtArray(valueStr,valArray);
+
         return true;
     }
     else if (value.IsHolding<VtArrayEdit<T>>()) {
-        std::forward<UpgradeFn>(requestUpgrade)(
-            SdfFileVersion(1,2,0),
-            "A VtArrayEdit instance was detected which requires usda "
-            "version 1.2.");
+        if constexpr (std::is_same_v<T, GfDuration>) {
+            std::forward<UpgradeFn>(requestUpgrade)(
+                SdfFileVersion(1,4,0),
+                "A GfDuration value was detected which requires usda"
+                " version 1.4.");
+        } else {
+            std::forward<UpgradeFn>(requestUpgrade)(
+                SdfFileVersion(1,2,0),
+                "A VtArrayEdit instance was detected which requires usda "
+                "version 1.2.");
+        }
+
         const VtArrayEdit<T> &arrayEdit = value.UncheckedGet<VtArrayEdit<T>>();
         _StringFromVtArrayEdit(valueStr, arrayEdit);
+
         return true;
     }
     return false;
-}
-
-template <class T>
-static bool
-_StringFromVtValueHelper(Sdf_TextOutput &out,
-                         string* valueStr, const VtValue& value)
-{
-    return _StringFromVtValueHelper<T>(
-        valueStr, value, [&out](SdfFileVersion ver, char const *msg) {
-            out.RequestWriteVersionUpgrade(ver, msg);
-        });
 }
 
 // ------------------------------------------------------------
@@ -773,6 +793,10 @@ Sdf_FileIOUtility::WriteSpline(
     _WriteSplineExtrapolation(
         out, indent, "post", spline.GetPostExtrapolation());
 
+    // Do not generate compiler warnings for the deprecated inner looping
+    // methods
+    ARCH_PRAGMA_PUSH
+    ARCH_PRAGMA_DEPRECATED
     // Inner loop params, if present.
     if (spline.GetInnerLoopParams() != TsLoopParams()) {
         const TsLoopParams lp = spline.GetInnerLoopParams();
@@ -783,6 +807,7 @@ Sdf_FileIOUtility::WriteSpline(
             lp.numPostLoops,
             TfStringify(lp.valueOffset).c_str());
     }
+    ARCH_PRAGMA_POP
 
     // Knots.
     TsDispatchToValueTypeTemplate<_SplineKnotWriter>(
@@ -827,20 +852,24 @@ Sdf_FileIOUtility::WriteRelocates(
     return _WriteRelocates(out, indent, multiLine, relocates);
 }
 
-bool 
-Sdf_FileIOUtility::WriteRelocates(
-    Sdf_TextOutput &out, size_t indent, bool multiLine,
-    const SdfRelocatesMap &reloMap)
-{
-    return _WriteRelocates(out, indent, multiLine, reloMap);
-}
-
 void
 Sdf_FileIOUtility::_WriteDictionary(
     Sdf_TextOutput &out, size_t indent, bool multiLine,
     Sdf_FileIOUtility::_OrderedDictionary &dictionary,
     bool stringValuesOnly)
 {
+    for (auto it = dictionary.begin(); it != dictionary.end(); ) {
+        if (it->second->IsEmpty()) {
+            TF_WARN(
+                "Skipping dictionary entry '%s' because its value is empty",
+                it->first->c_str());
+            it = dictionary.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
     Puts(out, 0, multiLine ? "{\n" : "{ ");
     size_t counter = dictionary.size();
     TF_FOR_ALL(i, dictionary) {
@@ -860,8 +889,8 @@ Sdf_FileIOUtility::_WriteDictionary(
             } else {
                 // CODE_COVERAGE_OFF
                 // This is not possible to hit with the current public API.
-                TF_RUNTIME_ERROR("Dictionary has a non-string value under key "
-                                 "\"%s\"; skipping", i->first->c_str());
+                TF_CODING_ERROR("Dictionary has a non-string value under key "
+                                "\"%s\"; skipping", i->first->c_str());
                 // CODE_COVERAGE_ON
             }
         } else {
@@ -887,16 +916,7 @@ Sdf_FileIOUtility::_WriteDictionary(
                 Write(out, multiLine ? indent+1 : 0, "%s %s = ",
                       typeName.GetText(), keyName.c_str());
 
-                // XXX: The logic here is very similar to that in
-                //      WriteDefaultValue. WBN to refactor.
-                string str;
-                if (_StringFromVtValueHelper<string>(out, &str, value) || 
-                    _StringFromVtValueHelper<TfToken>(out, &str, value) ||
-                    _StringFromVtValueHelper<SdfAssetPath>(out, &str, value)) {
-                    Puts(out, 0, str);
-                } else {
-                    Puts(out, 0, TfStringify(value));
-                }
+                Puts(out, 0, StringFromVtValue(value, out));
                 if (multiLine) {
                     Puts(out, 0, "\n");
                 }
@@ -1110,7 +1130,10 @@ _StringFromVtValueImpl(const VtValue &value, Fn &&upgrade)
         _StringFromVtValueHelper<SdfAssetPath>(
             &s, value, std::forward<Fn>(upgrade)) ||
         _StringFromVtValueHelper<SdfPathExpression>(
-            &s, value, std::forward<Fn>(upgrade))) {
+            &s, value, std::forward<Fn>(upgrade)) ||
+        _StringFromVtValueHelper<GfDuration>(
+            &s, value, std::forward<Fn>(upgrade)))
+    {
         return s;
     }
     

@@ -191,6 +191,31 @@ extension Usd.Prim: Prim
     IsValid()
   }
   
+  public var isInstance: Bool
+  {
+    IsInstance()
+  }
+  
+  public var parent: Usd.Prim
+  {
+    GetParent()
+  }
+  
+  public func isA(_ schema: Tf.Token) -> Bool
+  {
+    IsA(schema)
+  }
+
+  public func hasAPI(_ schema: Tf.Token) -> Bool
+  {
+    HasAPI(schema)
+  }
+  
+  public func hasAPI(_ schema: String) -> Bool
+  {
+    HasAPI(Tf.Token(schema))
+  }
+  
   /// Author scene description for the attribute named \a attrName at the
   /// current EditTarget if none already exists.  Return a valid attribute if
   /// scene description was successfully authored or if it already existed,

@@ -1,0 +1,33 @@
+//
+// Copyright 2021 Pixar
+//
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
+//
+shader UsdTransform2d
+(
+    float in[2] = {0.0, 0.0}
+        [[ string widget = "null" ]],
+    float rotation = 0.0,
+    float scale[2] = {1.0, 1.0},
+    float translation[2] = {0.0, 0.0},
+    output float result[2] = {0.0, 0.0}
+        [[ string widget = "null" ]]
+)
+{
+    // Since the input/output are float[2] we cannot use OSL's vector
+    // operations directly.
+    result[0] = scale[0] * in[0];
+    result[1] = scale[1] * in[1];
+    if (rotation != 0.0) {
+        float theta = radians(rotation);
+        float ca = cos(theta);
+        float sa = sin(theta);
+        float x = result[0];
+        float y = result[1];
+        result[0] = ca*x - sa*y;
+        result[1] = sa*x + ca*y;
+    }
+    result[0] += translation[0];
+    result[1] += translation[1];
+}

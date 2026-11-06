@@ -3,7 +3,6 @@
 
 // Sdf
 #include <Sdf/variableExpression.h>
-#include <Sdf/mapEditor.h>
 #include <Sdf/opaqueValue.h>
 #include <Sdf/fileFormat.h>
 #include <Sdf/pyMapEditProxy.h>

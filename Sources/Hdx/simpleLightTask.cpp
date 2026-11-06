@@ -44,7 +44,6 @@ HdxSimpleLightTask::HdxSimpleLightTask(
   , _maxLights(16)
   , _sprimIndexVersion(0)
   , _settingsVersion(0)
-  , _lightingShader(std::make_shared<HdStSimpleLightingShader>())
   , _enableShadows(false)
   , _viewport(0.0f, 0.0f, 0.0f, 0.0f)
   , _overrideWindowPolicy{false, CameraUtilFit}
@@ -59,6 +58,16 @@ HdxSimpleLightTask::HdxSimpleLightTask(
   , _rebuildLightAndShadowBufferSources(true)
   , _rebuildMaterialBufferSources(true)
 {
+    HdStResourceRegistrySharedPtr registry =
+        std::dynamic_pointer_cast<HdStResourceRegistry>(
+            delegate->GetRenderIndex().GetResourceRegistry());
+    if (registry) {
+        _lightingShader = 
+            std::make_shared<HdStSimpleLightingShader>(registry->GetHgi());
+    } else {
+        _lightingShader =
+            std::make_shared<HdStSimpleLightingShader>(nullptr);
+    }
 }
 
 HdxSimpleLightTask::~HdxSimpleLightTask() = default;
@@ -574,13 +583,13 @@ HdxSimpleLightTask::Prepare(HdTaskContext* ctx,
 
         // Shadows
         VtMatrix4fArray worldToShadowMatrix(
-            HdStSimpleLightingShader::GetMaxShadows(), GfMatrix4f());
+            _lightingShader->GetMaxShadows(), GfMatrix4f());
         VtMatrix4fArray shadowToWorldMatrix(
-            HdStSimpleLightingShader::GetMaxShadows(), GfMatrix4f());
+            _lightingShader->GetMaxShadows(), GfMatrix4f());
         VtFloatArray blur(
-            HdStSimpleLightingShader::GetMaxShadows(), 0.0);
+            _lightingShader->GetMaxShadows(), 0.0);
         VtFloatArray bias(
-            HdStSimpleLightingShader::GetMaxShadows(), 0.0);
+            _lightingShader->GetMaxShadows(), 0.0);
         
         GlfSimpleLightVector const & lights = lightingContext->GetLights();
         GlfSimpleShadowArrayRefPtr const & shadows = 

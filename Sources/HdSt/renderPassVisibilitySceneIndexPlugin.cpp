@@ -24,7 +24,7 @@
 #include "Hd/sceneGlobalsSchema.h"
 #include "Hd/sceneIndexPluginRegistry.h"
 #include "Hd/sceneIndexPrimView.h"
-#include "Hd/schema.h" 
+#include "Hd/schema.h"
 #include "Hd/tokens.h"
 #include "Hd/visibilitySchema.h"
 #include "HdSi/utils.h"
@@ -81,11 +81,35 @@ _IsGeometryType(const TfToken &primType)
             != extraGeomTypes.end();
 }
 
-// Returns true if the renderVisibility rules apply to this prim type.
+// Returns true if the visibility rules apply to this prim
 bool
-_ShouldApplyPassVisibility(const TfToken &primType)
+_ShouldApplyPassVisibility(HdSceneIndexPrim const& prim)
 {
-    return _IsGeometryType(primType) || HdPrimTypeIsLight(primType);
+    // Apply pass visibility to point instancers, which are explicitly created
+    // in the scene by users, but not to other instancers created internally,
+    // e.g. by UsdImaging native instance aggregation.  The latter case is
+    // already handled elsewhere by evaluating the collection against each
+    // instanceLocation.  The general intuition is that user-defined
+    // collections are only ever applied against user-defined paths.
+    if (prim.primType == HdPrimTypeTokens->instancer) {
+        const HdInstancerTopologySchema topoSchema =
+            HdInstancerTopologySchema::GetFromParent(prim.dataSource);
+        if (!topoSchema) {
+            return false;
+        }
+        // If there are no instanceLocations, this is an explicit
+        // point instancer, and we apply visibility rules to the
+        // instancer as a whole.
+        const HdPathArrayDataSourceHandle instanceLocationsDs =
+            topoSchema.GetInstanceLocations();
+        if (!instanceLocationsDs) {
+            return true;
+        }
+        const VtArray<SdfPath> instanceLocations =
+            instanceLocationsDs->GetTypedValue(0.0f);
+        return instanceLocations.empty();
+    }
+    return _IsGeometryType(prim.primType) || HdPrimTypeIsLight(prim.primType);
 }
 
 bool
@@ -131,7 +155,7 @@ struct _RenderPassVisibilityState {
         HdSceneIndexPrim const& prim) const
     {
         return renderVisEval
-            && _ShouldApplyPassVisibility(prim.primType)
+            && _ShouldApplyPassVisibility(prim)
             && !renderVisEval->Match(primPath)
             && _IsVisible(prim.dataSource);
     }
@@ -343,7 +367,7 @@ _IsPrototype(HdSceneIndexPrim const& prim)
     return false;
 }
 
-HdSceneIndexPrim 
+HdSceneIndexPrim
 _RenderPassVisibilitySceneIndex::GetPrim(
     const SdfPath &primPath) const
 {
@@ -371,7 +395,7 @@ _RenderPassVisibilitySceneIndex::GetPrim(
     return prim;
 }
 
-SdfPathVector 
+SdfPathVector
 _RenderPassVisibilitySceneIndex::GetChildPrimPaths(
     const SdfPath &primPath) const
 {
@@ -422,6 +446,8 @@ _RenderPassVisibilitySceneIndex::_PrimsAdded(
     const HdSceneIndexBase &sender,
     const HdSceneIndexObserver::AddedPrimEntries &entries)
 {
+    TRACE_FUNCTION();
+
     HdSceneIndexObserver::DirtiedPrimEntries extraDirtyEntries;
 
     // Check if any entry could affect the active render pass.
@@ -440,11 +466,13 @@ _RenderPassVisibilitySceneIndex::_PrimsAdded(
     _SendPrimsDirtied(extraDirtyEntries);
 }
 
-void 
+void
 _RenderPassVisibilitySceneIndex::_PrimsRemoved(
     const HdSceneIndexBase &sender,
     const HdSceneIndexObserver::RemovedPrimEntries &entries)
 {
+    TRACE_FUNCTION();
+
     HdSceneIndexObserver::DirtiedPrimEntries extraDirtyEntries;
 
     // Check if any entry could affect the active render pass.
@@ -461,6 +489,8 @@ _RenderPassVisibilitySceneIndex::_PrimsDirtied(
     const HdSceneIndexBase &sender,
     const HdSceneIndexObserver::DirtiedPrimEntries &entries)
 {
+    TRACE_FUNCTION();
+
     HdSceneIndexObserver::DirtiedPrimEntries extraDirtyEntries;
 
     // Check if any entry could affect the active render pass.

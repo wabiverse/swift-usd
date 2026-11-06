@@ -17,6 +17,7 @@
 #include "Vt/value.h"
 #include "Sdf/booleanExpression.h"
 #include "Sdr/api.h"
+#include "Arch/swiftInterop.h"
 #include "Sdr/declare.h"
 #include "Sdr/sdfTypeIndicator.h"
 #include "Sdr/shaderNode.h"
@@ -53,7 +54,7 @@ TF_DECLARE_PUBLIC_TOKENS(SdrPropertyTypes, SDR_API, SDR_PROPERTY_TYPE_TOKENS);
 ///
 /// \note SdrTokenMap metadata is deprecated in favor of
 /// SdrShaderPropertyMetadata.
-class SdrShaderProperty
+class SWIFT_IMMORTAL_REFERENCE SdrShaderProperty
 {
 public:
     /// Constructor.

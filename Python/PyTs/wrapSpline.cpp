@@ -191,6 +191,10 @@ void wrapSpline()
 {
     using This = TsSpline;
 
+    // Do not generate compiler warnings for the deprecated inner looping
+    // methods
+    ARCH_PRAGMA_PUSH
+    ARCH_PRAGMA_DEPRECATED
     class_<This>("Spline", no_init)
 
         .def("__init__",
@@ -206,7 +210,6 @@ void wrapSpline()
         .def("__str__", &_WrapStr)
 
         .def("GetValueTypeName", &_WrapGetValueTypeName)
-        .def("SetTimeValued", &This::SetTimeValued)
         .def("IsTimeValued", &This::IsTimeValued)
         .def("SetCurveType", &This::SetCurveType)
         .def("GetCurveType", &This::GetCurveType)
@@ -261,6 +264,7 @@ void wrapSpline()
 
         .def("BakeInnerLoops", &This::BakeInnerLoops)
         .def("GetKnotsWithInnerLoopsBaked", &This::GetKnotsWithInnerLoopsBaked)
+
         .def("GetKnotsWithLoopsBaked", &This::GetKnotsWithLoopsBaked,
              arg("interval"))
 
@@ -269,7 +273,9 @@ void wrapSpline()
         .def("IsEmpty", &This::IsEmpty)
         .def("HasValueBlocks", &This::HasValueBlocks)
         .def("HasLoops", &This::HasLoops)
+
         .def("HasInnerLoops", &This::HasInnerLoops)
+
         .def("HasExtrapolatingLoops", &This::HasExtrapolatingLoops)
 
         .def("HasValueBlockAtTime", &This::HasValueBlockAtTime)
@@ -286,6 +292,7 @@ void wrapSpline()
              &This::Concatenate)
         .staticmethod("Concatenate")
         ;
+    ARCH_PRAGMA_POP
 
     _CanBreakdownResult::Wrap<_CanBreakdownResult>("_CanBreakdownResult",
                                                    "reason");

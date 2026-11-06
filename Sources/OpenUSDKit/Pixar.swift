@@ -20,7 +20,7 @@ import CxxStdlib
   
   public typealias Pixar = pxr
 
-  let SWIFTUSD_EVOLUTION: Int32 = 2
+  let SWIFTUSD_EVOLUTION: Int32 = 0
 #endif
 
 /* --- xxx --- */

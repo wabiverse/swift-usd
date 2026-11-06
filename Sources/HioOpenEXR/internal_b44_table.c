@@ -3,15 +3,13 @@
 // Copyright (c) DreamWorks Animation LLC and Contributors of the OpenEXR Project
 //
 
-//
-// This is an automatically generated file.
-// Do not edit.
-//
-
 #include <stdint.h>
 
-/* pxr extern const uint16_t* exrcore_expTable;
-extern const uint16_t* exrcore_logTable; */
+extern uint16_t* exrcore_expTable;
+extern uint16_t* exrcore_logTable;
 
-extern const uint16_t* exrcore_expTable;
-extern const uint16_t* exrcore_logTable;
+static uint16_t exrcore_expTable_data[65536];
+uint16_t* exrcore_expTable = exrcore_expTable_data;
+
+static uint16_t exrcore_logTable_data[65536];
+uint16_t* exrcore_logTable = exrcore_logTable_data;

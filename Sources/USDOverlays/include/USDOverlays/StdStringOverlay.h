@@ -62,6 +62,7 @@ namespace Overlay
   Pixar::UsdStageRefPtr CreateNewStage(const char *identifier, Pixar::UsdStage::InitialLoadSet load);
   Pixar::UsdStageRefPtr CreateInMemoryStage(const char *identifier, Pixar::UsdStage::InitialLoadSet load);
   Pixar::UsdStageRefPtr OpenStage(const char *filePath, Pixar::UsdStage::InitialLoadSet load);
+  Pixar::UsdStageRefPtr OpenStage(const Pixar::SdfLayerHandle &rootLayer, Pixar::UsdStage::InitialLoadSet load);
 
   bool AddReference(Pixar::UsdReferences references, const char *assetPath, const Pixar::SdfPath &primPath, const Pixar::SdfLayerOffset &layerOffset, Pixar::UsdListPosition position);
   bool AddReference(Pixar::UsdReferences references, const char *assetPath, const Pixar::SdfLayerOffset &layerOffset, Pixar::UsdListPosition position);

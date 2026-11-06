@@ -113,7 +113,10 @@ private:
             : _useDrawIndexed(true)
             , _useInstanceCulling(false)
             , _bufferArrayHash(0) { }
-        void Initialize(bool useDrawIndexed, bool useInstanceCulling,
+
+        // Returns false if we are re-initializing to a pre-existing value,
+        // and don't need to rebuild the shader.
+        bool Initialize(bool useDrawIndexed, bool useInstanceCulling,
                         size_t bufferArrayHash);
     protected:
         // _DrawingProgram overrides
@@ -167,6 +170,7 @@ private:
     HdStBufferResourceSharedPtr _resultBuffer;
 
     size_t _numVisibleItems;
+    size_t _numVisibleItemsPostCull;
     size_t _numTotalVertices;
     size_t _numTotalElements;
 

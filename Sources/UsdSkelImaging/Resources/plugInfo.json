@@ -2,6 +2,7 @@
     "Plugins": [
         {
             "Info": {
+                "ShaderResources": "shaders",
                 "Types": {
                     "UsdSkelImagingSkeletonAdapter": {
                         "bases": [
@@ -45,8 +46,7 @@
                         ],
                         "isInternal": true
                     }
-                },
-                "ShaderResources": "shaders"
+                }
             },
             "LibraryPath": "",
             "Name": "UsdSkelImaging",

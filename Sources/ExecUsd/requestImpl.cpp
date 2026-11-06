@@ -117,6 +117,7 @@ ExecUsd_RequestImpl::ExecUsd_RequestImpl(
         system, std::move(valueCallback), std::move(timeCallback))
     , _valueKeys(std::move(valueKeys))
     , _expired(_valueKeys.size())
+    , _isValid(true)
 {
     // Because request expiration is driven by change processing, we must
     // check the initial validity of value keys and immediately expire indices
@@ -242,6 +243,7 @@ ExecUsd_RequestImpl::ExpireInvalidIndices()
     }
 
     if (!newExpired.empty()) {
+        _isValid = false;
         for (const size_t i : newExpired) {
             _expired.Set(i);
         }

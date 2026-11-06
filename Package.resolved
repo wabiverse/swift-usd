@@ -1,6 +1,15 @@
 {
-  "originHash" : "e235da73e9bb66e14dfbdf45bb353d041d355d0bb5d51efd54bbc1fa14178d09",
+  "originHash" : "9f4e4e4417ebd05cb374864e8d553a5716b5e064e56ffdafea02e10a11cf2304",
   "pins" : [
+    {
+      "identity" : "androidkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/moreSwift/AndroidKit",
+      "state" : {
+        "revision" : "d5142b5a9b90fa940be54a2a41d7fd5842f21111",
+        "version" : "0.8.1"
+      }
+    },
     {
       "identity" : "imgui",
       "kind" : "remoteSourceControl",
@@ -38,6 +47,258 @@
       }
     },
     {
+      "identity" : "metaalembic",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaAlembic.git",
+      "state" : {
+        "revision" : "08e590f39c4c6162358211da3d930720ae18b608",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metablosc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaBlosc.git",
+      "state" : {
+        "revision" : "6d3bbd64cd9b6397d08120bf74d4c0441d050dd0",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metadeflate",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaDEFLATE.git",
+      "state" : {
+        "revision" : "d81fff03d6bafe91a232fc870287bb54a4361938",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metadraco",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaDraco.git",
+      "state" : {
+        "revision" : "b1bee10557de99e7a6bd8a96140fb306d1a75e4a",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metahdf5",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaHDF5.git",
+      "state" : {
+        "revision" : "462325a2e4af3154da72803bba09abfe92cee56e",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaimath",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaImath.git",
+      "state" : {
+        "revision" : "b270ec33a01008ba7eea6ecd3571fca1517470f2",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metalz4",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaLZ4.git",
+      "state" : {
+        "revision" : "fabac7b7da2f4f4ad48ad8f3b205e51f3d7ef57a",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metalzma2",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaLZMA2.git",
+      "state" : {
+        "revision" : "4d372404ba632070ef174927c476ea96d5504580",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metamaterialx",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaMaterialX.git",
+      "state" : {
+        "revision" : "7e246653295a1fe11e276ce1e0210f854a83fea7",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metamicrosoftstl",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaMicrosoftSTL.git",
+      "state" : {
+        "revision" : "9f96e959c744f545e54ca70afe3433c59ba2dfbb",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaminizip",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaMiniZip.git",
+      "state" : {
+        "revision" : "6538e0171c4a3428424184901f472cb8461011ac",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaonetbb",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOneTBB.git",
+      "state" : {
+        "revision" : "e2fe7dee9c1b6f64290d61e95308e52119fe1f5f",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopencolorio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenColorIO.git",
+      "state" : {
+        "revision" : "ad6217646883aa6505c427e917a9467f1eda14e4",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopenexr",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenEXR.git",
+      "state" : {
+        "revision" : "81ea8f025f3e6ebb1c682cf2c309682e8653838d",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopenimageio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenImageIO.git",
+      "state" : {
+        "revision" : "159d59c60497314c4ee9355df8d924876eb00ebf",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopenimageio_util",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenImageIO_Util.git",
+      "state" : {
+        "revision" : "098ea1f1d23c6acc6346a9cba086efa52abaadea",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopenmp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenMP.git",
+      "state" : {
+        "revision" : "67d7e65f01d0f7ad438af927416b70c0a86f73ee",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopensubdiv",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenSubdiv.git",
+      "state" : {
+        "revision" : "047c5136a30d7a0dfe838c8c037e4eab198bb243",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopentimelineio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenTimelineIO.git",
+      "state" : {
+        "revision" : "e009d6a9b3715a7a90ea8051064c7b58f2c75c9f",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaopenvdb",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaOpenVDB.git",
+      "state" : {
+        "revision" : "e489992b9db20729eac5ec226cc0cc512d1b32a6",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metapmc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaPMC.git",
+      "state" : {
+        "revision" : "67cab894f55b5c395462a6a1d1fd5986375d1120",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaptex",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaPtex.git",
+      "state" : {
+        "revision" : "b731f74e57516650adf129191e220db43207688b",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaraw",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaRaw.git",
+      "state" : {
+        "revision" : "0002fc9994b4b2017c640e352a96d95aaefc2957",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metatbb",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaTBB.git",
+      "state" : {
+        "revision" : "fb929f5268ed6f6665735ce767ba27d398daf8eb",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metatiff",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaTIFF.git",
+      "state" : {
+        "revision" : "84e9de56f405a13e5d75168dcdc19409e62c82ca",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metaturbojpeg",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaTurboJPEG.git",
+      "state" : {
+        "revision" : "7290ecda8e1c260ca42dd44b7d713df46aa341b1",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metayaml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaYaml.git",
+      "state" : {
+        "revision" : "9cf22e856df11832ffc079d900ee49bfa42a6bac",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "metazstandard",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wabiverse/MetaZStandard.git",
+      "state" : {
+        "revision" : "e55c6dbfe2c05864b83163af1860ba0d32659a70",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "rainbow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Rainbow.git",
@@ -47,12 +308,30 @@
       }
     },
     {
+      "identity" : "swift-android-native",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-android-sdk/swift-android-native.git",
+      "state" : {
+        "revision" : "5f71c1584b3cbe3842d335ebb4d7b545205d9945",
+        "version" : "2.1.0"
+      }
+    },
+    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser",
       "state" : {
         "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
         "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections",
+      "state" : {
+        "revision" : "3b69cedbaa49957e97c092ae400bb57602ef941f",
+        "version" : "1.7.2"
       }
     },
     {
@@ -101,6 +380,24 @@
       }
     },
     {
+      "identity" : "swift-java",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stackotter/swift-java",
+      "state" : {
+        "revision" : "e04c0ed6af98936ca6300e94be9a19869df418a2",
+        "version" : "0.5.1"
+      }
+    },
+    {
+      "identity" : "swift-java-jni-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-java-jni-core",
+      "state" : {
+        "revision" : "b440a0be98381550cf189c903782e817619ffa05",
+        "version" : "0.5.1"
+      }
+    },
+    {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
@@ -137,12 +434,30 @@
       }
     },
     {
+      "identity" : "swift-subprocess",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-subprocess.git",
+      "state" : {
+        "revision" : "11633673a41f509f8945f23c96c7acd4adafd679",
+        "version" : "0.5.0"
+      }
+    },
+    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
         "revision" : "2b59c0c741e9184ab057fd22950b491076d42e91",
         "version" : "603.0.0"
+      }
+    },
+    {
+      "identity" : "swift-system",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-system",
+      "state" : {
+        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version" : "1.8.1"
       }
     },
     {
@@ -155,12 +470,30 @@
       }
     },
     {
+      "identity" : "swiftjavalang",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stackotter/SwiftJavaLang.git",
+      "state" : {
+        "revision" : "000441db9284536a2af611745b82ec7653dca5bc",
+        "version" : "0.3.0"
+      }
+    },
+    {
+      "identity" : "swiftkotlin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stackotter/SwiftKotlin.git",
+      "state" : {
+        "revision" : "ad30daacb7e4666e1a56bfdd48498f5ac4ff081d",
+        "version" : "0.3.0"
+      }
+    },
+    {
       "identity" : "swiftusd",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/SwiftUsd.git",
       "state" : {
-        "revision" : "203b5eb270db1616c3c129c8fe2a07ef3ad7f83a",
-        "version" : "8.1.0"
+        "revision" : "a7ea7e63a6b51527e368e1956d7a7f6b9020a109",
+        "version" : "9.0.0"
       }
     },
     {

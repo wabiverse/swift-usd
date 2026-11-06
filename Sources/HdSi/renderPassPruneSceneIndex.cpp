@@ -31,15 +31,30 @@ TF_DEFINE_PRIVATE_TOKENS(
 /* static */
 HdsiRenderPassPruneSceneIndexRefPtr
 HdsiRenderPassPruneSceneIndex::New(
-    const HdSceneIndexBaseRefPtr& inputSceneIndex)
+    const HdSceneIndexBaseRefPtr& inputSceneIndex,
+    const HdCollectionPredicateLibrary &predicateLibrary)
 {
     return TfCreateRefPtr(  
-        new HdsiRenderPassPruneSceneIndex(inputSceneIndex));
+        new HdsiRenderPassPruneSceneIndex(inputSceneIndex, predicateLibrary));
+}
+
+/* static */
+HdsiRenderPassPruneSceneIndexRefPtr
+HdsiRenderPassPruneSceneIndex::New(
+    const HdSceneIndexBaseRefPtr& inputSceneIndex)
+{
+    // XXX Ideally, we'd want to use
+    // UsdImagingGetCollectionPredicateLibrary() here, but that would create a 
+    // dependency on the usdImaging library, which we want to avoid in hdsi.
+    //
+    return New(inputSceneIndex, HdCollectionPredicateLibrary());
 }
 
 HdsiRenderPassPruneSceneIndex::HdsiRenderPassPruneSceneIndex(
-    const HdSceneIndexBaseRefPtr &inputSceneIndex)
+    const HdSceneIndexBaseRefPtr &inputSceneIndex,
+    const HdCollectionPredicateLibrary &predicateLibrary)
 : HdSingleInputFilteringSceneIndexBase(inputSceneIndex)
+, _predicateLibrary(predicateLibrary)
 {
 }
 
@@ -371,6 +386,7 @@ HdsiRenderPassPruneSceneIndex::_UpdateActiveRenderPassState(
             HdCollectionsSchema::GetFromParent(passPrim.dataSource)) {
             HdsiUtilsCompileCollection(collections, _tokens->prune,
                                        inputSceneIndex,
+                                       _predicateLibrary,
                                        &state.pruneExpr,
                                        &state.pruneEval);
         }

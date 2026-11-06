@@ -93,6 +93,10 @@ public extension Bundle
   static let usdPhysics = pxrBundle("swift-usd_UsdPhysics")
 
   /**
+   * Where ``UsdPmc`` application bundle resources are located. */
+  static let usdPmc = pxrBundle("swift-usd_UsdPmc")
+
+  /**
    * Where ``UsdProc`` application bundle resources are located. */
   static let usdProc = pxrBundle("swift-usd_UsdProc")
 

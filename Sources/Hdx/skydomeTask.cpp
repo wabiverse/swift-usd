@@ -140,6 +140,13 @@ HdxSkydomeTask::Execute(HdTaskContext* ctx)
 
     const bool haveColorAOV = !gfxCmdsDesc.colorTextures.empty();
 
+    // Don't try to render the skydome in an incompatible AOV, for example
+    // when doing primId visualization.
+    const bool colorAovIsNonFloatFormat =
+        haveColorAOV &&
+        !gfxCmdsDesc.colorAttachmentDescs.empty() &&
+        !HgiIsFloatFormat(gfxCmdsDesc.colorAttachmentDescs[0].format);
+
     const bool needClear =
         (gfxCmdsDesc.depthAttachmentDesc.loadOp == HgiAttachmentLoadOpClear) ||
         (!gfxCmdsDesc.colorAttachmentDescs.empty() &&
@@ -147,7 +154,7 @@ HdxSkydomeTask::Execute(HdTaskContext* ctx)
 
     // If the skydome is not camera visible in a colorAOV or there is no
     // domelight/skydomeTexture, we can bail.
-    if (!_skydomeVisibility || !haveColorAOV ||
+    if (!_skydomeVisibility || !haveColorAOV || colorAovIsNonFloatFormat ||
         !haveDomeLight || !_GetSkydomeTexture(ctx)) {
         if (needClear) {
             // If we need to clear, do so before the early out.
@@ -279,7 +286,7 @@ HdxSkydomeTask::_SetFragmentShader()
         HgiShaderTextureTypeCubemapTexture);
     HgiShaderFunctionAddStageOutput(&fragDesc, "hd_FragColor", "vec4", "color");
     HgiShaderFunctionAddStageOutput(
-        &fragDesc, "gl_FragDepth", "float", "depth(any)");
+        &fragDesc, "gl_FragDepth", "float", HgiShaderKeywordTokens->hdDepthAny);
 
     // The order of the constant parameters has to match the order in the 
     // _ParameterBuffer struct

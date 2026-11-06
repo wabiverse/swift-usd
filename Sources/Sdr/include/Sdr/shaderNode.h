@@ -12,6 +12,7 @@
 
 #include "pxr/pxrns.h"
 #include "Sdr/api.h"
+#include "Arch/swiftInterop.h"
 #include "Tf/staticTokens.h"
 #include "Tf/token.h"
 #include "Vt/value.h"
@@ -41,7 +42,7 @@ TF_DECLARE_PUBLIC_TOKENS(SdrNodeFieldKey, SDR_API, SDR_NODE_FIELD_KEY_TOKENS);
 /// Represents a node that holds shading information. Describes information
 /// like the name of the node, what its inputs and outputs are, and any
 /// associated metadata.
-class SdrShaderNode
+class SWIFT_IMMORTAL_REFERENCE SdrShaderNode
 {
 public:
 

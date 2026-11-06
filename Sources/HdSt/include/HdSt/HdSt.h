@@ -32,14 +32,12 @@
 #include <HdSt/subtextureIdentifier.h>
 #include <HdSt/materialNetwork.h>
 #include <HdSt/meshTopology.h>
-#include <HdSt/renderPassPruneSceneIndexPlugin.h>
 #include <HdSt/strategyBase.h>
 #include <HdSt/nodeIdentifierResolvingSceneIndexPlugin.h>
 #include <HdSt/materialParam.h>
 #include <HdSt/textureHandleRegistry.h>
 #include <HdSt/light.h>
 #include <HdSt/basisCurvesComputations.h>
-#include <HdSt/sphereShaderKey.h>
 #include <HdSt/field.h>
 #include <HdSt/sphere.h>
 #include <HdSt/textureIdentifier.h>
@@ -83,6 +81,8 @@
 #include <HdSt/nurbsApproximatingSceneIndexPlugin.h>
 #include <HdSt/samplerObject.h>
 #include <HdSt/stagingBuffer.h>
+#include <HdSt/implicitSurfaceShaderKey.h>
+#include <HdSt/capsule.h>
 #include <HdSt/resourceRegistry.h>
 #include <HdSt/dependencySceneIndexPlugin.h>
 #include <HdSt/unboundMaterialPruningSceneIndexPlugin.h>
@@ -90,6 +90,7 @@
 #include <HdSt/udimTextureObject.h>
 #include <HdSt/dynamicUvTextureImplementation.h>
 #include <HdSt/basisCurvesShaderKey.h>
+#include <HdSt/implicitSurface.h>
 #include <HdSt/basisCurvesTopology.h>
 #include <HdSt/extCompGpuComputation.h>
 #include <HdSt/imageShaderShaderKey.h>
@@ -118,6 +119,7 @@
 #include <HdSt/interleavedMemoryManager.h>
 #include <HdSt/pipelineDrawBatch.h>
 #include <HdSt/ptexTextureObject.h>
+#include <HdSt/conicalFrustum.h>
 #include <HdSt/dependencyForwardingSceneIndexPlugin.h>
 #include <HdSt/extCompComputeShader.h>
 #include <HdSt/computation.h>

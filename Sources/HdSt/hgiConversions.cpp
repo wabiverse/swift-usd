@@ -4,8 +4,14 @@
 // Licensed under the terms set forth in the LICENSE.txt file available at
 // https://openusd.org/license.
 //
+#include "Hd/tokens.h"
 #include "HdSt/hgiConversions.h"
+#include "Hgi/enums.h"
+
 #include "Tf/iterator.h"
+#include "Tf/token.h"
+
+#include <unordered_map>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -18,25 +24,25 @@ struct _FormatDesc {
 
 const _FormatDesc FORMAT_DESC[] =
 {
-    {HdFormatUNorm8,     HgiFormatUNorm8}, 
-    {HdFormatUNorm8Vec2, HgiFormatUNorm8Vec2}, 
+    {HdFormatUNorm8,     HgiFormatUNorm8},
+    {HdFormatUNorm8Vec2, HgiFormatUNorm8Vec2},
     {HdFormatUNorm8Vec3, HgiFormatInvalid}, // Unsupported by HgiFormat
-    {HdFormatUNorm8Vec4, HgiFormatUNorm8Vec4}, 
+    {HdFormatUNorm8Vec4, HgiFormatUNorm8Vec4},
 
-    {HdFormatSNorm8,     HgiFormatSNorm8}, 
-    {HdFormatSNorm8Vec2, HgiFormatSNorm8Vec2}, 
+    {HdFormatSNorm8,     HgiFormatSNorm8},
+    {HdFormatSNorm8Vec2, HgiFormatSNorm8Vec2},
     {HdFormatSNorm8Vec3, HgiFormatInvalid}, // Unsupported by HgiFormat
-    {HdFormatSNorm8Vec4, HgiFormatSNorm8Vec4}, 
+    {HdFormatSNorm8Vec4, HgiFormatSNorm8Vec4},
 
-    {HdFormatFloat16,     HgiFormatFloat16}, 
-    {HdFormatFloat16Vec2, HgiFormatFloat16Vec2}, 
-    {HdFormatFloat16Vec3, HgiFormatFloat16Vec3}, 
-    {HdFormatFloat16Vec4, HgiFormatFloat16Vec4}, 
+    {HdFormatFloat16,     HgiFormatFloat16},
+    {HdFormatFloat16Vec2, HgiFormatFloat16Vec2},
+    {HdFormatFloat16Vec3, HgiFormatFloat16Vec3},
+    {HdFormatFloat16Vec4, HgiFormatFloat16Vec4},
 
-    {HdFormatFloat32,     HgiFormatFloat32}, 
-    {HdFormatFloat32Vec2, HgiFormatFloat32Vec2}, 
-    {HdFormatFloat32Vec3, HgiFormatFloat32Vec3}, 
-    {HdFormatFloat32Vec4, HgiFormatFloat32Vec4}, 
+    {HdFormatFloat32,     HgiFormatFloat32},
+    {HdFormatFloat32Vec2, HgiFormatFloat32Vec2},
+    {HdFormatFloat32Vec3, HgiFormatFloat32Vec3},
+    {HdFormatFloat32Vec4, HgiFormatFloat32Vec4},
 
     {HdFormatInt16,      HgiFormatInt16},
     {HdFormatInt16Vec2,  HgiFormatInt16Vec2},
@@ -48,10 +54,10 @@ const _FormatDesc FORMAT_DESC[] =
     {HdFormatUInt16Vec3, HgiFormatUInt16Vec3},
     {HdFormatUInt16Vec4, HgiFormatUInt16Vec4},
 
-    {HdFormatInt32,     HgiFormatInt32}, 
-    {HdFormatInt32Vec2, HgiFormatInt32Vec2}, 
-    {HdFormatInt32Vec3, HgiFormatInt32Vec3}, 
-    {HdFormatInt32Vec4, HgiFormatInt32Vec4}, 
+    {HdFormatInt32,     HgiFormatInt32},
+    {HdFormatInt32Vec2, HgiFormatInt32Vec2},
+    {HdFormatInt32Vec3, HgiFormatInt32Vec3},
+    {HdFormatInt32Vec4, HgiFormatInt32Vec4},
 
     {HdFormatFloat32UInt8, HgiFormatFloat32UInt8},
 };
@@ -68,7 +74,7 @@ constexpr bool _CompileTimeValidateFormatTable() {
         HdFormatInt32Vec4 == 27 && HgiFormatInt32Vec4 == 25;
 }
 
-static_assert(_CompileTimeValidateFormatTable(), 
+static_assert(_CompileTimeValidateFormatTable(),
               "_FormatDesc array out of sync with HdFormat/HgiFormat enum");
 
 struct _VertexFormatFromTypeDesc {
@@ -214,19 +220,19 @@ struct _BorderColorDesc {
 
 const _BorderColorDesc BORDER_COLOR_DESC[] =
 {
-    {HdBorderColorTransparentBlack, HgiBorderColorTransparentBlack}, 
-    {HdBorderColorOpaqueBlack,      HgiBorderColorOpaqueBlack}, 
+    {HdBorderColorTransparentBlack, HgiBorderColorTransparentBlack},
+    {HdBorderColorOpaqueBlack,      HgiBorderColorOpaqueBlack},
     {HdBorderColorOpaqueWhite,      HgiBorderColorOpaqueWhite},
 };
 
 constexpr bool _CompileTimeValidateBorderColorTable() {
     return
-        HdBorderColorTransparentBlack == 0 && 
+        HdBorderColorTransparentBlack == 0 &&
         HgiBorderColorTransparentBlack == 0 &&
         HdBorderColorOpaqueWhite == 2 && HdBorderColorOpaqueWhite == 2;
 }
 
-static_assert(_CompileTimeValidateBorderColorTable(), 
+static_assert(_CompileTimeValidateBorderColorTable(),
               "_BorderColorDesc array out of sync with "
               "HdBorderColor/HgiBorderColor enum");
 
@@ -361,8 +367,8 @@ HdStHgiConversions::GetHgiBorderColor(HdBorderColor hdBorderColor)
         TF_CODING_ERROR("Unexpected HdBorderColor %d", hdBorderColor);
         return HgiBorderColorTransparentBlack;
     }
-    
-    return BORDER_COLOR_DESC[hdBorderColor].hgiBorderColor;  
+
+    return BORDER_COLOR_DESC[hdBorderColor].hgiBorderColor;
 }
 
 HgiCompareFunction
@@ -385,6 +391,31 @@ HdStHgiConversions::GetHgiStencilOp(HdStencilOp hdStencilOp)
         return HgiStencilOpKeep;
     }
     return _STENCIL_OP_DESC[hdStencilOp].hgiStencilOp;
+}
+
+HgiShaderStage
+HdStHgiConversions::GetHgiShaderStage(const TfToken& hdShaderStage)
+{
+    static const std::unordered_map<
+        TfToken, HgiShaderStage, TfToken::HashFunctor> stages {
+        { HdShaderTokens->vertexShader, HgiShaderStageVertex },
+        { HdShaderTokens->tessControlShader,
+            HgiShaderStageTessellationControl },
+        { HdShaderTokens->tessEvalShader,HgiShaderStageTessellationEval },
+        { HdShaderTokens->geometryShader, HgiShaderStageGeometry },
+        { HdShaderTokens->fragmentShader, HgiShaderStageFragment },
+        { HdShaderTokens->postTessControlShader,
+            HgiShaderStagePostTessellationControl },
+        { HdShaderTokens->postTessVertexShader,
+            HgiShaderStagePostTessellationVertex },
+        { HdShaderTokens->computeShader, HgiShaderStageCompute } };
+    auto it = stages.find(hdShaderStage);
+    if (it == stages.end()) {
+        TF_CODING_ERROR("Unexpected Shader Stage Token %s",
+            hdShaderStage.GetText());
+        return HgiShaderStageAll;
+    }
+    return it->second;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

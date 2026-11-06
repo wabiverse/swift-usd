@@ -9,6 +9,8 @@
 
 #include "pxr/pxrns.h"
 
+#include "UsdImaging/api.h"
+
 #include "Hd/filteringSceneIndex.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -264,7 +266,7 @@ public:
     // If the given path is for an instancer in this scene index, returns the
     // name of the prototype that this instancer is meant to instance.
     // Otherwise, return empty token.
-    static
+    USDIMAGING_API static
     TfToken GetPrototypeNameFromInstancerPath(const SdfPath &primPath);
 
     // If the given path is for an instancer in this scene index, returns
@@ -273,7 +275,7 @@ public:
     //
     // That is the data source of that scope needs to be used when resolving
     // the opinions on the prototype that this instancer is meant to instance.
-    static
+    USDIMAGING_API static
     SdfPath GetBindingScopeFromInstancerPath(const SdfPath &primPath);
 
 private:
@@ -301,6 +303,7 @@ private:
         UsdImaging_NiInstanceAggregationSceneIndex * const _owner;
     };
 
+    USDIMAGING_API
     UsdImaging_NiInstanceAggregationSceneIndex(
         HdSceneIndexBaseRefPtr const &inputScene,
         bool forNativePrototype,

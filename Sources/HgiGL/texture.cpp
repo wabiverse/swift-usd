@@ -7,6 +7,7 @@
 #include "Garch/glApi.h"
 
 #include "Hgi/sampler.h"
+#include "HgiGL/contextArena.h"
 #include "HgiGL/diagnostic.h"
 #include "HgiGL/conversions.h"
 #include "HgiGL/texture.h"
@@ -389,6 +390,12 @@ HgiGLTexture::HgiGLTexture(HgiTextureViewDesc const & desc)
 
 HgiGLTexture::~HgiGLTexture()
 {
+    for (auto& entry : _framebuffers) {
+        if (std::shared_ptr<FramebufferCacheItem> item = entry.first.lock()) {
+            entry.second->InvalidateCacheItem(item);
+        }
+    }
+
     if (_textureId > 0) {
         glDeleteTextures(1, &_textureId);
         _textureId = 0;
@@ -430,6 +437,14 @@ HgiTextureUsage
 HgiGLTexture::SubmitLayoutChange(HgiTextureUsage newLayout)
 {
     return 0;
+}
+
+void
+HgiGLTexture::AddFramebuffer(
+    std::weak_ptr<FramebufferCacheItem> cacheItem,
+    HgiGLContextArena* arena)
+{
+    _framebuffers.emplace_back(cacheItem, arena);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

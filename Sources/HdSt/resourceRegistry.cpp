@@ -230,6 +230,16 @@ HdStResourceRegistry::GetResourceAllocation() const
     return result;
 }
 
+VtDictionary
+HdStResourceRegistry::GetDetailedResourceAllocation() const
+{
+    VtDictionary result;
+    result[HdPerfTokens->stats] = GetResourceAllocation();
+    result[HdPerfTokens->textureAllocations] =
+        _textureHandleRegistry->GetTextureObjectRegistry()->GetAllocInfo();
+    return result;
+}
+
 Hgi*
 HdStResourceRegistry::GetHgi()
 {

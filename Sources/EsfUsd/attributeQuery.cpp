@@ -48,15 +48,15 @@ EsfUsd_AttributeQuery::_GetSpline() const
 }
 
 bool
-EsfUsd_AttributeQuery::_ValueMightBeTimeVarying() const
+EsfUsd_AttributeQuery::_ValueSourceMightBeTimeVarying() const
 {
-    return _attributeQuery.ValueMightBeTimeVarying();
+    return _attributeQuery.ValueSourceMightBeTimeVarying();
 }
 
 bool
 EsfUsd_AttributeQuery::_IsTimeVarying(UsdTimeCode from, UsdTimeCode to) const
 {
-    if (!_ValueMightBeTimeVarying()) {
+    if (!_ValueSourceMightBeTimeVarying()) {
         return false;
     }
 

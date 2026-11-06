@@ -43,7 +43,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 );
 
 
-HdStSimpleLightingShader::HdStSimpleLightingShader() 
+HdStSimpleLightingShader::HdStSimpleLightingShader(const Hgi* hgi) 
     : _lightingContext(GlfSimpleLightingContext::New())
     , _glslfx(std::make_unique<HioGlslfx>(HdStPackageSimpleLightingShader()))
     , _domeLightCubemapTargetMemoryMB(0)
@@ -54,6 +54,11 @@ HdStSimpleLightingShader::HdStSimpleLightingShader()
             {},
             HdStTokens->shadowCompareTextures.Hash()})
     , _renderParam(nullptr)
+    , _maxShadows(hgi ?
+        std::min(
+            (size_t) 32, 
+            hgi->GetCapabilities()->GetMaxSamplersPerShaderStage() / 2)
+        : 16)
 {
 }
 

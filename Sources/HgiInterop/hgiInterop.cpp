@@ -52,7 +52,8 @@ void HgiInterop::TransferToApp(
     HgiTextureHandle const &srcDepth,
     TfToken const &dstApi,
     VtValue const &dstFramebuffer,
-    GfVec4i const &dstRegion)
+    GfVec4i const &dstRegion,
+    GfVec4f const &normalizedSrcRegion)
 {
     TfToken const& srcApi = srcHgi->GetAPIName();
 
@@ -70,7 +71,7 @@ void HgiInterop::TransferToApp(
                 std::make_unique<HgiInteropOpenGL>();
         }
         return _hgiInteropImpl->_openGLToOpenGL->CompositeToInterop(
-            srcColor, srcDepth, dstFramebuffer, dstRegion);
+            srcColor, srcDepth, dstFramebuffer, dstRegion, normalizedSrcRegion);
     }
 #endif
 
@@ -86,7 +87,7 @@ void HgiInterop::TransferToApp(
                 std::make_unique<HgiInteropVulkan>(srcHgi);
         }
         return _hgiInteropImpl->_vulkanToOpenGL->CompositeToInterop(
-            srcColor, srcDepth, dstFramebuffer, dstRegion);
+            srcColor, srcDepth, dstFramebuffer, dstRegion, normalizedSrcRegion);
     }
 #endif
 
@@ -102,7 +103,7 @@ void HgiInterop::TransferToApp(
                 std::make_unique<HgiInteropMetal>(srcHgi);
         }
         return _hgiInteropImpl->_metalToOpenGL->CompositeToInterop(
-            srcColor, srcDepth, dstFramebuffer, dstRegion);
+            srcColor, srcDepth, dstFramebuffer, dstRegion, normalizedSrcRegion);
     }
 #endif
 

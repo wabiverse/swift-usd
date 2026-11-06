@@ -121,6 +121,7 @@
       ("swift-usd_UsdMedia.resources", usdMediaPlugInfo),
       ("swift-usd_UsdMtlx.resources", usdMtlxPlugInfo),
       ("swift-usd_UsdPhysics.resources", usdPhysicsPlugInfo),
+      ("swift-usd_UsdPmc.resources", usdPmcPlugInfo),
       ("swift-usd_UsdProc.resources", usdProcPlugInfo),
       ("swift-usd_UsdRender.resources", usdRenderPlugInfo),
       ("swift-usd_UsdRi.resources", usdRiPlugInfo),
@@ -763,6 +764,35 @@
           },
           "LibraryPath": "",
           "Name": "UsdMtlx",
+          "ResourcePath": ".",
+          "Root": ".",
+          "Type": "library"
+        }
+      ]
+    }
+    """
+
+    // MARK: - UsdPmc
+
+    private static let usdPmcPlugInfo = """
+    {
+      "Plugins": [
+        {
+          "Info": {
+            "Types": {
+              "UsdPmcFileFormat": {
+                "bases": ["SdfFileFormat"],
+                "displayName": "USD integration of the PMC compression (AOM)",
+                "extensions": ["pmc"],
+                "formatId": "pmc",
+                "primary": true,
+                "supportsWriting": false,
+                "target": "usd"
+              }
+            }
+          },
+          "LibraryPath": "",
+          "Name": "UsdPmc",
           "ResourcePath": ".",
           "Root": ".",
           "Type": "library"

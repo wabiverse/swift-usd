@@ -80,7 +80,7 @@ public enum Hydra
 #endif // canImport(Metal)
     
     #if canImport(UsdImagingGL)
-    let engine: UsdImagingGL.Engine
+    var engine: UsdImagingGL.Engine!
     #else
     // apple/swiftusd's engine type is a value type:
     // https://github.com/apple/SwiftUsd/issues/27
@@ -89,11 +89,14 @@ public enum Hydra
     
     private var populateTask: Task<Void, Never>?
 
+    /// Builds an imaging engine over the pseudo root, the same way for each stage the view shows.
+    private var makeEngine: (() -> UsdImagingGL.Engine)!
+
     /// Picking/selection state.
     var pickState = PickState()
     
-    /// The serial queue every frame of engine work runs on.
-    public let frameQueue = DispatchQueue(label: "hydra.frame", qos: .userInteractive)
+    /// The serial queue every frame of engine work runs on, shared with the engine this one was made sharing.
+    public let frameQueue: DispatchQueue
     private let frameQueueKey = DispatchSpecificKey<UInt8>()
     
     /// Guards the coast/animation state.
@@ -147,9 +150,12 @@ public enum Hydra
                          allowAsynchronousSceneProcessing: Bool = false,
                          enableUsdDrawModes: Bool = true,
                          displayUnloadedPrimsWithBounds: Bool = false,
-                         gpuEnabled: Bool = true)
+                         gpuEnabled: Bool = true,
+                         sharing host: Hydra.RenderEngine? = nil)
     {
       self.stage = stage
+      // an engine sharing another's renders on its device and between its frames, never alongside them.
+      frameQueue = host?.frameQueue ?? DispatchQueue(label: "hydra.frame", qos: .userInteractive)
 
       // tag the frame queue before anything can post to it.
       frameQueue.setSpecific(key: frameQueueKey, value: 1)
@@ -159,41 +165,39 @@ public enum Hydra
       self.selectionOutlineWidth = Int32(selectionOutlineWidth)
 
 #if canImport(Metal)
-      hgi = HgiMetal.createHgi()
+      hgi = host?.hgi ?? HgiMetal.createHgi()
 #else // !canImport(Metal)
-      hgi = HgiGL.createHgi()
+      hgi = host?.hgi ?? HgiGL.createHgi()
 #endif // canImport(Metal)
       
       let driver = HdDriver(name: .renderDriver, driver: hgi.value)
 
-      engine = UsdImagingGL.Engine.createEngine(
-        rootPath: stage.getPseudoRoot().getPath(),
-        excludedPaths: excludedPaths,
-        invisedPaths: invisedPaths,
-        sceneDelegateId: sceneDelegateId,
-        driver: driver,
-        rendererPluginId: rendererPluginId,
-        gpuEnabled: gpuEnabled,
-        displayUnloadedPrimsWithBounds: displayUnloadedPrimsWithBounds,
-        allowAsynchronousSceneProcessing: allowAsynchronousSceneProcessing,
-        enableUsdDrawModes: enableUsdDrawModes
-      )
-
-      engine.setEnablePresentation(false)
-      #if canImport(UsdImagingGL)
-        // we needed to patch the engine to expose SetViewportRenderOutput,
-        // so render the id AOVs the selection outline reads while keeping
-        // color as the shown output (more than one AOV otherwise causes
-        // the viewport to render blank).
-        engine.setRendererAovs([.color, .primId, .instanceId, .depth])
-        engine.setViewportRenderOutput(.color)
-      #else
-        // apple/SwiftUsd's engine has no viewport output control and no
-        // render-buffer texture accessor, so the outline is unavailable
-        // there, just render color.
-        engine.setRendererAov(.color)
-      #endif // canImport(UsdImagingGL)
-      engine.setSelectionColor(selectionColor)
+      let make: () -> UsdImagingGL.Engine =
+      {
+        let engine = UsdImagingGL.Engine.createEngine(
+          rootPath: SdfPath.absoluteRootPath(),
+          excludedPaths: excludedPaths,
+          invisedPaths: invisedPaths,
+          sceneDelegateId: sceneDelegateId,
+          driver: driver,
+          rendererPluginId: rendererPluginId,
+          gpuEnabled: gpuEnabled,
+          displayUnloadedPrimsWithBounds: displayUnloadedPrimsWithBounds,
+          allowAsynchronousSceneProcessing: allowAsynchronousSceneProcessing,
+          enableUsdDrawModes: enableUsdDrawModes
+        )
+        engine.setEnablePresentation(false)
+        #if canImport(UsdImagingGL)
+          engine.setRendererAovs([.color, .primId, .instanceId, .depth])
+          engine.setViewportRenderOutput(.color)
+        #else
+          engine.setRendererAov(.color)
+        #endif // canImport(UsdImagingGL)
+        engine.setSelectionColor(selectionColor)
+        return engine
+      }
+      makeEngine = make
+      engine = make()
 
       // support for a user provided camera, the default
       // camera is automatically framed to the stage.
@@ -212,6 +216,20 @@ public enum Hydra
       currentTimeCode = stage.getStartTimeCode()
     }
     
+    /// Shows `stage` from now on: the old imaging engine and its renderer go first, so the old
+    /// prims are gone before the new stage's sync, then a new engine populates from it and the
+    /// camera frames it. Call it on the frame queue.
+    public func replaceStage(_ newStage: UsdStage)
+    {
+      engine = nil
+      stage = newStage
+      engine = makeEngine()
+      pickState = PickState()
+      viewCamera = Hydra.Camera(isZUp: UsdGeom.getUpAxis(for: newStage) == .z)
+      setupCamera()
+      currentTimeCode = newStage.getStartTimeCode()
+    }
+
     #if canImport(Hgi)
     public typealias RenderTexture = Optional<Pixar.HgiTexture>
     #else

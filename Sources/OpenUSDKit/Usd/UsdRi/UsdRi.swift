@@ -18,3 +18,9 @@
 
 public enum UsdRi
 {}
+
+public extension Tf.Token
+{
+  /// "ri", RenderMan's render context, for material terminals like `outputs:ri:surface`.
+  nonisolated(unsafe) static let riRenderContext = Pixar.UsdRiTokensType().renderContext
+}

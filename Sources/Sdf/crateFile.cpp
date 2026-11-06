@@ -43,6 +43,7 @@
 #include "Tf/hash.h"
 #include "Tf/mallocTag.h"
 #include "Tf/ostreamMethods.h"
+#include "Tf/preprocessorUtilsLite.h"
 #include "Tf/pxrTslRobinMap/robin_set.h"
 #include "Tf/registryManager.h"
 #include "Tf/safeOutputFile.h"
@@ -57,6 +58,7 @@
 #include "Vt/dictionary.h"
 #include "Vt/value.h"
 #include "Work/dispatcher.h"
+#include "Work/isolatingDispatcher.h"
 #include "Work/singularTask.h"
 #include "Work/utils.h"
 #include "Work/withScopedParallelism.h"
@@ -154,10 +156,17 @@ TF_REGISTRY_FUNCTION(TfType) {
     TfType::Define<Sdf_CrateFile::TimeSamples>();
 }
 
-#define OLDEST_SUPPORTED_VERSION "0.0.1" // versions prior are unsupported
+// The oldest file version this software supports.  Versions prior are
+// unsupported.  Overriding this may produce a build with known security risks.
+#ifndef PXR_USDC_OLDEST_SUPPORTED_VERSION
+#define PXR_USDC_OLDEST_SUPPORTED_VERSION 0.4.0
+#endif
+
+#define OLDEST_SUPPORTED_VERSION                        \
+    TF_PP_STRINGIZE(PXR_USDC_OLDEST_SUPPORTED_VERSION)
+
 #define OLDEST_CURRENT_VERSION   "0.8.0" // versions prior until
                                          // oldest-supported are deprecated
-
 #define DEFAULT_NEW_VERSION      "0.8.0" // default version for new files
 
 TF_DEFINE_ENV_SETTING(
@@ -382,6 +391,7 @@ using std::unordered_map;
 using std::vector;
 
 // Version history:
+// 0.16.0: Added support for GfDuration values.
 // 0.15.0: Added support for loopBoundaryTime-delimited spline extrapolation
 //         loops and GfTimeCode-native splines.
 // 0.14.0: Added support for ArrayEdits.
@@ -403,7 +413,7 @@ using std::vector;
 //         See _PathItemHeader_0_0_1.
 //  0.0.1: Initial release.
 constexpr uint8_t USDC_MAJOR = 0;
-constexpr uint8_t USDC_MINOR = 15;
+constexpr uint8_t USDC_MINOR = 16;
 constexpr uint8_t USDC_PATCH = 0;
 
 constexpr CrateFile::Version
@@ -965,7 +975,7 @@ private:
     // Queue of pending write operations.
     tbb::concurrent_queue<_WriteOp> _writeQueue;
 
-    WorkDispatcher _dispatcher;
+    WorkIsolatingDispatcher _dispatcher;
     WorkSingularTask _writeTask;
 };
 
@@ -1258,6 +1268,9 @@ public:
         else if constexpr (std::is_same_v<T, GfTimeCode>) {
             return GfTimeCode(Read<double>());
         }
+        else if constexpr (std::is_same_v<T, GfDuration>) {
+            return GfDuration(Read<double>());
+        }
         else if constexpr (std::is_same_v<T, SdfUnregisteredValue>) {
             VtValue val = Read<VtValue>();
             if (val.IsHolding<string>())
@@ -1513,9 +1526,16 @@ public:
             "crate version 0.9.0.");
         Write(tc.GetValue()); 
     }
+    void Write(GfDuration const &dur) { 
+        crate->_packCtx->RequestWriteVersionUpgrade(
+            Version(0, 16, 0),
+            "A duration or duration[] value type was detected which requires "
+            "crate version 0.16.0.");
+        Write(dur.GetValue()); 
+    }
     void Write(SdfPathExpression const &pathExpr) {
         crate->_packCtx->RequestWriteVersionUpgrade(
-            Version(0,10,0),
+            Version(0, 10, 0),
             "A pathExpression value type was detected which requires crate "
             "version 0.10.0.");
         Write(pathExpr.GetText());
@@ -1633,6 +1653,7 @@ public:
                 "A spline tangent algorithm was detected which requires crate"
                 " version 0.13.0.");
             break;
+
           case 3: // looped extrapolation with loopBoundaryTime set
                   // or GfTimeCode-native spline
             crate->_packCtx->RequestWriteVersionUpgrade(
@@ -1640,6 +1661,13 @@ public:
                 "A spline loopBoundaryTime parameter on looping extrapolation "
                 "or GfTimeCode-native spline was detected which requires "
                 "crate version 0.15.0.");
+            break;
+
+          case 4: // GfDuration valued spline.
+            crate->_packCtx->RequestWriteVersionUpgrade(
+                Version(0,16,0),
+                "A GfDuration spline was detected which requires "
+                "crate version 0.16.0.");
             break;
 
           default:
@@ -2672,6 +2700,11 @@ CrateFile::~CrateFile()
 CrateFile::Packer
 CrateFile::StartPacking(string const &fileName)
 {
+    // If we have a backing asset, we are updating it in place: fileName must
+    // name that same asset.  Held ValueReps are byte offsets into it and are
+    // written back unchanged, and _PackingContext only rewrites the sections
+    // above _toc.GetMinimumSectionStart().  See the comment on
+    // Sdf_CrateDataImpl::SaveInPlace.
     auto out = ArGetResolver().OpenAssetForWrite(
         ArResolvedPath(fileName), 
         _assetPath.empty() ? 
@@ -3425,6 +3458,8 @@ CrateFile::_ReadStructuralSections(Reader reader, int64_t fileSize)
     TfErrorMark m;
     try {
         _boot = _ReadBootStrap(reader.src, fileSize);
+        // Reject unsupported versions before reading anything else.
+        if (m.IsClean()) _CheckFileVersion();
         if (m.IsClean()) _toc = _ReadTOC(reader, _boot);
         if (m.IsClean()) _PrefetchStructuralSections(reader);
         if (m.IsClean()) _ReadTokens(reader);
@@ -3439,35 +3474,6 @@ CrateFile::_ReadStructuralSections(Reader reader, int64_t fileSize)
         _specs.clear();
         _fieldSets.clear();
         _fields.clear();
-    }
-
-    const Version assetVersion(_boot.version);
-
-    // Disallow loading unsupported versions.
-    static Version oldestSupportedVersion =
-        Version::FromString(OLDEST_SUPPORTED_VERSION);
-    if (assetVersion < oldestSupportedVersion) {
-        TF_RUNTIME_ERROR(
-            "Cannot read asset @%s@ with obsolete version '%s'. The oldest "
-            "version this software supports is " OLDEST_SUPPORTED_VERSION ". "
-            "See the OpenUSD FAQ for information about handling obsolete "
-            "assets. https://openusd.org/release/usdfaq.html",
-            _assetPath.c_str(), assetVersion.AsFullString().c_str());
-        return;
-    }
-    
-    // Warn if the version is less than the deprecated version.
-    static Version oldestCurrentVersion =
-        Version::FromString(OLDEST_CURRENT_VERSION);
-    if (assetVersion < oldestCurrentVersion &&
-        TfGetEnvSetting(PXR_USDC_EMIT_DEPRECATION_WARNINGS)) {
-        TF_WARN(
-            "Asset @%s@ has deprecated version '%s'. Future versions of USD "
-            "will not be able to read it. See the OpenUSD FAQ for information "
-            "about handling deprecated assets. "
-            "https://openusd.org/release/usdfaq.html  Disable this warning by "
-            "setting PXR_USDC_EMIT_DEPRECATION_WARNINGS=0 in the environment.",
-            _assetPath.c_str(), assetVersion.AsFullString().c_str());
     }
 
     if constexpr (SafetyOverSpeed) {
@@ -3551,6 +3557,39 @@ CrateFile::_ReadBootStrap(ByteStream src, int64_t fileSize)
             b.tocOffset, fileSize);
     }
     return b;
+}
+
+void
+CrateFile::_CheckFileVersion() const
+{
+    const Version assetVersion(_boot.version);
+
+    // Disallow loading unsupported versions.
+    static Version oldestSupportedVersion =
+        Version::FromString(OLDEST_SUPPORTED_VERSION);
+    if (assetVersion < oldestSupportedVersion) {
+        TF_RUNTIME_ERROR(
+            "Cannot read asset @%s@ with obsolete version %s. The oldest "
+            "version this software supports is " OLDEST_SUPPORTED_VERSION ". "
+            "See the OpenUSD FAQ for information about handling obsolete "
+            "assets. https://openusd.org/release/usdfaq.html",
+            _assetPath.c_str(), assetVersion.AsFullString().c_str());
+        return;
+    }
+
+    // Warn if the version is less than the deprecated version.
+    static Version oldestCurrentVersion =
+        Version::FromString(OLDEST_CURRENT_VERSION);
+    if (assetVersion < oldestCurrentVersion &&
+        TfGetEnvSetting(PXR_USDC_EMIT_DEPRECATION_WARNINGS)) {
+        TF_WARN(
+            "Asset @%s@ has deprecated version %s. Future versions of USD "
+            "will not be able to read it. See the OpenUSD FAQ for information "
+            "about handling deprecated assets. "
+            "https://openusd.org/release/usdfaq.html  Disable this warning by "
+            "setting PXR_USDC_EMIT_DEPRECATION_WARNINGS=0 in the environment.",
+            _assetPath.c_str(), assetVersion.AsFullString().c_str());
+    }
 }
 
 template <class Reader>

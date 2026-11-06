@@ -113,14 +113,10 @@ HgiVulkanBuffer::HgiVulkanBuffer(
             copyRegion.size = stagingDesc.byteSize;
             vkCmdCopyBuffer(vkCmdBuf, vkStagingBuf, _vkBuffer, 1, &copyRegion);
 
-            VkBufferMemoryBarrier memoryBarrier {
-                VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-            memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-            memoryBarrier.dstAccessMask =
-                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-            memoryBarrier.buffer = _vkBuffer;
-            memoryBarrier.offset = 0;
-            memoryBarrier.size = stagingDesc.byteSize;
+            VkBufferMemoryBarrier memoryBarrier =
+                 GetBarrier(VK_ACCESS_MEMORY_WRITE_BIT,
+                    VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+
             vkCmdPipelineBarrier(
                 vkCmdBuf,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -231,6 +227,22 @@ HgiVulkanBuffer::Map() const
     void* memory = nullptr;
     HGIVULKAN_VERIFY_VK_RESULT(vmaMapMemory(vma, _vmaAllocation, &memory));
     return HgiVulkanMappedBufferUniquePointer(memory, {vma, _vmaAllocation});
+}
+
+VkBufferMemoryBarrier HgiVulkanBuffer::GetBarrier(
+    VkAccessFlags srcAccess,
+    VkAccessFlags dstAccess) const
+{
+    VkBufferMemoryBarrier bufferBar =
+        { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr };
+    bufferBar.buffer = GetVulkanBuffer();
+    bufferBar.offset = 0;
+    bufferBar.size = GetByteSizeOfResource();
+    bufferBar.srcAccessMask = srcAccess;
+    bufferBar.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBar.dstAccessMask = dstAccess;
+    bufferBar.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    return bufferBar;
 }
 
 std::unique_ptr<HgiVulkanBuffer>

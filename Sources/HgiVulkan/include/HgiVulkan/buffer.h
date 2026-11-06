@@ -106,6 +106,12 @@ public:
     HGIVULKAN_API
     HgiVulkanMappedBufferUniquePointer Map() const;
 
+    // Returns a VkBufferMemoryBarrier for the buffer.
+    HGIVULKAN_API
+    VkBufferMemoryBarrier GetBarrier(
+        VkAccessFlags srcAccess,
+        VkAccessFlags dstAccess) const;
+
 protected:
     friend class HgiVulkan;
 

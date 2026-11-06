@@ -36,3 +36,9 @@
  * - ``Ndr/Property``: Represents a property (input or output) that is part of a ``Ndr/Node``. */
 public enum Sdr
 {}
+
+public extension Tf.Token
+{
+  /// The `widget` hint a shader property is shown with as a checkbox.
+  static let checkBox = Tf.Token("checkBox")
+}

@@ -336,9 +336,9 @@ public:
     }
 
     void AddDesc(const TfToken &name, const TfToken &interpolation,
-        const TfToken &role, bool indexed)
+        const TfToken &role, bool indexed, int elementSize)
     {
-        _entries[name] = {interpolation, role, indexed};
+        _entries[name] = {interpolation, role, indexed, elementSize};
     }
 
     TfTokenVector GetNames() override
@@ -358,6 +358,16 @@ public:
             return nullptr;
         }
 
+        // Convert elementSize to data source.
+        // Use a static DS for the default case of 1.
+        const int elemSize = it->second.elementSize;
+        static const HdIntDataSourceHandle elementSizeOneDs =
+            HdRetainedTypedSampledDataSource<int>::New(1);
+        HdIntDataSourceHandle elementSizeDs =
+            (elemSize == 1)
+            ? elementSizeOneDs
+            : HdRetainedTypedSampledDataSource<int>::New(elemSize);
+
         if ((*it).second.indexed) {
             return HdPrimvarSchema::Builder()
                 .SetIndexedPrimvarValue(
@@ -372,6 +382,7 @@ public:
                 .SetRole(
                     HdPrimvarSchema::BuildRoleDataSource(
                         (*it).second.role))
+                .SetElementSize(elementSizeDs)
                 .Build();
         } else {
             return HdPrimvarSchema::Builder()
@@ -384,6 +395,7 @@ public:
                 .SetRole(
                     HdPrimvarSchema::BuildRoleDataSource(
                         (*it).second.role))
+                .SetElementSize(elementSizeDs)
                 .Build();
         }
     }
@@ -394,6 +406,7 @@ private:
         TfToken interpolation;
         TfToken role;
         bool indexed;
+        int elementSize;
     };
 
     using _EntryMap =  TfDenseHashMap<TfToken, _Entry,
@@ -2269,11 +2282,7 @@ public:
             }
         }
 
-        // Note: Skip 'active' and 'shutterInterval' fields which are computed
-        //       by a downstream scene index.
-
-        return HdSampledDataSourceHandle(
-            Hd_GenericGetSampledDataSource::New(_sceneDelegate, _id, name));
+        return nullptr;
     }
 
 private:
@@ -2667,7 +2676,7 @@ HdDataSourceLegacyPrim::_GetPrimvarsDataSource()
             }
             primvarsDs->AddDesc(
                 primvarDesc.name, interpolationToken, primvarDesc.role,
-                primvarDesc.indexed);
+                primvarDesc.indexed, primvarDesc.elementSize);
         }
     }
 

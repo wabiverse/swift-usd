@@ -48,9 +48,11 @@ static const char* _fragmentNoDepthFullscreen120 =
     "#version 120\n"
     "varying vec2 uv;\n"
     "uniform sampler2D colorIn;\n"
+    "uniform vec4 srcRegion;\n"
     "void main(void)\n"
     "{\n"
-    "    gl_FragColor = texture2D(colorIn, uv);\n"
+    "    vec2 remappedUv = srcRegion.xy + uv * srcRegion.zw;\n"
+    "    gl_FragColor = texture2D(colorIn, remappedUv);\n"
     "}\n";
 
 static const char* _fragmentNoDepthFullscreen140 =
@@ -58,9 +60,11 @@ static const char* _fragmentNoDepthFullscreen140 =
     "in vec2 uv;\n"
     "out vec4 colorOut;\n"
     "uniform sampler2D colorIn;\n"
+    "uniform vec4 srcRegion;\n"
     "void main(void)\n"
     "{\n"
-    "    colorOut = texture(colorIn, uv);\n"
+    "    vec2 remappedUv = srcRegion.xy + uv * srcRegion.zw;\n"
+    "    colorOut = texture(colorIn, remappedUv);\n"
     "}\n";
 
 static const char* _fragmentDepthFullscreen120 =
@@ -68,10 +72,12 @@ static const char* _fragmentDepthFullscreen120 =
     "varying vec2 uv;\n"
     "uniform sampler2D colorIn;\n"
     "uniform sampler2D depthIn;\n"
+    "uniform vec4 srcRegion;\n"
     "void main(void)\n"
     "{\n"
-    "    float depth = texture2D(depthIn, uv).r;\n"
-    "    gl_FragColor = texture2D(colorIn, uv);\n"
+    "    vec2 remappedUv = srcRegion.xy + uv * srcRegion.zw;\n"
+    "    float depth = texture2D(depthIn, remappedUv).r;\n"
+    "    gl_FragColor = texture2D(colorIn, remappedUv);\n"
     "    gl_FragDepth = depth;\n"
     "}\n";
 
@@ -81,10 +87,12 @@ static const char* _fragmentDepthFullscreen140 =
     "out vec4 colorOut;\n"
     "uniform sampler2D colorIn;\n"
     "uniform sampler2D depthIn;\n"
+    "uniform vec4 srcRegion;\n"
     "void main(void)\n"
     "{\n"
-    "    colorOut = texture(colorIn, uv);\n"
-    "    gl_FragDepth = texture(depthIn, uv).r;\n"
+    "    vec2 remappedUv = srcRegion.xy + uv * srcRegion.zw;\n"
+    "    colorOut = texture(colorIn, remappedUv);\n"
+    "    gl_FragDepth = texture(depthIn, remappedUv).r;\n"
     "}\n";
 
 static GLenum
@@ -588,7 +596,8 @@ HgiInteropVulkan::CompositeToInterop(
     HgiTextureHandle const &color,
     HgiTextureHandle const &depth,
     VtValue const &framebuffer,
-    GfVec4i const &compRegion)
+    GfVec4i const &compRegion,
+    GfVec4f const &normalizedSrcRegion)
 {
     if (!ARCH_UNLIKELY(color)) {
         TF_WARN("No valid color texture provided");
@@ -666,6 +675,13 @@ HgiInteropVulkan::CompositeToInterop(
     // Setup shader program
     const uint32_t prg = color && depth ? _prgDepth : _prgNoDepth;
     glUseProgram(prg);
+
+    {
+        const GLint locSrcRegion = glGetUniformLocation(prg, "srcRegion");
+        glUniform4f(locSrcRegion,
+                    normalizedSrcRegion[0], normalizedSrcRegion[1],
+                    normalizedSrcRegion[2], normalizedSrcRegion[3]);
+    }
 
     {
         glActiveTexture(GL_TEXTURE0);
