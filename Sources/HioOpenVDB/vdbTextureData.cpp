@@ -6,6 +6,7 @@
 //
 
 #include "HioOpenVDB/vdbTextureData.h"
+#include <algorithm>
 #include "HioOpenVDB/debugCodes.h"
 #include "HioOpenVDB/utils.h"
 

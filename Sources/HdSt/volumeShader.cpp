@@ -5,6 +5,7 @@
 // https://openusd.org/license.
 //
 #include "HdSt/volumeShader.h"
+#include <algorithm>
 
 #include "HdSt/tokens.h"
 #include "HdSt/volume.h"

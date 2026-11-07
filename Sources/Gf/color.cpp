@@ -5,6 +5,7 @@
 // https://openusd.org/license.
 //
 #include "pxr/pxrns.h"
+#include <algorithm>
 #include "Gf/color.h"
 #include "Gf/colorSpace.h"
 #include "Gf/ostreamHelpers.h"

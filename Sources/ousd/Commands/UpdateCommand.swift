@@ -980,6 +980,7 @@ public enum Pxr: String, CaseIterable
       Patch.garchAndroid(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       Patch.backPlateAPI(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent)
       Patch.arcRetainReleaseGuards(to: &pxrSrc, fileExtension: fileURL.pathExtension)
+      Patch.algorithmInclude(to: &pxrSrc)
       Patch.pythonIncludes(to: &pxrSrc)
       Patch.pythonGuards(to: &pxrSrc, fileBaseName: fileURL.deletingPathExtension().lastPathComponent, pythonOnlyBasenames: exclusions.pythonOnly)
       Patch.addMissingTokens(to: &pxrSrc, fileBaseName: fileURL.lastPathComponent, target: target)
@@ -3359,6 +3360,21 @@ public enum Pxr: String, CaseIterable
       // GetRawResource() is uint64_t; C-style cast to id<MTLTexture> disallowed under ARC - go via void*.
       source = source.replacingOccurrences(of: "colorTexture = id<MTLTexture>(color->GetRawResource());", with: "colorTexture = (__bridge id<MTLTexture>)(void*)color->GetRawResource();")
       source = source.replacingOccurrences(of: "depthTexture = id<MTLTexture>(depth->GetRawResource());", with: "depthTexture = (__bridge id<MTLTexture>)(void*)depth->GetRawResource();")
+    }
+
+    /**
+     * Adds missing includes for <algorithm> where std::min|max take an initializer
+     * list, to fix compiler errors when compiling under clang modules on Linux. */
+    public static func algorithmInclude(to source: inout String)
+    {
+      guard
+        source.range(of: #"std::(min|max|minmax)\(\{"#, options: .regularExpression) != nil,
+        !source.contains("#include <algorithm>"),
+        let first = source.range(of: "#include "),
+        let end = source[first.lowerBound...].firstIndex(of: "\n")
+      else { return }
+
+      source.insert(contentsOf: "\n#include <algorithm>", at: end)
     }
 
     /** Wraps [obj retain]/[obj release] lines in #if !__has_feature(objc_arc) guards (.m/.mm only). */
