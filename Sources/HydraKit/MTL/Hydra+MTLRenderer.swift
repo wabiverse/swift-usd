@@ -273,8 +273,11 @@ public extension Hydra
       guard
         view.drawableSize.width > 0,
         view.drawableSize.height > 0,
-        let layer = view.layer as? CAMetalLayer
+        let metalLayer = view.layer as? CAMetalLayer
       else { semaphore.signal(); return }
+
+      // CAMetalLayer hands out drawables from any thread, the frame queue draws to it alone.
+      nonisolated(unsafe) let layer = metalLayer
 
       // drawFrame gets a fresh drawable after hgi commits,
       // at the engine's current timecode (the stage's start

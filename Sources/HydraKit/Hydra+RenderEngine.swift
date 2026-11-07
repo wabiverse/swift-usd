@@ -174,23 +174,41 @@ public enum Hydra
 
       let make: () -> UsdImagingGL.Engine =
       {
-        let engine = UsdImagingGL.Engine.createEngine(
-          rootPath: SdfPath.absoluteRootPath(),
-          excludedPaths: excludedPaths,
-          invisedPaths: invisedPaths,
-          sceneDelegateId: sceneDelegateId,
-          driver: driver,
-          rendererPluginId: rendererPluginId,
-          gpuEnabled: gpuEnabled,
-          displayUnloadedPrimsWithBounds: displayUnloadedPrimsWithBounds,
-          allowAsynchronousSceneProcessing: allowAsynchronousSceneProcessing,
-          enableUsdDrawModes: enableUsdDrawModes
-        )
+        func create() -> UsdImagingGL.Engine
+        {
+          UsdImagingGL.Engine.createEngine(
+            rootPath: SdfPath.absoluteRootPath(),
+            excludedPaths: excludedPaths,
+            invisedPaths: invisedPaths,
+            sceneDelegateId: sceneDelegateId,
+            driver: driver,
+            rendererPluginId: rendererPluginId,
+            gpuEnabled: gpuEnabled,
+            displayUnloadedPrimsWithBounds: displayUnloadedPrimsWithBounds,
+            allowAsynchronousSceneProcessing: allowAsynchronousSceneProcessing,
+            enableUsdDrawModes: enableUsdDrawModes
+          )
+        }
+
+        #if canImport(UsdImagingGL)
+          let engine = create()
+        #else
+          // apple/swiftusd's engine type is a value type:
+          // https://github.com/apple/SwiftUsd/issues/27
+          var engine = create()
+        #endif // canImport(UsdImagingGL)
         engine.setEnablePresentation(false)
         #if canImport(UsdImagingGL)
+          // we needed to patch the engine to expose SetViewportRenderOutput,
+          // so render the id AOVs the selection outline reads while keeping
+          // color as the shown output (more than one AOV otherwise causes
+          // the viewport to render blank).
           engine.setRendererAovs([.color, .primId, .instanceId, .depth])
           engine.setViewportRenderOutput(.color)
         #else
+          // apple/SwiftUsd's engine has no viewport output control and no
+          // render-buffer texture accessor, so the outline is unavailable
+          // there, just render color.
           engine.setRendererAov(.color)
         #endif // canImport(UsdImagingGL)
         engine.setSelectionColor(selectionColor)
@@ -221,7 +239,9 @@ public enum Hydra
     /// camera frames it. Call it on the frame queue.
     public func replaceStage(_ newStage: UsdStage)
     {
-      engine = nil
+      #if canImport(UsdImagingGL)
+        engine = nil
+      #endif // canImport(UsdImagingGL)
       stage = newStage
       engine = makeEngine()
       pickState = PickState()
