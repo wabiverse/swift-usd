@@ -25,3 +25,21 @@ public extension Vt
   typealias Vec3fArray = VtVec3fArray
   typealias FloatArray = VtFloatArray
 }
+
+#if !canImport(Gf)
+  public extension Overlay
+  {
+    /// read only access to the shared storage.
+    static func cdata<T: __Overlay.VtArray_Sequence>(_ array: T) -> UnsafePointer<T.ElementType>?
+    {
+      array.__cdataUnsafe()
+    }
+
+    /// one copy from a contiguous buffer.
+    static func vtArray<T: __Overlay.VtArrayProtocol>(_ src: UnsafePointer<T.ElementType>?, _ count: Int) -> T
+    {
+      guard let src, count > 0 else { return T() }
+      return T(UnsafeBufferPointer(start: src, count: count))
+    }
+  }
+#endif
