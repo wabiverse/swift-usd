@@ -425,11 +425,10 @@ public extension Hydra
       renderEncoder.popDebugGroup()
       renderEncoder.endEncoding()
 
-      #if os(macOS)
-        commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(fps))
-      #else // !os(macOS)
-        commandBuffer.present(drawable, atTime: 1.0 / Double(fps))
-      #endif // os(macOS)
+      // a relative pacing interval on every platform, `atTime` takes an absolute
+      // host time and a fixed one in the past has iOS show the first frame and
+      // drop every one after it.
+      commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(fps))
     }
 
     /// (Re)allocates the ping-pong jump-flood targets to match the id AOVs. The field stores

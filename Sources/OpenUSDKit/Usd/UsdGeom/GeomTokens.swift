@@ -77,6 +77,9 @@ public extension UsdGeom
     case proxy
     case render
     case faceVarying
+    case vertex
+    case varying
+    case uniform
     case constant
     case none_
     case normals
@@ -138,6 +141,9 @@ public extension UsdGeom
         case .proxy: StaticData.shared.tokens.proxy
         case .render: StaticData.shared.tokens.render
         case .faceVarying: StaticData.shared.tokens.faceVarying
+        case .vertex: StaticData.shared.tokens.vertex
+        case .varying: StaticData.shared.tokens.varying
+        case .uniform: StaticData.shared.tokens.uniform
         case .constant: StaticData.shared.tokens.constant
         case .none_: StaticData.shared.tokens.none
         case .normals: StaticData.shared.tokens.normals
@@ -204,6 +210,9 @@ public extension Tf.Token
   nonisolated(unsafe) static let render = UsdGeom.Tokens.render.token
 
   nonisolated(unsafe) static let faceVarying = UsdGeom.Tokens.faceVarying.token
+  nonisolated(unsafe) static let vertex = UsdGeom.Tokens.vertex.token
+  nonisolated(unsafe) static let varying = UsdGeom.Tokens.varying.token
+  nonisolated(unsafe) static let uniform = UsdGeom.Tokens.uniform.token
   nonisolated(unsafe) static let constant = UsdGeom.Tokens.constant.token
   nonisolated(unsafe) static let none_ = UsdGeom.Tokens.none_.token
   nonisolated(unsafe) static let normals = UsdGeom.Tokens.normals.token

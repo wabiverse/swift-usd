@@ -57,6 +57,10 @@ public extension UsdShade.Shader
     case pxrSurface = "PxrSurface"
     case usdPreviewSurface = "UsdPreviewSurface"
     case usdUVTexture = "UsdUVTexture"
+    case usdPrimvarReaderFloat = "UsdPrimvarReader_float"
+    case usdPrimvarReaderFloat2 = "UsdPrimvarReader_float2"
+    case usdPrimvarReaderFloat3 = "UsdPrimvarReader_float3"
+    case pxrPrimvar = "PxrPrimvar"
 
     public func getToken() -> Tf.Token
     {

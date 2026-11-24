@@ -51,6 +51,10 @@ public enum Hydra
     /// - `.openColorIO`: Activates OpenColorIO processing for advanced cinematic
     ///   tonemapping (requires a valid `.ocio` configuration).
     public var colorCorrectionMode: Tf.Token
+
+    /// How finely subdivision surfaces refine, from 1 for the authored cage up to 2,
+    /// each tenth one more uniform refinement, the refine level Hydra hands every mesh.
+    public var complexity: Float = 1.0
     
     /// The timecode to draw at. Defaults to the stage's authored start, so a
     /// time-sampled asset shows its first real frame instead of an arbitrary
@@ -281,6 +285,7 @@ public enum Hydra
       params.frame = Usd.TimeCode(timeCode)
       params.clearColor = .init(0.0, 0.0, 0.0, 1.0)
       params.colorCorrectionMode = self.colorCorrectionMode
+      params.complexity = complexity
       params.showGuides = true
       params.showRender = true
       params.showProxy = true

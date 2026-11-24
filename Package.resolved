@@ -1,5 +1,5 @@
 {
-  "originHash" : "9f4e4e4417ebd05cb374864e8d553a5716b5e064e56ffdafea02e10a11cf2304",
+  "originHash" : "fb36b0ef1702f272a9641cac84093c5f1665ce87fbd5f5f2470ed7b2d7605857",
   "pins" : [
     {
       "identity" : "androidkit",
@@ -15,17 +15,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/the-swift-collective/imgui",
       "state" : {
-        "revision" : "5bd25cffd4ad22635563aa29c59ebee56943964e",
-        "version" : "1.92.0"
+        "revision" : "4dbf0078f306bf09a864ff0ce293f9b44b77a450",
+        "version" : "1.92.1"
       }
     },
     {
-      "identity" : "jpeg",
+      "identity" : "libjpegturbo",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stackotter/jpeg",
+      "location" : "https://github.com/stackotter/libjpegturbo",
       "state" : {
-        "revision" : "a27e47f49479993b2541bc5f5c95d9354ed567a0",
-        "version" : "1.0.2"
+        "revision" : "cb9b2a6a7758b6bcc228a71fdbad1c9c80beb09d",
+        "version" : "0.1.4"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/the-swift-collective/libpng",
       "state" : {
-        "revision" : "0eff23aca92a086b7892831f5cb4f58e15be9449",
-        "version" : "1.6.45"
+        "revision" : "46ad07db4f36acd679b94f1cbbc1a66169f4d5b0",
+        "version" : "1.6.46"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/the-swift-collective/libwebp",
       "state" : {
-        "revision" : "5f745a17b9a5c2a4283f17c2cde4517610ab5f99",
-        "version" : "1.4.1"
+        "revision" : "71574b08e0796d9e97e289a0eae9b1178f7bab65",
+        "version" : "1.4.2"
       }
     },
     {
@@ -123,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wabiverse/MetaMaterialX.git",
       "state" : {
-        "revision" : "7e246653295a1fe11e276ce1e0210f854a83fea7",
-        "version" : "1.0.0"
+        "revision" : "95afbeda16c558581e9716196e6bc22c24be1447",
+        "version" : "1.0.1"
       }
     },
     {
@@ -177,8 +177,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wabiverse/MetaOpenImageIO.git",
       "state" : {
-        "revision" : "159d59c60497314c4ee9355df8d924876eb00ebf",
-        "version" : "1.0.0"
+        "revision" : "3b213c019a37b7045ea2a5059877944109cdba7a",
+        "version" : "1.0.1"
       }
     },
     {
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wabiverse/MetaOpenImageIO_Util.git",
       "state" : {
-        "revision" : "098ea1f1d23c6acc6346a9cba086efa52abaadea",
-        "version" : "1.0.0"
+        "revision" : "562f427db5c02e1ba2eed52c5b9b10c1afe2f92d",
+        "version" : "1.0.1"
       }
     },
     {
@@ -267,17 +267,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wabiverse/MetaTIFF.git",
       "state" : {
-        "revision" : "84e9de56f405a13e5d75168dcdc19409e62c82ca",
-        "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "metaturbojpeg",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/wabiverse/MetaTurboJPEG.git",
-      "state" : {
-        "revision" : "7290ecda8e1c260ca42dd44b7d713df46aa341b1",
-        "version" : "1.0.0"
+        "revision" : "edad82f89b80f477c4fe3f0ae1b84e84d968f68a",
+        "version" : "1.0.1"
       }
     },
     {
@@ -330,8 +321,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections",
       "state" : {
-        "revision" : "3b69cedbaa49957e97c092ae400bb57602ef941f",
-        "version" : "1.7.2"
+        "revision" : "88754449ab766a739610b660e117762115fabc9c",
+        "version" : "1.7.6"
       }
     },
     {
@@ -339,8 +330,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/moreSwift/swift-cross-ui.git",
       "state" : {
-        "revision" : "0f3ec3958b79cdc39a1a3e604516b71ab33a9043",
-        "version" : "0.10.0"
+        "revision" : "f673fcd5201ae8f94bd0a6bf8c3aaa6882084740",
+        "version" : "0.11.0"
       }
     },
     {
@@ -366,8 +357,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stackotter/swift-image-formats",
       "state" : {
-        "revision" : "d735e0ed3d4a4aed50f4042494e7c769b5b70229",
-        "version" : "0.5.0"
+        "revision" : "c361fe1d8d7731d5e25991b50be8f964731794ab",
+        "version" : "0.6.1"
       }
     },
     {
@@ -375,8 +366,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-issue-reporting",
       "state" : {
-        "revision" : "75b000cea2ca6d7527a57e1b9cc0bdf21a9abe9f",
-        "version" : "2.1.1"
+        "revision" : "b23bb4493c439d3e05152bc167014235ba3d47fc",
+        "version" : "2.1.2"
       }
     },
     {
@@ -402,8 +393,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
-        "version" : "1.15.1"
+        "revision" : "c7413d967b97aae67c46452bf7645bdb7b200e8e",
+        "version" : "1.17.2"
       }
     },
     {
@@ -456,8 +447,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system",
       "state" : {
-        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
-        "version" : "1.8.1"
+        "revision" : "640e5755b5826f4437eaeedd366fd776737db62c",
+        "version" : "1.9.0"
       }
     },
     {
@@ -519,8 +510,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/the-swift-collective/zlib",
       "state" : {
-        "revision" : "f1d153b90420f9fcc6ef916cd67ea96f0e68d137",
-        "version" : "1.3.2"
+        "revision" : "d3a28ff8123e88d936333eef6d4d1ea2a05092d2",
+        "version" : "1.3.3"
       }
     }
   ],

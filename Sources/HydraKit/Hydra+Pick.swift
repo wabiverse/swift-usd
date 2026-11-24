@@ -173,6 +173,7 @@ public extension Hydra.RenderEngine
     // the pick tests the pose that is actually on
     // screen (see `lastRenderTimeCode`).
     params.frame = Usd.TimeCode(lastRenderTimeCode)
+    params.complexity = complexity
     params.showGuides = true
     params.showRender = true
     params.showProxy = true
