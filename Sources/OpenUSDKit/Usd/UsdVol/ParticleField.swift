@@ -15,7 +15,9 @@
 #else
   import OpenUSD
 #endif
-import simd
+#if canImport(simd)
+  import simd
+#endif
 
 public typealias UsdVolParticleField3DGaussianSplat = Pixar.UsdVolParticleField3DGaussianSplat
 
@@ -38,11 +40,29 @@ public extension UsdVol.ParticleField3DGaussianSplat
     UsdVol.ParticleField3DGaussianSplat.define(stage, path: .init(path))
   }
 
+  #if canImport(simd)
+    /// Writes a whole splat cloud, colors are linear
+    /// rgb written as degree zero spherical harmonics.
+    @discardableResult
+    func set(positions: [SIMD3<Float>],
+             orientations: [simd_quatf],
+             scales: [SIMD3<Float>],
+             opacities: [Float],
+             colors: [SIMD3<Float>],
+             time: Pixar.UsdTimeCode = Pixar.UsdTimeCode.Default()) -> Bool
+    {
+      set(positions: positions, orientations: orientations.map(\.vector), scales: scales,
+          opacities: opacities, colors: colors, time: time)
+    }
+  #endif
+
   /// Writes a whole splat cloud, colors are linear
-  /// rgb written as degree zero spherical harmonics.
+  /// rgb written as degree zero spherical harmonics,
+  /// orientations are quaternions laid out as the
+  /// imaginary xyz then the real part in w.
   @discardableResult
   func set(positions: [SIMD3<Float>],
-           orientations: [simd_quatf],
+           orientations: [SIMD4<Float>],
            scales: [SIMD3<Float>],
            opacities: [Float],
            colors: [SIMD3<Float>],
@@ -50,7 +70,7 @@ public extension UsdVol.ParticleField3DGaussianSplat
   {
     let p: Pixar.VtVec3fArray = positions.map { Pixar.GfVec3f($0.x, $0.y, $0.z) }
       .withUnsafeBufferPointer { Overlay.vtArray($0.baseAddress, $0.count) }
-    let q: Pixar.VtQuatfArray = orientations.map { Pixar.GfQuatf($0.real, $0.imag.x, $0.imag.y, $0.imag.z) }
+    let q: Pixar.VtQuatfArray = orientations.map { Pixar.GfQuatf($0.w, $0.x, $0.y, $0.z) }
       .withUnsafeBufferPointer { Overlay.vtArray($0.baseAddress, $0.count) }
     let s: Pixar.VtVec3fArray = scales.map { Pixar.GfVec3f($0.x, $0.y, $0.z) }
       .withUnsafeBufferPointer { Overlay.vtArray($0.baseAddress, $0.count) }
@@ -81,9 +101,9 @@ public extension UsdVol.ParticleField3DGaussianSplat
       var lo = positions[0], hi = positions[0]
       for (i, point) in positions.enumerated()
       {
-        let r = simd_reduce_max(i < scales.count ? scales[i] : .zero) * 3
-        lo = simd_min(lo, point - r)
-        hi = simd_max(hi, point + r)
+        let r = (i < scales.count ? scales[i] : .zero).max() * 3
+        lo = pointwiseMin(lo, point - r)
+        hi = pointwiseMax(hi, point + r)
       }
 
       extent = [Pixar.GfVec3f(lo.x, lo.y, lo.z), Pixar.GfVec3f(hi.x, hi.y, hi.z)]
