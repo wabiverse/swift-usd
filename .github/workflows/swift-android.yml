@@ -42,7 +42,7 @@ jobs:
       # Release and checksum retrieved from https://www.swift.org/api/v1/install/dev/6.3/android-sdk.json
       SWIFT_RELEASE: swift-6.3-DEVELOPMENT-SNAPSHOT-2026-05-01-a
       SWIFT_ANDROID_SDK_CHECKSUM: 27a0e63264d1b8512522d3a07407ae3d2774eb07d28279ef58e96d1dc2ab720d
-      SWIFT_BUNDLER_REVISION: e6909f16ae8b06dc956ba09a3cee1c4863c165bd
+      SWIFT_BUNDLER_TAG: v3.1.0-furby.1
       SWIFTUSD_ANDROID_SUPPORT_ENABLED: 1
     steps:
     - name: Setup Xcode 26.5 (Swift 6.3)
@@ -52,31 +52,18 @@ jobs:
     - name: Swift version
       run: swift --version
     - uses: actions/checkout@v3
-    - name: Restore Swift Bundler
-      id: restore-swift-bundler
-      uses: actions/cache/restore@v5
-      with:
-        path: ./swift-bundler
-        key: swift-bundler-${{ env.SWIFT_BUNDLER_REVISION }}
-    - name: Build Swift Bundler
-      if: steps.restore-swift-bundler.outputs.cache-hit != 'true'
+    - name: Install Swift Bundler
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -eux
-        checkout="$(pwd)"
-        cd ../
-        git clone https://github.com/moreSwift/swift-bundler
-        cd swift-bundler
-        git checkout $SWIFT_BUNDLER_REVISION
-        swift build -c debug --product swift-bundler
-        cp .build/debug/swift-bundler $checkout/swift-bundler
-    - name: Cache Swift Bundler
-      id: cache-swift-bundler
-      if: steps.restore-swift-bundler.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v5
-      with:
-        path: ./swift-bundler
-        key: ${{ steps.restore-swift-bundler.outputs.cache-primary-key }}
+        gh release download "$SWIFT_BUNDLER_TAG" --repo furbytm/swift-bundler --pattern 'swift-bundler-*-macos-universal*'
+        shasum -a 256 -c swift-bundler-*-macos-universal.sha256
+        mv swift-bundler-*-macos-universal swift-bundler
+        rm swift-bundler-*-macos-universal.sha256
+        chmod +x swift-bundler
+        ./swift-bundler --version
     - name: Install Swiftly
       shell: bash
       run: |

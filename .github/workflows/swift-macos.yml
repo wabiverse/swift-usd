@@ -17,78 +17,81 @@ jobs:
       - name: 🦦 Install Swift Bundler
         env:
           GH_TOKEN: ${{ github.token }}
+          SWIFT_BUNDLER_TAG: v3.1.0-furby.1
         run: |
-          gh release download --repo moreSwift/swift-bundler --pattern 'swift-bundler-*-macos-universal' --output swift-bundler
-          chmod +x ./swift-bundler
-          sudo mv ./swift-bundler /usr/local/bin/
+          gh release download "$SWIFT_BUNDLER_TAG" --repo furbytm/swift-bundler --pattern 'swift-bundler-*-macos-universal*'
+          shasum -a 256 -c swift-bundler-*-macos-universal.sha256
+          chmod +x swift-bundler-*-macos-universal
+          sudo mv swift-bundler-*-macos-universal /usr/local/bin/swift-bundler
+          rm swift-bundler-*-macos-universal.sha256
           swift-bundler --version
       - name: 📦 Build & Bundle
         run: swift-bundler bundle UsdView -c release
-      - name: 📚 Build Monolithic Library
-        run: set -o pipefail && swift build -c release --build-system swiftbuild --product swiftusd_m --arch arm64 | xcbeautify --preserve-unbeautified --renderer github-actions
-      - name: 📂 Create Single Shared C++ Include Directory
-        run: |
-          find Sources .build/checkouts \( -path "*/include/*.h" -o -path "*/include/*.modulemap" \) | while read f; do
-            rel="${f#*/include/}"
-            dest="/tmp/artifacts/include/$rel"
-            mkdir -p "$(dirname "$dest")"
-            cp -f "$f" "$dest"
-          done
-      - name: 📋 Generate Build Metadata
-        run: |
-          USD_VER=$(grep 'define PXR_VERSION' Sources/pxr/include/pxr/pxrns.h | grep -o '[0-9]*')
-          USD_MAJOR=$((USD_VER / 100))
-          USD_MINOR=$(printf "%02d" $((USD_VER % 100)))
-          USD_VERSION="$USD_MAJOR.$USD_MINOR"
-          SWIFT_VERSION="$(swift --version 2>&1 | head -1)"
-          GIT_COMMIT="$(git rev-parse HEAD)"
-          GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      # - name: 📚 Build Monolithic Library
+      #   run: set -o pipefail && swift build -c release --build-system swiftbuild --product swiftusd_m --arch arm64 | xcbeautify --preserve-unbeautified --renderer github-actions
+      # - name: 📂 Create Single Shared C++ Include Directory
+      #   run: |
+      #     find Sources .build/checkouts \( -path "*/include/*.h" -o -path "*/include/*.modulemap" \) | while read f; do
+      #       rel="${f#*/include/}"
+      #       dest="/tmp/artifacts/include/$rel"
+      #       mkdir -p "$(dirname "$dest")"
+      #       cp -f "$f" "$dest"
+      #     done
+      # - name: 📋 Generate Build Metadata
+      #   run: |
+      #     USD_VER=$(grep 'define PXR_VERSION' Sources/pxr/include/pxr/pxrns.h | grep -o '[0-9]*')
+      #     USD_MAJOR=$((USD_VER / 100))
+      #     USD_MINOR=$(printf "%02d" $((USD_VER % 100)))
+      #     USD_VERSION="$USD_MAJOR.$USD_MINOR"
+      #     SWIFT_VERSION="$(swift --version 2>&1 | head -1)"
+      #     GIT_COMMIT="$(git rev-parse HEAD)"
+      #     GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      #     BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-          mkdir -p /tmp/artifacts/lib/pkgconfig /tmp/artifacts/lib/cmake/SwiftUSD
+      #     mkdir -p /tmp/artifacts/lib/pkgconfig /tmp/artifacts/lib/cmake/SwiftUSD
 
-          cat > /tmp/artifacts/build-info.json << EOF
-          {
-            "usd_version": "$USD_VERSION",
-            "swift_version": "$SWIFT_VERSION",
-            "git_commit": "$GIT_COMMIT",
-            "git_branch": "$GIT_BRANCH",
-            "build_date": "$BUILD_DATE",
-            "platform": "macos",
-            "arch": "arm64",
-            "configuration": "release"
-          }
-          EOF
+      #     cat > /tmp/artifacts/build-info.json << EOF
+      #     {
+      #       "usd_version": "$USD_VERSION",
+      #       "swift_version": "$SWIFT_VERSION",
+      #       "git_commit": "$GIT_COMMIT",
+      #       "git_branch": "$GIT_BRANCH",
+      #       "build_date": "$BUILD_DATE",
+      #       "platform": "macos",
+      #       "arch": "arm64",
+      #       "configuration": "release"
+      #     }
+      #     EOF
 
-          cat > /tmp/artifacts/lib/pkgconfig/SwiftUSD.pc << EOF
-          prefix=/usr/local
-          libdir=\${prefix}/lib
-          includedir=\${prefix}/include
+      #     cat > /tmp/artifacts/lib/pkgconfig/SwiftUSD.pc << EOF
+      #     prefix=/usr/local
+      #     libdir=\${prefix}/lib
+      #     includedir=\${prefix}/include
 
-          Name: SwiftUSD
-          Description: OpenUSD monolithic static library for C++ and Swift consumers
-          Version: $USD_VERSION
-          Libs: -L\${libdir} -lswiftusd_m
-          Cflags: -I\${includedir}
-          EOF
+      #     Name: SwiftUSD
+      #     Description: OpenUSD monolithic static library for C++ and Swift consumers
+      #     Version: $USD_VERSION
+      #     Libs: -L\${libdir} -lswiftusd_m
+      #     Cflags: -I\${includedir}
+      #     EOF
 
-          cat > /tmp/artifacts/lib/cmake/SwiftUSD/SwiftUSDConfig.cmake << EOF
-          set(SwiftUSD_VERSION $USD_VERSION)
-          set(SwiftUSD_INCLUDE_DIRS "\${CMAKE_CURRENT_LIST_DIR}/../../../include")
-          set(SwiftUSD_LIBRARY_DIRS "\${CMAKE_CURRENT_LIST_DIR}/../../..")
-          set(SwiftUSD_LIBRARIES swiftusd_m)
-          set(SwiftUSD_LINK_FLAGS "-Wl,-all_load -lswiftusd_m")
-          EOF
+      #     cat > /tmp/artifacts/lib/cmake/SwiftUSD/SwiftUSDConfig.cmake << EOF
+      #     set(SwiftUSD_VERSION $USD_VERSION)
+      #     set(SwiftUSD_INCLUDE_DIRS "\${CMAKE_CURRENT_LIST_DIR}/../../../include")
+      #     set(SwiftUSD_LIBRARY_DIRS "\${CMAKE_CURRENT_LIST_DIR}/../../..")
+      #     set(SwiftUSD_LIBRARIES swiftusd_m)
+      #     set(SwiftUSD_LINK_FLAGS "-Wl,-all_load -lswiftusd_m")
+      #     EOF
       - name: 📦 Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: usdview-release-macos-artifacts
           path: |
-            /tmp/artifacts/include
-            /tmp/artifacts/lib
-            /tmp/artifacts/build-info.json
-            .build/out/Products/Release/libswiftusd_m.a
-            .build/out/Products/Release/*.swiftmodule
-            .build/out/Products/Release/*.bundle
-            .build/out/Products/Release/*.dSYM
+            # /tmp/artifacts/include
+            # /tmp/artifacts/lib
+            # /tmp/artifacts/build-info.json
+            # .build/out/Products/Release/libswiftusd_m.a
+            # .build/out/Products/Release/*.swiftmodule
+            # .build/out/Products/Release/*.bundle
+            # .build/out/Products/Release/*.dSYM
             .build/bundler/apps/UsdView/UsdView.app

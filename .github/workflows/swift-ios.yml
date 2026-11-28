@@ -17,10 +17,13 @@ jobs:
       - name: 🦦 Install Swift Bundler
         env:
           GH_TOKEN: ${{ github.token }}
+          SWIFT_BUNDLER_TAG: v3.1.0-furby.1
         run: |
-          gh release download --repo moreSwift/swift-bundler --pattern 'swift-bundler-*-macos-universal' --output swift-bundler
-          chmod +x ./swift-bundler
-          sudo mv ./swift-bundler /usr/local/bin/
+          gh release download "$SWIFT_BUNDLER_TAG" --repo furbytm/swift-bundler --pattern 'swift-bundler-*-macos-universal*'
+          shasum -a 256 -c swift-bundler-*-macos-universal.sha256
+          chmod +x swift-bundler-*-macos-universal
+          sudo mv swift-bundler-*-macos-universal /usr/local/bin/swift-bundler
+          rm swift-bundler-*-macos-universal.sha256
           swift-bundler --version
       - name: 📦 Build & Bundle
         run: swift-bundler bundle UsdView --platform iOSSimulator
