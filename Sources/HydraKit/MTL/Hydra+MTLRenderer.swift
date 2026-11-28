@@ -428,7 +428,13 @@ public extension Hydra
       // a relative pacing interval on every platform, `atTime` takes an absolute
       // host time and a fixed one in the past has iOS show the first frame and
       // drop every one after it.
-      commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(fps))
+
+      // the simulator sdks have no paced present
+      #if targetEnvironment(simulator)
+        commandBuffer.present(drawable)
+      #else
+        commandBuffer.present(drawable, afterMinimumDuration: 1.0 / Double(fps))
+      #endif
     }
 
     /// (Re)allocates the ping-pong jump-flood targets to match the id AOVs. The field stores

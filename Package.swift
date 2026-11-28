@@ -422,7 +422,6 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/SwiftUsd.git", from: "9.0.0"),
     .package(url: "https://github.com/moreSwift/swift-cross-ui.git", from: "0.11.0"),
     .package(url: "https://github.com/wabiverse/MetaTBB.git", from: "1.0.0"),
     .package(url: "https://github.com/wabiverse/MetaAlembic.git", from: "1.0.0"),
@@ -3017,19 +3016,22 @@ enum Arch
     
     // use apple's precompiled binaries on darwin platforms,
     // build from source elsewhere or if SWIFTUSD_BUILD_FROM_SOURCE=1
-    public static func getOpenUSDTargets() -> [Target.Dependency]
+    public static var usesPrecompiledOpenUSD: Bool
     {
       let isOnAndroid = ProcessInfo.processInfo.environment["SWIFTUSD_ANDROID_SUPPORT_ENABLED"] == "1"
-      
+
       #if os(macOS)
-        let usePrecompiledOpenUSD = ProcessInfo.processInfo.environment["SWIFTUSD_BUILD_FROM_SOURCE"] != "1"
+        return !isOnAndroid && ProcessInfo.processInfo.environment["SWIFTUSD_BUILD_FROM_SOURCE"] != "1"
       #else
         // precompiled binaries aren't yet supported on
         // Linux, Android, Windows, or WebAssembly.
-        let usePrecompiledOpenUSD = false
+        return false
       #endif
-      
-      if isOnAndroid || !usePrecompiledOpenUSD {
+    }
+
+    public static func getOpenUSDTargets() -> [Target.Dependency]
+    {
+      if !usesPrecompiledOpenUSD {
         FileHandle.standardError.write("Building OpenUSD from source\n".data(using: .utf8)!)
         return [
           // ---------- base. ------
@@ -3187,4 +3189,10 @@ enum Arch
       }
     }
   }
+}
+
+// apple's precompiled openusd, fetched only where it's used
+if Arch.OS.usesPrecompiledOpenUSD
+{
+  package.dependencies.append(.package(url: "https://github.com/apple/SwiftUsd.git", from: "9.0.0"))
 }

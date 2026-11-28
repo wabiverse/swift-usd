@@ -10,16 +10,20 @@ jobs:
         os: [macos-26]
         swift: ["6.3.2"]
     runs-on: ${{ matrix.os }}
+    env:
+      SWIFT_COLLECTIVE_DYNAMIC_LIBRARIES: 1
     steps:
       - uses: actions/checkout@v4
       - name: 🦦 Install Swift Bundler
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -o swift-bundler -L https://github.com/wabiverse/wabi-swift-bundler/releases/download/v3.0.5/swift-bundler
+          gh release download --repo moreSwift/swift-bundler --pattern 'swift-bundler-*-macos-universal' --output swift-bundler
           chmod +x ./swift-bundler
-          sudo cp ./swift-bundler /usr/local/bin/
-          rm ./swift-bundler
+          sudo mv ./swift-bundler /usr/local/bin/
+          swift-bundler --version
       - name: 📦 Build & Bundle
-        run: swift build --product UsdView
+        run: swift-bundler bundle UsdView -c debug
       - name: 📚 Build Monolithic Library
         run: swift build --build-system swiftbuild -c debug --product swiftusd_m
       - name: 📂 Create Single Shared C++ Include Directory
